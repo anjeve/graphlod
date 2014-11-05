@@ -17,8 +17,8 @@ import org.jgrapht.graph.AsUndirectedGraph;
 public class GraphFeatures {
 	private DirectedGraph<String, DefaultEdge> graph;
 	private ConnectivityInspector<String, DefaultEdge> c;
-	private ArrayList<Integer> indegrees = new ArrayList<Integer>();
-	private ArrayList<Integer> outdegrees = new ArrayList<Integer>();
+	private ArrayList<Integer> indegrees = new ArrayList<>();
+	private ArrayList<Integer> outdegrees = new ArrayList<>();
 	private Set<String> vertices;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
 
@@ -29,13 +29,13 @@ public class GraphFeatures {
 
 	public boolean isConnected() {
 		if (this.c == null) {
-			this.c = new ConnectivityInspector<String, DefaultEdge>(this.graph);
+			this.c = new ConnectivityInspector<>(this.graph);
 		}
 		return this.c.isGraphConnected();
 	}
 
 	public double getDiameter() {
-		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<String, DefaultEdge>(graph);
+		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(graph);
 		return fw.getDiameter();
 	}
 
@@ -46,7 +46,7 @@ public class GraphFeatures {
 		for (String v : this.vertices) {
 			for (String u : this.vertices) {
 				if (v != u) { // TODO: this probably doesnt work! .equals should be used
-					d = new DijkstraShortestPath<String, DefaultEdge>(this.graph, v, u);
+					d = new DijkstraShortestPath<>(this.graph, v, u);
 					GraphPath<String, DefaultEdge> currentPath = d.getPath();
 					if (longestPath == null || longestPath.getEdgeList().size() < currentPath.getEdgeList().size()) {
 						longestPath = currentPath;
@@ -63,7 +63,7 @@ public class GraphFeatures {
 	}
 
 	public List<Set<String>> getStronglyConnectedSets() {
-		StrongConnectivityInspector<String, DefaultEdge> sci = new StrongConnectivityInspector<String, DefaultEdge>(this.graph);
+		StrongConnectivityInspector<String, DefaultEdge> sci = new StrongConnectivityInspector<>(this.graph);
 		return sci.stronglyConnectedSets();
 	}
 
@@ -87,9 +87,9 @@ public class GraphFeatures {
 
 	public ArrayList<Integer> getEdgeCounts() {
 		if (this.undirectedG == null) {
-			this.undirectedG = new AsUndirectedGraph<String, DefaultEdge>(this.graph);
+			this.undirectedG = new AsUndirectedGraph<>(this.graph);
 		}
-		ArrayList<Integer> edgeCounts = new ArrayList<Integer>();
+		ArrayList<Integer> edgeCounts = new ArrayList<>();
 		for (String vertex : this.vertices) {
 			edgeCounts.add(graph.edgesOf(vertex).size());
 		}
@@ -98,7 +98,7 @@ public class GraphFeatures {
 
 	public int getChromaticNumber() {
 		if (this.undirectedG == null) {
-			this.undirectedG = new AsUndirectedGraph<String, DefaultEdge>(this.graph);
+			this.undirectedG = new AsUndirectedGraph<>(this.graph);
 		}
 		return ChromaticNumber.findGreedyChromaticNumber(this.undirectedG);
 	}

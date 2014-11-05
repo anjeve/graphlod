@@ -13,7 +13,7 @@ import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
 public class Dataset {
-	private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
+	private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
 	private int nrVertex;
 	private int nrEdges;
 
@@ -29,23 +29,21 @@ public class Dataset {
 			throw new RuntimeException(e);
 		}
 
-		ArrayList<String> removeVertices = new ArrayList<String>();
+		ArrayList<String> removeVertices = new ArrayList<>();
 
 		while (nxp.hasNext()) {
 			Node[] nodes = nxp.next();
 			if (nodes.length != 3) {
 				continue;
 			}
-			String subjectUri;
-			String propertyUri;
-			String objectUri;
-			try {
-				objectUri = (new URL(nodes[2].toString())).toString();
-				subjectUri = (new URL(nodes[0].toString())).toString();
-				propertyUri = (new URL(nodes[1].toString())).toString();
-			} catch (MalformedURLException e) {
+			String subjectUri = nodes[0].toString();
+			String propertyUri = nodes[1].toString();
+			String objectUri = nodes[2].toString();
+
+			if (!isValid(subjectUri) || !isValid(propertyUri) || !isValid(objectUri)) {
 				continue;
 			}
+
 			if (subjectUri.equals(objectUri)) {
 				continue; // TODO: why that?
 			}
@@ -86,6 +84,15 @@ public class Dataset {
 			if (g.containsVertex(vertex)) {
 				g.removeVertex(vertex);
 			}
+		}
+	}
+
+	private boolean isValid(String url) {
+		try {
+			URL checked = new URL(url);
+			return true;
+		} catch (MalformedURLException e) {
+			return false;
 		}
 	}
 

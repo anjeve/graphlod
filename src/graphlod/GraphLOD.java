@@ -17,7 +17,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 public class GraphLOD {
-	private static String defaultDatasetLocation = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
+	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 
 	public GraphLOD(String datasetLocation, boolean skipChromaticNumber) {
@@ -42,13 +42,13 @@ public class GraphLOD {
 		List<Set<String>> sets = graphFeatures.getConnectedSets();
 		System.out.println("Connected sets: " + formatInt(sets.size()));
 
-		ArrayList<Integer> componentSizes = new ArrayList<Integer>();
+		ArrayList<Integer> componentSizes = new ArrayList<>();
 		for (Set<String> component : sets) {
 			componentSizes.add(component.size());
 		}
 		Collections.sort(componentSizes);
 
-		Set<Integer> uniqComponentSizes = new HashSet<Integer>(componentSizes);
+		Set<Integer> uniqComponentSizes = new HashSet<>(componentSizes);
 		System.out.println("  Components (and sizes): ");
 		for (Integer integer : uniqComponentSizes) {
 			int freq = Collections.frequency(componentSizes, integer);
@@ -60,13 +60,13 @@ public class GraphLOD {
 		List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
 		System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
 
-		ArrayList<Integer> sciSizes = new ArrayList<Integer>();
+		ArrayList<Integer> sciSizes = new ArrayList<>();
 		for (Set<String> component : sci_sets) {
 			sciSizes.add(component.size());
 		}
 		Collections.sort(componentSizes);
 
-		Set<Integer> uniqSCSizes = new HashSet<Integer>(sciSizes);
+		Set<Integer> uniqSCSizes = new HashSet<>(sciSizes);
 		System.out.println("  Components (and sizes): ");
 		for (Integer integer : uniqSCSizes) {
 			int freq = Collections.frequency(sciSizes, integer);
@@ -118,7 +118,7 @@ public class GraphLOD {
 	public static void main(final String[] args) {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
-		parser.addArgument("database").nargs("?").setDefault(defaultDatasetLocation);
+		parser.addArgument("database").nargs("?").setDefault(DEFAULT_DATASET_LOCATION);
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
 		Namespace result = null;
 		try {
