@@ -18,17 +18,20 @@ public class Dataset {
 	private int nrEdges;
 
 	public Dataset(String dataset) {
-		readTriples(dataset);
-	}
-
-	private void readTriples(String dataset) {
-		NxParser nxp;
 		try {
-			nxp = new NxParser(new FileInputStream(dataset)/*, false*/);
+			NxParser nxp = new NxParser(new FileInputStream(dataset));
+			readTriples(nxp);
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
+	}
 
+	public Dataset(Iterable<String> lines) {
+		NxParser nxp = new NxParser(lines);
+		readTriples(nxp);
+	}
+
+	private void readTriples(NxParser nxp) {
 		ArrayList<String> removeVertices = new ArrayList<>();
 
 		while (nxp.hasNext()) {
@@ -56,9 +59,13 @@ public class Dataset {
 					removeVertices.add(subjectUri);
 					removeVertices.add(objectUri);
 				}
+			} else if (propertyUri.equals("http://www.w3.org/2002/07/owl#equivalentClass")) {
+				removeVertices.add(subjectUri);
+				removeVertices.add(objectUri);
 			} else {
 				// TODO exclude schema (properties, classes)
 				// list of subject uris that have one of these properties:
+
 				// remove them also afterwards
 
 				if (!g.containsVertex(subjectUri)) {

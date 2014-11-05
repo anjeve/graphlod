@@ -45,7 +45,7 @@ public class GraphFeatures {
 		GraphPath<String, DefaultEdge> longestPath = null;
 		for (String v : this.vertices) {
 			for (String u : this.vertices) {
-				if (v != u) { // TODO: this probably doesnt work! .equals should be used
+				if (v != u) {
 					d = new DijkstraShortestPath<>(this.graph, v, u);
 					GraphPath<String, DefaultEdge> currentPath = d.getPath();
 					if (longestPath == null || longestPath.getEdgeList().size() < currentPath.getEdgeList().size()) {
