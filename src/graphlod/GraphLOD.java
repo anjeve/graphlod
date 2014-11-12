@@ -24,7 +24,7 @@ public class GraphLOD {
 		long t1 = System.currentTimeMillis();
 		Dataset dataset = new Dataset(datasetLocation);
 		//DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
-		GraphFeatures graphFeatures = new GraphFeatures(dataset);
+		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
 		long t2 = System.currentTimeMillis();
 		System.out.println("Loading the dataset took " + (t2 - t1) + " milliseconds to execute.");

@@ -1,11 +1,13 @@
 package graphlod;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.jgrapht.alg.ChromaticNumber;
 import org.jgrapht.alg.ConnectivityInspector;
@@ -13,25 +15,25 @@ import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.alg.StrongConnectivityInspector;
 import org.jgrapht.graph.AsUndirectedGraph;
+import org.jgrapht.graph.DefaultDirectedGraph;
 
 public class GraphFeatures {
 	private DirectedGraph<String, DefaultEdge> graph;
-	private ConnectivityInspector<String, DefaultEdge> c;
+	private ConnectivityInspector<String, DefaultEdge> connectivity;
 	private ArrayList<Integer> indegrees = new ArrayList<>();
 	private ArrayList<Integer> outdegrees = new ArrayList<>();
 	private Set<String> vertices;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
 
-	public GraphFeatures(Dataset dataset) {
-		this.graph = dataset.getGraph();
+	public GraphFeatures(DirectedGraph<String, DefaultEdge> graph) {
+		this.graph = graph;
 		this.vertices = this.graph.vertexSet();
+		this.connectivity = new ConnectivityInspector<>(this.graph);
+		this.undirectedG = new AsUndirectedGraph<>(this.graph);
 	}
 
 	public boolean isConnected() {
-		if (this.c == null) {
-			this.c = new ConnectivityInspector<>(this.graph);
-		}
-		return this.c.isGraphConnected();
+		return this.connectivity.isGraphConnected();
 	}
 
 	public double getDiameter() {
@@ -48,7 +50,7 @@ public class GraphFeatures {
 				if (v != u) {
 					d = new DijkstraShortestPath<>(this.graph, v, u);
 					GraphPath<String, DefaultEdge> currentPath = d.getPath();
-					if (longestPath == null || longestPath.getEdgeList().size() < currentPath.getEdgeList().size()) {
+					if (currentPath != null && (longestPath == null || longestPath.getEdgeList().size() < currentPath.getEdgeList().size())) {
 						longestPath = currentPath;
 					}
 				}
@@ -58,8 +60,33 @@ public class GraphFeatures {
 	}
 
 	public List<Set<String>> getConnectedSets() {
-		isConnected();
-		return this.c.connectedSets();
+		return this.connectivity.connectedSets();
+	}
+
+	/**
+	 * Creates a new graph for each connected component and adds each to a new GraphFeature instance.
+	 */
+	public List<GraphFeatures> getConnectedGraphFeatures() {
+		List<Set<String>> sets = this.connectivity.connectedSets();
+		if (sets.size() <= 1) {
+			return Arrays.asList(this);
+		}
+		List<GraphFeatures> connectedSubgraphFeatures = new ArrayList<>();
+
+		for (Set<String> set : sets) {
+			DirectedGraph<String, DefaultEdge> subgraph = new DefaultDirectedGraph<>(DefaultEdge.class);
+			for (String vertex : set) {
+				subgraph.addVertex(vertex);
+			}
+			for (String vertex: set) {
+				Set<DefaultEdge> edges = graph.outgoingEdgesOf(vertex);
+				for (DefaultEdge edge : edges) {
+					subgraph.addEdge(vertex, (String)edge.getTarget(), edge);
+				}
+			}
+			connectedSubgraphFeatures.add(new GraphFeatures(subgraph));
+		}
+		return connectedSubgraphFeatures;
 	}
 
 	public List<Set<String>> getStronglyConnectedSets() {
@@ -86,9 +113,6 @@ public class GraphFeatures {
 	}
 
 	public ArrayList<Integer> getEdgeCounts() {
-		if (this.undirectedG == null) {
-			this.undirectedG = new AsUndirectedGraph<>(this.graph);
-		}
 		ArrayList<Integer> edgeCounts = new ArrayList<>();
 		for (String vertex : this.vertices) {
 			edgeCounts.add(graph.edgesOf(vertex).size());
@@ -97,9 +121,6 @@ public class GraphFeatures {
 	}
 
 	public int getChromaticNumber() {
-		if (this.undirectedG == null) {
-			this.undirectedG = new AsUndirectedGraph<>(this.graph);
-		}
 		return ChromaticNumber.findGreedyChromaticNumber(this.undirectedG);
 	}
 }

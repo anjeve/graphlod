@@ -1,6 +1,8 @@
 package graphlod;
 
 
+import static graphlod.TestUtils.createLiteralStatement;
+import static graphlod.TestUtils.createStatement;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -31,15 +33,10 @@ public class DatasetTest {
     @Test
     public void literalsDontCount() {
         lines.add(createStatement("a", "p1", "b"));
-        lines.add("<http://%s> <http://%s> \"literal\" .");
+        lines.add(createLiteralStatement("a", "p1", "some literal"));
         Dataset dataset = new Dataset(lines);
 
         assertThat(dataset.getVertices(), equalTo(2));
         assertThat(dataset.getEdges(), equalTo(1));
-    }
-
-
-    private String createStatement(String subject, String predicate, String object) {
-        return String.format("<http://%s> <http://%s> <http://%s> .", subject, predicate, object);
     }
 }

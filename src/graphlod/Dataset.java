@@ -53,7 +53,7 @@ public class Dataset {
 
 			if (propertyUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {
 				if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")) {
-					removeVertices.add(subjectUri);
+					removeVertices.add(subjectUri);  // TODO: why remove the subject?
 					removeVertices.add(objectUri);
 				} else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class")) {
 					removeVertices.add(subjectUri);
