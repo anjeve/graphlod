@@ -7,16 +7,13 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class GraphFeaturesTest {
@@ -26,7 +23,7 @@ public class GraphFeaturesTest {
 
     @Before
     public void setup() {
-        /*          -> c
+        /*          -> c -> e
                   /
             a -> b <-> d
          */
@@ -34,7 +31,8 @@ public class GraphFeaturesTest {
                 createStatement("a", "p1", "b"),
                 createStatement("b", "p1", "c"),
                 createStatement("b", "p1", "d"),
-                createStatement("d", "p1", "b")));
+                createStatement("d", "p1", "b"),
+                createStatement("c", "p1", "e")));
         features1 = new GraphFeatures(ds1.getGraph());
 
         /*             / e <
@@ -58,27 +56,27 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetDiameter() throws Exception {
-        assertThat(features1.getDiameter(), equalTo(2.0));
-        assertThat(features1.getDiameter(), equalTo(2.0));
+        assertThat(features1.getDiameter(), equalTo(3.0));
+        assertThat(features2.getDiameter(), equalTo(2.0));
 
     }
 
     @Test
     public void testGetEdgeCounts() throws Exception {
-        assertThat(features1.getEdgeCounts(), contains(1, 4, 1, 2));
+        assertThat(features1.getEdgeCounts(), contains(1, 4, 2, 2, 1));
         assertThat(features2.getEdgeCounts(), contains(1, 1, 2, 2, 2));
 
     }
 
     @Test
     public void testGetIndegrees() throws Exception {
-        assertThat(features1.getIndegrees(), contains(0, 2, 1, 1));
+        assertThat(features1.getIndegrees(), contains(0, 2, 1, 1, 1));
         assertThat(features2.getIndegrees(), contains(0, 1, 1, 1, 1));
     }
 
     @Test
     public void getOutdegrees() throws Exception {
-        assertThat(features1.getOutdegrees(), contains(1, 2, 0, 1));
+        assertThat(features1.getOutdegrees(), contains(1, 2, 1, 1, 0));
         assertThat(features2.getOutdegrees(), contains(1, 0, 1, 1, 1));
     }
 
@@ -88,7 +86,8 @@ public class GraphFeaturesTest {
                 containsInAnyOrder(
                         contains(url("a")),
                         contains(url("b"), url("d")),
-                        contains(url("c"))));
+                        contains(url("c")),
+                        contains(url("e"))));
         assertThat(features2.getStronglyConnectedSets(),
                 containsInAnyOrder(
                         contains(url("a")),
@@ -98,7 +97,8 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedSets() throws Exception {
-        assertThat(features1.getConnectedSets(), contains(containsInAnyOrder(url("a"), url("b"), url("c"), url("d"))));
+        assertThat(features1.getConnectedSets(), contains(
+                containsInAnyOrder(url("a"), url("b"), url("c"), url("d"), url("e"))));
         assertThat(features2.getConnectedSets(), contains(
                 containsInAnyOrder(url("a"), url("b")),
                 containsInAnyOrder(url("c"), url("d"), url("e"))));
@@ -106,7 +106,10 @@ public class GraphFeaturesTest {
 
     @Test
     public void testDiameterPath() throws Exception {
-        assertThat(features1.diameterPath(), is(not(nullValue())));
+        assertThat(features1.diameterPath().getStartVertex(), equalTo(url("a")));
+        assertThat(features1.diameterPath().getEndVertex(), equalTo(url("e")));
+        assertThat(features1.diameterPath().getEdgeList(), hasSize(3));
+
         assertThat(features2.diameterPath(), is(nullValue()));
     }
 
@@ -125,5 +128,22 @@ public class GraphFeaturesTest {
     public void testGetConnectedGraphFeatures2() throws Exception {
         List<GraphFeatures> components = features2.getConnectedGraphFeatures();
         assertThat(components, hasSize(2));
+        assertThat(components.get(0).getDiameter(), equalTo(1.0));
+        assertThat(components.get(0).isConnected(), equalTo(true));
+
+        assertThat(components.get(1).getDiameter(), equalTo(2.0));
+        assertThat(components.get(1).isConnected(), equalTo(true));
+        assertThat(components.get(1).getBiConnectedSets(), contains(contains(url("c"), url("d"), url("e"))));
+    }
+
+    @Test
+    public void testGetBiConnectedSets() throws Exception {
+        assertThat(features1.getBiConnectedSets(), containsInAnyOrder(
+                contains(url("a"), url("b")),
+                contains(url("b"), url("c")),
+                contains(url("b"), url("d")),
+                contains(url("c"), url("e"))));
+
+        assertThat(features2.getBiConnectedSets(), is(nullValue()));
     }
 }

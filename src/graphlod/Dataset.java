@@ -77,7 +77,10 @@ public class Dataset {
 					nrVertex += 1;
 				}
 				if (g instanceof DirectedGraph) {
-					g.addEdge(subjectUri, objectUri);
+					DefaultEdge e = new DefaultEdge();
+					e.setSource(subjectUri);
+					e.setTarget(objectUri);
+					g.addEdge(subjectUri, objectUri,e);
 					nrEdges += 1;
 				} else {
 					if (!g.containsEdge(subjectUri, objectUri) && !g.containsEdge(objectUri, subjectUri)) {

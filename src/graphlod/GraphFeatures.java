@@ -9,6 +9,7 @@ import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
+import org.jgrapht.alg.BiconnectivityInspector;
 import org.jgrapht.alg.ChromaticNumber;
 import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.alg.DijkstraShortestPath;
@@ -92,6 +93,14 @@ public class GraphFeatures {
 	public List<Set<String>> getStronglyConnectedSets() {
 		StrongConnectivityInspector<String, DefaultEdge> sci = new StrongConnectivityInspector<>(this.graph);
 		return sci.stronglyConnectedSets();
+	}
+
+	public Set<Set<String>> getBiConnectedSets() {
+		if(!isConnected()) {
+			return null;
+		}
+		BiconnectivityInspector<String, DefaultEdge> bici = new BiconnectivityInspector<>(this.undirectedG);
+		return bici.getBiconnectedVertexComponents();
 	}
 
 	public List<Integer> getIndegrees() {
