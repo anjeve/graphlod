@@ -10,6 +10,8 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Stopwatch;
+
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
@@ -21,18 +23,17 @@ public class GraphLOD {
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 
 	public GraphLOD(String datasetLocation, boolean skipChromaticNumber) {
-		long t1 = System.currentTimeMillis();
+		Stopwatch sw = Stopwatch.createStarted();
 		Dataset dataset = new Dataset(datasetLocation);
 		//DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
 		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
-		long t2 = System.currentTimeMillis();
-		System.out.println("Loading the dataset took " + (t2 - t1) + " milliseconds to execute.");
+		System.out.println("Loading the dataset took " + sw + " to execute.");
 
 		System.out.println("Vertices: " + formatInt(dataset.getVertices()));
 		System.out.println("Edges: " + formatInt(dataset.getEdges()));
 
-		long t5 = System.currentTimeMillis();
+		sw = Stopwatch.createStarted();
 		if (graphFeatures.isConnected()) {
 			System.out.println("Connectivity: yes");
 		} else {
@@ -75,40 +76,34 @@ public class GraphLOD {
 
 
 		long t6 = System.currentTimeMillis();
-		System.out.println("Getting the connectivity took " + (t6 - t5) + " milliseconds to execute.");
+		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
 		if (graphFeatures.isConnected()) {
-			long t3 = System.currentTimeMillis();
+			sw = Stopwatch.createStarted();
 			double diameter = graphFeatures.getDiameter();
 			System.out.println("Diameter: " + diameter);
-			long t4 = System.currentTimeMillis();
-			System.out.println("Getting the diameter took " + (t4 - t3) + " milliseconds to execute.");
+			System.out.println("Getting the diameter took " + sw + " to execute.");
 		}
 
-		System.out.println("Average indegree: " + calculateAverage(graphFeatures.getIndegrees()));
-		System.out.println("Average outdegree: " + calculateAverage(graphFeatures.getOutdegrees()));
+		List<Integer> indegrees = graphFeatures.getIndegrees();
+		System.out.printf("Average indegree: %.3f\n", CollectionAggregates.average(indegrees));
+		System.out.println("Max indegree: " + CollectionAggregates.max(indegrees));
+		System.out.println("Min indegree: " + CollectionAggregates.min(indegrees));
+		List<Integer> outdegrees = graphFeatures.getOutdegrees();
+		System.out.printf("Average outdegree: %.3f\n", CollectionAggregates.average(outdegrees));
+		System.out.println("Max outdegree: " + CollectionAggregates.max(outdegrees));
+		System.out.println("Min outdegree: " + CollectionAggregates.min(outdegrees));
 
 		ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
-		System.out.println("Average links: " + calculateAverage(edgeCounts));
+		System.out.printf("Average links: %.3f\n", CollectionAggregates.average(edgeCounts));
 
 		if (!skipChromaticNumber) {
 			long t7 = System.currentTimeMillis();
 			int cN = graphFeatures.getChromaticNumber();
 			System.out.println("Chromatic Number: " + cN);
 			long t8 = System.currentTimeMillis();
-			System.out.println("Getting the Chromatic Number took " + (t8 - t7) + " milliseconds to execute.");
+			System.out.println("Getting the Chromatic Number took " + (t8 - t7) + " to execute.");
 		}
-	}
-
-	private double calculateAverage(List<Integer> marks) {
-		Integer sum = 0;
-		if (!marks.isEmpty()) {
-			for (Integer mark : marks) {
-				sum += mark;
-			}
-			return sum.doubleValue() / marks.size();
-		}
-		return sum;
 	}
 
 	private String formatInt(int integer) {
@@ -118,7 +113,7 @@ public class GraphLOD {
 	public static void main(final String[] args) {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
-		parser.addArgument("database").nargs("?").setDefault(DEFAULT_DATASET_LOCATION);
+		parser.addArgument("dataset").nargs("?").setDefault(DEFAULT_DATASET_LOCATION);
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
 		Namespace result = null;
 		try {
@@ -127,7 +122,7 @@ public class GraphLOD {
 			parser.handleError(e);
 			System.exit(1);
 		}
-		new GraphLOD(result.getString("database"), result.getBoolean("skipChromatic"));
+		new GraphLOD(result.getString("dataset"), result.getBoolean("skipChromatic"));
 	}
 
 }

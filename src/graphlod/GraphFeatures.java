@@ -2,6 +2,7 @@ package graphlod;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -67,7 +68,7 @@ public class GraphFeatures {
 	/**
 	 * Creates a new graph for each connected component and adds each to a new GraphFeature instance.
 	 */
-	public List<GraphFeatures> getConnectedGraphFeatures() {
+	public List<GraphFeatures> getConnectedSubGraphFeatures() {
 		List<Set<String>> sets = this.connectivity.connectedSets();
 		if (sets.size() <= 1) {
 			return Arrays.asList(this);
