@@ -1,11 +1,13 @@
 package graphlod;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 
+import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -18,6 +20,8 @@ public class Dataset {
 	private int nrEdges;
 
 	public Dataset(String dataset) {
+		Validate.notNull(dataset);
+		Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
 		try {
 			NxParser nxp = new NxParser(new FileInputStream(dataset));
 			readTriples(nxp);
