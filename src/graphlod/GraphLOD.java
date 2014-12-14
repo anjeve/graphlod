@@ -2,6 +2,7 @@ package graphlod;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -23,9 +24,9 @@ public class GraphLOD {
 	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 
-	public GraphLOD(String datasetLocation, boolean skipChromaticNumber, Collection<String> excludedNamespaces) {
+	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces) {
 		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = new Dataset(datasetLocation, excludedNamespaces);
+		Dataset dataset = new Dataset(datasetLocations, excludedNamespaces);
 		//DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
 		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
@@ -114,9 +115,9 @@ public class GraphLOD {
 	public static void main(final String[] args) {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
-		parser.addArgument("dataset").nargs("?").setDefault(DEFAULT_DATASET_LOCATION);
+		parser.addArgument("dataset").nargs("*").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
+		parser.addArgument("--excludedNamespace").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
-		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
 		Namespace result = null;
 		try {
 			result = parser.parseArgs(args);
@@ -124,8 +125,8 @@ public class GraphLOD {
 			parser.handleError(e);
 			System.exit(1);
 		}
-		List<String> excludedNamespaces = result.getList("excludedNamespaces");
-		String dataset = result.getString("dataset");
+		List<String> excludedNamespaces = result.getList("excludedNamespace");
+		List<String> dataset = result.getList("dataset");
 		boolean skipChromatic = result.getBoolean("skipChromatic");
 
 		System.out.println("reading: " + dataset);

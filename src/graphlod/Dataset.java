@@ -7,6 +7,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
@@ -18,32 +20,37 @@ import org.semanticweb.yars.nx.parser.NxParser;
 public class Dataset {
 	private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
 	private final Collection<String> excludedNamespaces;
-	private int vertexCount;
-	private int edgeCount;
+	private int vertexCount = 0;
+	private int edgeCount = 0;
+	private Set<String> removeVertices = new HashSet<>();
 
-	public Dataset(String dataset, Collection<String> excludedNamespaces) {
-		Validate.notNull(dataset);
-		Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
+	public Dataset(Collection<String> datasets, Collection<String> excludedNamespaces) {
+		Validate.notNull(datasets);
 		Validate.notNull(excludedNamespaces);
-		NxParser nxp;
-		try {
-			nxp = new NxParser(new FileInputStream(dataset));
-		} catch (FileNotFoundException e) {
-			throw new RuntimeException(e);
-		}
 		this.excludedNamespaces = excludedNamespaces;
-		readTriples(nxp);
+
+		for(String dataset: datasets) {
+			Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
+			NxParser nxp;
+			try {
+				nxp = new NxParser(new FileInputStream(dataset));
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException(e);
+			}
+			readTriples(nxp);
+			System.out.println("finished reading " + dataset);
+		}
+		cleanup();
 	}
 
 	Dataset(Iterable<String> lines, Collection<String> excludedNamespaces) {
 		NxParser nxp = new NxParser(lines);
 		this.excludedNamespaces = excludedNamespaces;
 		readTriples(nxp);
+		cleanup();
 	}
 
 	private void readTriples(NxParser nxp) {
-		ArrayList<String> removeVertices = new ArrayList<>();
-
 		while (nxp.hasNext()) {
 			Node[] nodes = nxp.next();
 			if (nodes.length != 3) {
@@ -112,6 +119,9 @@ public class Dataset {
 				}
 			}
 		}
+	}
+
+	private void cleanup() {
 		for (String vertex : removeVertices) {
 			if (g.containsVertex(vertex)) {
 				g.removeVertex(vertex);
