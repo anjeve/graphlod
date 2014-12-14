@@ -10,6 +10,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,7 +32,7 @@ public class GraphFeaturesTest2 {
 
                 createStatement("c", "p1", "d"),
                 createStatement("d", "p1", "e"),
-                createStatement("e", "p1", "c")));
+                createStatement("e", "p1", "c")), new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
     }
 
@@ -88,7 +89,7 @@ public class GraphFeaturesTest2 {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        List<GraphFeatures> components = features.getConnectedGraphFeatures();
+        List<GraphFeatures> components = features.getConnectedSubGraphFeatures();
         assertThat(components, hasSize(2));
         assertThat(components.get(0).getDiameter(), equalTo(1.0));
         assertThat(components.get(0).isConnected(), equalTo(true));

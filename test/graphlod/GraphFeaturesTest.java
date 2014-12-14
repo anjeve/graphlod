@@ -6,10 +6,9 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.junit.Before;
@@ -30,7 +29,7 @@ public class GraphFeaturesTest {
                 createStatement("b", "p1", "c"),
                 createStatement("b", "p1", "d"),
                 createStatement("d", "p1", "b"),
-                createStatement("c", "p1", "e")));
+                createStatement("c", "p1", "e")), new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
 
     }
@@ -91,7 +90,7 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        assertThat(features.getConnectedGraphFeatures(), contains(features));
+        assertThat(features.getConnectedSubGraphFeatures(), contains(features));
     }
 
     @Test

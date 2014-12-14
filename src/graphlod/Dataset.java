@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
@@ -15,23 +16,28 @@ import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
 public class Dataset {
-	private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
-	private int nrVertex;
-	private int nrEdges;
+	private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+	private final Collection<String> excludedNamespaces;
+	private int vertexCount;
+	private int edgeCount;
 
-	public Dataset(String dataset) {
+	public Dataset(String dataset, Collection<String> excludedNamespaces) {
 		Validate.notNull(dataset);
 		Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
+		Validate.notNull(excludedNamespaces);
+		NxParser nxp;
 		try {
-			NxParser nxp = new NxParser(new FileInputStream(dataset));
-			readTriples(nxp);
+			nxp = new NxParser(new FileInputStream(dataset));
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
+		this.excludedNamespaces = excludedNamespaces;
+		readTriples(nxp);
 	}
 
-	public Dataset(Iterable<String> lines) {
+	Dataset(Iterable<String> lines, Collection<String> excludedNamespaces) {
 		NxParser nxp = new NxParser(lines);
+		this.excludedNamespaces = excludedNamespaces;
 		readTriples(nxp);
 	}
 
@@ -55,41 +61,53 @@ public class Dataset {
 				continue; // TODO: why that?
 			}
 
-			if (propertyUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {
+			if(propertyUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {
 				if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")) {
-					removeVertices.add(subjectUri);  // TODO: why remove the subject?
+                    removeVertices.add(subjectUri);
 					removeVertices.add(objectUri);
 				} else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class")) {
 					removeVertices.add(subjectUri);
 					removeVertices.add(objectUri);
 				}
+                // owl:DatatypeProperty
+                // owl:ObjectProperty
 			} else if (propertyUri.equals("http://www.w3.org/2002/07/owl#equivalentClass")) {
 				removeVertices.add(subjectUri);
 				removeVertices.add(objectUri);
 			} else {
-				// TODO exclude schema (properties, classes)
-				// list of subject uris that have one of these properties:
-
-				// remove them also afterwards
+				boolean skip = false;
+				for (String s : excludedNamespaces) {
+					if(subjectUri.startsWith(s)) {
+						removeVertices.add(subjectUri);
+						skip = true;
+					}
+					if (objectUri.startsWith(s)){
+						removeVertices.add(objectUri);
+						skip = true;
+					}
+				}
+				if (skip) {
+					continue;
+				}
 
 				if (!g.containsVertex(subjectUri)) {
 					g.addVertex(subjectUri);
-					nrVertex += 1;
+					vertexCount += 1;
 				}
 				if (!g.containsVertex(objectUri)) {
 					g.addVertex(objectUri);
-					nrVertex += 1;
+					vertexCount += 1;
 				}
 				if (g instanceof DirectedGraph) {
 					DefaultEdge e = new DefaultEdge();
 					e.setSource(subjectUri);
 					e.setTarget(objectUri);
 					g.addEdge(subjectUri, objectUri,e);
-					nrEdges += 1;
+					edgeCount += 1;
 				} else {
 					if (!g.containsEdge(subjectUri, objectUri) && !g.containsEdge(objectUri, subjectUri)) {
 						g.addEdge(subjectUri, objectUri);
-						nrEdges += 1;
+						edgeCount += 1;
 					}
 				}
 			}
@@ -115,10 +133,10 @@ public class Dataset {
 	}
 
 	public int getEdges() {
-		return this.nrEdges;
+		return this.edgeCount;
 	}
 
 	public int getVertices() {
-		return this.nrVertex;
+		return this.vertexCount;
 	}
 }

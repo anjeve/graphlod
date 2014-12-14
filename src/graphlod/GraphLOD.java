@@ -2,6 +2,7 @@ package graphlod;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -22,9 +23,9 @@ public class GraphLOD {
 	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 
-	public GraphLOD(String datasetLocation, boolean skipChromaticNumber) {
+	public GraphLOD(String datasetLocation, boolean skipChromaticNumber, Collection<String> excludedNamespaces) {
 		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = new Dataset(datasetLocation);
+		Dataset dataset = new Dataset(datasetLocation, excludedNamespaces);
 		//DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
 		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
@@ -115,6 +116,7 @@ public class GraphLOD {
 				.defaultHelp(true).description("calculates graph features.");
 		parser.addArgument("dataset").nargs("?").setDefault(DEFAULT_DATASET_LOCATION);
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
+		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
 		Namespace result = null;
 		try {
 			result = parser.parseArgs(args);
@@ -122,7 +124,15 @@ public class GraphLOD {
 			parser.handleError(e);
 			System.exit(1);
 		}
-		new GraphLOD(result.getString("dataset"), result.getBoolean("skipChromatic"));
+		List<String> excludedNamespaces = result.getList("excludedNamespaces");
+		String dataset = result.getString("dataset");
+		boolean skipChromatic = result.getBoolean("skipChromatic");
+
+		System.out.println("reading: " + dataset);
+		System.out.println("skip chromatic: " + skipChromatic);
+		System.out.println("excluded namespaces: " + excludedNamespaces);
+
+		new GraphLOD(dataset, skipChromatic, excludedNamespaces);
 	}
 
 }
