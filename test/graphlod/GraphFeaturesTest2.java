@@ -27,13 +27,23 @@ public class GraphFeaturesTest2 {
             a -> b    v     \
                      c  ->  d
          */
-        Dataset ds = new Dataset(Arrays.asList(
+        Dataset ds = Dataset.fromLines(Arrays.asList(
                 createStatement("a", "p1", "b"),
 
                 createStatement("c", "p1", "d"),
                 createStatement("d", "p1", "e"),
                 createStatement("e", "p1", "c")), new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
+    }
+
+    @Test
+    public void testGetEdgeCount() throws Exception {
+        assertThat(features.getEdgeCount(), equalTo(4));
+    }
+
+    @Test
+    public void testGetVertexCount() throws Exception {
+        assertThat(features.getVertexCount(), equalTo(5));
     }
 
     @Test

@@ -13,6 +13,9 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
+import com.google.common.collect.TreeMultiset;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
@@ -26,14 +29,14 @@ public class GraphLOD {
 
 	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces) {
 		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = new Dataset(datasetLocations, excludedNamespaces);
-		//DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
+		Dataset dataset = Dataset.fromFiles(datasetLocations, excludedNamespaces);
+
 		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
 		System.out.println("Loading the dataset took " + sw + " to execute.");
 
-		System.out.println("Vertices: " + formatInt(dataset.getVertices()));
-		System.out.println("Edges: " + formatInt(dataset.getEdges()));
+		System.out.println("Vertices: " + formatInt(graphFeatures.getVertexCount()));
+		System.out.println("Edges: " + formatInt(graphFeatures.getEdgeCount()));
 
 		sw = Stopwatch.createStarted();
 		if (graphFeatures.isConnected()) {
@@ -42,42 +45,33 @@ public class GraphLOD {
 			System.out.println("Connectivity: no");
 		}
 
-		List<Set<String>> sets = graphFeatures.getConnectedSets();
-		System.out.println("Connected sets: " + formatInt(sets.size()));
+		if (!graphFeatures.isConnected()) {
+			List<GraphFeatures> sets = graphFeatures.getConnectedSubGraphFeatures();
+			System.out.println("Connected sets: " + formatInt(sets.size()));
 
-		ArrayList<Integer> componentSizes = new ArrayList<>();
-		for (Set<String> component : sets) {
-			componentSizes.add(component.size());
+			Multiset<Integer> componentSizes = TreeMultiset.create();
+			for (GraphFeatures component : sets) {
+				componentSizes.add(component.getVertexCount());
+			}
+
+			System.out.println("  Components (and sizes): ");
+			for (Multiset.Entry<Integer> group : componentSizes.entrySet()) {
+				System.out.println("    " + group.getCount() + " x " + group.getElement());
+			}
 		}
-		Collections.sort(componentSizes);
-
-		Set<Integer> uniqComponentSizes = new HashSet<>(componentSizes);
-		System.out.println("  Components (and sizes): ");
-		for (Integer integer : uniqComponentSizes) {
-			int freq = Collections.frequency(componentSizes, integer);
-			System.out.println("    " + freq + " x " + integer);
-		}
-
-//		System.out.println(" Set sizes: " + StringUtils.join(componentSizes,","));
 
 		List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
 		System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
 
-		ArrayList<Integer> sciSizes = new ArrayList<>();
+		Multiset<Integer> sciSizes = TreeMultiset.create();
 		for (Set<String> component : sci_sets) {
 			sciSizes.add(component.size());
 		}
-		Collections.sort(componentSizes);
-
-		Set<Integer> uniqSCSizes = new HashSet<>(sciSizes);
 		System.out.println("  Components (and sizes): ");
-		for (Integer integer : uniqSCSizes) {
-			int freq = Collections.frequency(sciSizes, integer);
-			System.out.println("    " + freq + " x " + integer);
+		for (Multiset.Entry<Integer> group : sciSizes.entrySet()) {
+			System.out.println("    " + group.getCount() + " x " + group.getElement());
 		}
 
-
-		long t6 = System.currentTimeMillis();
 		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
 		if (graphFeatures.isConnected()) {
@@ -100,11 +94,10 @@ public class GraphLOD {
 		System.out.printf("Average links: %.3f\n", CollectionAggregates.average(edgeCounts));
 
 		if (!skipChromaticNumber) {
-			long t7 = System.currentTimeMillis();
+			sw = Stopwatch.createStarted();
 			int cN = graphFeatures.getChromaticNumber();
 			System.out.println("Chromatic Number: " + cN);
-			long t8 = System.currentTimeMillis();
-			System.out.println("Getting the Chromatic Number took " + (t8 - t7) + " to execute.");
+			System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
 		}
 	}
 
@@ -132,6 +125,8 @@ public class GraphLOD {
 		System.out.println("reading: " + dataset);
 		System.out.println("skip chromatic: " + skipChromatic);
 		System.out.println("excluded namespaces: " + excludedNamespaces);
+
+		Locale.setDefault(Locale.US);
 
 		new GraphLOD(dataset, skipChromatic, excludedNamespaces);
 	}

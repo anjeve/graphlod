@@ -24,7 +24,7 @@ public class GraphFeaturesTest {
                   /
             a -> b <-> d
          */
-        Dataset ds = new Dataset(Arrays.asList(
+        Dataset ds = Dataset.fromLines(Arrays.asList(
                 createStatement("a", "p1", "b"),
                 createStatement("b", "p1", "c"),
                 createStatement("b", "p1", "d"),
@@ -32,6 +32,16 @@ public class GraphFeaturesTest {
                 createStatement("c", "p1", "e")), new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
 
+    }
+
+    @Test
+    public void testGetEdgeCount() throws Exception {
+        assertThat(features.getEdgeCount(), equalTo(5));
+    }
+
+    @Test
+    public void testGetVertexCount() throws Exception {
+        assertThat(features.getVertexCount(), equalTo(5));
     }
 
     @Test

@@ -25,11 +25,13 @@ public class GraphFeatures {
 	private ArrayList<Integer> indegrees = new ArrayList<>();
 	private ArrayList<Integer> outdegrees = new ArrayList<>();
 	private Set<String> vertices;
+	private final Set<DefaultEdge> edges;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
 
 	public GraphFeatures(DirectedGraph<String, DefaultEdge> graph) {
 		this.graph = graph;
 		this.vertices = this.graph.vertexSet();
+		this.edges = this.graph.edgeSet();
 		this.connectivity = new ConnectivityInspector<>(this.graph);
 		this.undirectedG = new AsUndirectedGraph<>(this.graph);
 	}
@@ -128,6 +130,14 @@ public class GraphFeatures {
 			edgeCounts.add(graph.edgesOf(vertex).size());
 		}
 		return edgeCounts;
+	}
+
+	public int getVertexCount() {
+		return this.vertices.size();
+	}
+
+	public int getEdgeCount() {
+		return this.edges.size();
 	}
 
 	public int getChromaticNumber() {
