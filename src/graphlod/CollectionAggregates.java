@@ -23,6 +23,9 @@ public class CollectionAggregates {
     }
 
     public static int min(Collection<Integer> collection) {
+        if(collection.isEmpty()) {
+            return 0;
+        }
         int result = Integer.MAX_VALUE;
         for (int element : collection) {
             result = Math.min(result,element);
@@ -31,6 +34,9 @@ public class CollectionAggregates {
     }
 
     public static int max(Collection<Integer> collection) {
+        if(collection.isEmpty()) {
+            return 0;
+        }
         int result = Integer.MIN_VALUE;
         for (int element : collection) {
             result = Math.max(result, element);

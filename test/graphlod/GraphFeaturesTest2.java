@@ -13,6 +13,7 @@ import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -77,12 +78,13 @@ public class GraphFeaturesTest2 {
                 containsInAnyOrder(
                         contains(url("a")),
                         contains(url("b")),
-                        contains(url("c"), url("d"), url("e"))));
+                        containsInAnyOrder(url("c"), url("d"), url("e"))));
     }
 
     @Test
     public void testGetConnectedSets() throws Exception {
-        assertThat(features.getConnectedSets(), contains(
+        List<Set<String>> connectedSets = features.getConnectedSets();
+        assertThat(connectedSets, containsInAnyOrder(
                 containsInAnyOrder(url("a"), url("b")),
                 containsInAnyOrder(url("c"), url("d"), url("e"))));
     }
@@ -106,7 +108,7 @@ public class GraphFeaturesTest2 {
 
         assertThat(components.get(1).getDiameter(), equalTo(2.0));
         assertThat(components.get(1).isConnected(), equalTo(true));
-        assertThat(components.get(1).getBiConnectedSets(), contains(contains(url("c"), url("d"), url("e"))));
+        assertThat(components.get(1).getBiConnectedSets(), contains(containsInAnyOrder(url("c"), url("d"), url("e"))));
     }
 
     @Test

@@ -80,7 +80,7 @@ public class GraphLOD {
 			System.out.println("Diameter: " + diameter);
 			System.out.println("Getting the diameter took " + sw + " to execute.");
 		}
-
+		System.out.println("Vertex Degrees:");
 		List<Integer> indegrees = graphFeatures.getIndegrees();
 		System.out.printf("Average indegree: %.3f\n", CollectionAggregates.average(indegrees));
 		System.out.println("Max indegree: " + CollectionAggregates.max(indegrees));
@@ -108,7 +108,7 @@ public class GraphLOD {
 	public static void main(final String[] args) {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
-		parser.addArgument("dataset").nargs("*").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
+		parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
 		parser.addArgument("--excludedNamespace").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
 		Namespace result = null;

@@ -74,7 +74,7 @@ public class GraphFeaturesTest {
         assertThat(features.getStronglyConnectedSets(),
                 containsInAnyOrder(
                         contains(url("a")),
-                        contains(url("b"), url("d")),
+                        containsInAnyOrder(url("b"), url("d")),
                         contains(url("c")),
                         contains(url("e"))));
     }

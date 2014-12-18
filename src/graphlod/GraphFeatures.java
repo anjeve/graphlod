@@ -22,8 +22,8 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 public class GraphFeatures {
 	private DirectedGraph<String, DefaultEdge> graph;
 	private ConnectivityInspector<String, DefaultEdge> connectivity;
-	private ArrayList<Integer> indegrees = new ArrayList<>();
-	private ArrayList<Integer> outdegrees = new ArrayList<>();
+	private ArrayList<Integer> indegrees = null;
+	private ArrayList<Integer> outdegrees = null;
 	private Set<String> vertices;
 	private final Set<DefaultEdge> edges;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
@@ -107,7 +107,8 @@ public class GraphFeatures {
 	}
 
 	public List<Integer> getIndegrees() {
-		if (this.indegrees.size() == 0) {
+		if (this.indegrees == null) {
+			this.indegrees = new ArrayList<>();
 			for (String vertex : this.vertices) {
 				this.indegrees.add(this.graph.inDegreeOf(vertex));
 			}
@@ -116,7 +117,8 @@ public class GraphFeatures {
 	}
 
 	public List<Integer> getOutdegrees() {
-		if (this.outdegrees.size() == 0) {
+		if (this.outdegrees == null) {
+			this.outdegrees = new ArrayList<>();
 			for (String vertex : this.vertices) {
 				this.outdegrees.add(this.graph.outDegreeOf(vertex));
 			}
