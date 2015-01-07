@@ -1,6 +1,8 @@
 package graphlod;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -94,6 +96,13 @@ public class GraphFeatures {
 			}
 			connectedSubgraphFeatures.add(new GraphFeatures(subgraph));
 		}
+		Collections.sort(connectedSubgraphFeatures, new Comparator<GraphFeatures>() {
+			@Override
+			public int compare(GraphFeatures g1, GraphFeatures g2) {
+				return Integer.compare(g1.getVertexCount(), g2.getVertexCount());
+			}
+		});
+
 		return connectedSubgraphFeatures;
 	}
 

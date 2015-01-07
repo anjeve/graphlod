@@ -25,7 +25,7 @@ public class CollectionUtils {
         return (double)sum(collection) / collection.size();
     }
 
-    public static <T extends Comparable> T min(Collection<T> collection) {
+    public static <T extends Comparable<T>> T min(Collection<T> collection) {
         if(collection.isEmpty()) {
             return null;
         }
@@ -36,7 +36,7 @@ public class CollectionUtils {
         return result;
     }
 
-    public static <T extends Comparable> T max(Collection<T> collection) {
+    public static <T extends Comparable<T>> T max(Collection<T> collection) {
         if(collection.isEmpty()) {
             return null;
         }
@@ -47,11 +47,11 @@ public class CollectionUtils {
         return result;
     }
 
-    public static <T  extends Comparable> List<T> maxValues(List<T> values, int i) {
+    public static <T  extends Comparable<T>> List<T> maxValues(List<T> values, int i) {
         List<T> copy = new ArrayList<>(values);
         Collections.sort(copy);
-        if (copy.size() > 5) {
-            copy = copy.subList(copy.size() - 5, copy.size());
+        if (copy.size() > i) {
+            copy = copy.subList(copy.size() - i, copy.size());
         }
         return copy;
     }

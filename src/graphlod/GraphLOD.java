@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Stopwatch;
@@ -25,7 +26,7 @@ public class GraphLOD {
 	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 
-	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces, float minImportantSubgraphSize) {
+	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
 		Stopwatch sw = Stopwatch.createStarted();
 		Dataset dataset = Dataset.fromFiles(datasetLocations, excludedNamespaces);
 
@@ -78,16 +79,22 @@ public class GraphLOD {
 			System.out.println("Diameter: " + diameter);
 			System.out.println("Getting the diameter took " + sw + " to execute.");
 		} else {
+			sw = Stopwatch.createStarted();
 			List<GraphFeatures> connectedSubgraphs = graphFeatures.getConnectedSubGraphFeatures(minImportantSubgraphSize);
 			for (GraphFeatures subGraph : connectedSubgraphs) {
 				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
 				if (subGraph.getVertexCount() < 1000) {
-					System.out.printf("\t%s edges, %s diameter\n", subGraph.getEdgeCount(), subGraph.getDiameter());
+					System.out.printf("\tedges: %s, diameter: %s\n", subGraph.getEdgeCount(), subGraph.getDiameter());
+				} else {
+					System.out.println("\tGraph too big to show diameter");
 				}
 
-				System.out.printf("\thighest indegrees %s\n", subGraph.maxInDegrees(5));
-				System.out.printf("\thighest outdegrees %s\n", subGraph.maxOutDegrees(5));
+				System.out.println("\thighest indegrees:");
+				System.out.println("\t\t" + StringUtils.join(subGraph.maxInDegrees(importantDegreeCount), "\n\t\t"));
+				System.out.println("\thighest outdegrees:");
+				System.out.println("\t\t" + StringUtils.join(subGraph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
 			}
+			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
 		}
 
 		System.out.println("Vertex Degrees:");
@@ -124,6 +131,7 @@ public class GraphLOD {
 		parser.addArgument("--excludedNamespace").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
 		parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(20);
+		parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
 		Namespace result = null;
 		try {
 			result = parser.parseArgs(args);
@@ -135,16 +143,18 @@ public class GraphLOD {
 		List<String> dataset = result.getList("dataset");
 		boolean skipChromatic = result.getBoolean("skipChromatic");
 		int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
+		int importantDegreeCount = result.getInt("importantDegreeCount");
 
 		System.out.println("reading: " + dataset);
 		System.out.println("skip chromatic: " + skipChromatic);
 		System.out.println("excluded namespaces: " + excludedNamespaces);
 		System.out.println("min important subgraph size: " + minImportantSubgraphSize);
+		System.out.println("number of important degrees: " + importantDegreeCount);
 		System.out.println();
 
 		Locale.setDefault(Locale.US);
 
-		new GraphLOD(dataset, skipChromatic, excludedNamespaces, minImportantSubgraphSize);
+		new GraphLOD(dataset, skipChromatic, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
 	}
 
 }
