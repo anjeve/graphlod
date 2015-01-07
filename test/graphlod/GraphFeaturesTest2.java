@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.GraphPath;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -55,6 +57,11 @@ public class GraphFeaturesTest2 {
     @Test
     public void testGetDiameter() throws Exception {
         assertThat(features.getDiameter(), equalTo(2.0));
+    }
+
+    @Test
+    public void testGetDiameterPath() throws Exception {
+        assertThat(features.diameterPath(), equalTo(null));
     }
 
     @Test
@@ -101,7 +108,7 @@ public class GraphFeaturesTest2 {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        List<GraphFeatures> components = features.getConnectedSubGraphFeatures();
+        List<GraphFeatures> components = features.getConnectedSubGraphFeatures(0.0f);
         assertThat(components, hasSize(2));
         assertThat(components.get(0).getDiameter(), equalTo(1.0));
         assertThat(components.get(0).isConnected(), equalTo(true));

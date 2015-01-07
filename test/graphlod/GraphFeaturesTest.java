@@ -2,15 +2,14 @@ package graphlod;
 
 import static graphlod.TestUtils.createStatement;
 import static graphlod.TestUtils.url;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.GraphPath;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -52,6 +51,13 @@ public class GraphFeaturesTest {
     @Test
     public void testGetDiameter() throws Exception {
         assertThat(features.getDiameter(), equalTo(3.0));
+    }
+
+    @Test
+    public void testGetDiameterPath() throws Exception {
+        GraphPath<String, DefaultEdge> path = features.diameterPath();
+        assertThat(path.getStartVertex(), equalTo(url("a")));
+        assertThat(path.getEndVertex(), equalTo(url("e")));
     }
 
     @Test
@@ -100,7 +106,7 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        assertThat(features.getConnectedSubGraphFeatures(), contains(features));
+        assertThat(features.getConnectedSubGraphFeatures(0.0f), nullValue());
     }
 
     @Test
