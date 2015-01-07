@@ -12,6 +12,7 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
@@ -25,6 +26,7 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public class GraphLOD {
 	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
+	public static final int MAX_SIZE_FOR_DIAMETER = 500;
 
 	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
 		Stopwatch sw = Stopwatch.createStarted();
@@ -74,25 +76,14 @@ public class GraphLOD {
 		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
 		if (graphFeatures.isConnected()) {
-			sw = Stopwatch.createStarted();
-			double diameter = graphFeatures.getDiameter();
-			System.out.println("Diameter: " + diameter);
-			System.out.println("Getting the diameter took " + sw + " to execute.");
+			System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
+			analyzeConnectedGraph(graphFeatures, importantDegreeCount);
 		} else {
 			sw = Stopwatch.createStarted();
 			List<GraphFeatures> connectedSubgraphs = graphFeatures.getConnectedSubGraphFeatures(minImportantSubgraphSize);
 			for (GraphFeatures subGraph : connectedSubgraphs) {
 				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
-				if (subGraph.getVertexCount() < 1000) {
-					System.out.printf("\tedges: %s, diameter: %s\n", subGraph.getEdgeCount(), subGraph.getDiameter());
-				} else {
-					System.out.println("\tGraph too big to show diameter");
-				}
-
-				System.out.println("\thighest indegrees:");
-				System.out.println("\t\t" + StringUtils.join(subGraph.maxInDegrees(importantDegreeCount), "\n\t\t"));
-				System.out.println("\thighest outdegrees:");
-				System.out.println("\t\t" + StringUtils.join(subGraph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
+				analyzeConnectedGraph(subGraph, importantDegreeCount);
 			}
 			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
 		}
@@ -118,6 +109,20 @@ public class GraphLOD {
 			System.out.println("Chromatic Number: " + cN);
 			System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
 		}
+	}
+
+	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount) {
+		Preconditions.checkArgument(graph.isConnected());
+		if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
+			System.out.printf("\tedges: %s, diameter: %s\n", graph.getEdgeCount(), graph.getDiameter());
+		} else {
+			System.out.println("\tGraph too big to show diameter");
+		}
+
+		System.out.println("\thighest indegrees:");
+		System.out.println("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
+		System.out.println("\thighest outdegrees:");
+		System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
 	}
 
 	private String formatInt(int integer) {
