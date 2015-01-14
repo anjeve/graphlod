@@ -28,9 +28,9 @@ public class GraphLOD {
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 	public static final int MAX_SIZE_FOR_DIAMETER = 500;
 
-	public GraphLOD(Collection<String> datasetLocations, boolean skipChromaticNumber, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+	public GraphLOD(Collection<String> datasetFiles, boolean skipChromaticNumber, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
 		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = Dataset.fromFiles(datasetLocations, excludedNamespaces);
+		Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
 
 		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
 
@@ -133,7 +133,8 @@ public class GraphLOD {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
 		parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
-		parser.addArgument("--excludedNamespace").nargs("*").setDefault(Collections.emptyList());
+		parser.addArgument("--namespace").type(String.class).setDefault("");
+		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
 		parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(20);
 		parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
@@ -144,13 +145,15 @@ public class GraphLOD {
 			parser.handleError(e);
 			System.exit(1);
 		}
-		List<String> excludedNamespaces = result.getList("excludedNamespace");
 		List<String> dataset = result.getList("dataset");
+		String namespace = result.getString("namespace");
+		List<String> excludedNamespaces = result.getList("excludedNamespaces");
 		boolean skipChromatic = result.getBoolean("skipChromatic");
 		int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
 		int importantDegreeCount = result.getInt("importantDegreeCount");
 
 		System.out.println("reading: " + dataset);
+		System.out.println("namespace: " + namespace);
 		System.out.println("skip chromatic: " + skipChromatic);
 		System.out.println("excluded namespaces: " + excludedNamespaces);
 		System.out.println("min important subgraph size: " + minImportantSubgraphSize);
@@ -159,7 +162,7 @@ public class GraphLOD {
 
 		Locale.setDefault(Locale.US);
 
-		new GraphLOD(dataset, skipChromatic, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
+		new GraphLOD(dataset, skipChromatic, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
 	}
 
 }

@@ -35,7 +35,7 @@ public class DatasetTest {
     public void literalsDontCount() {
         lines.add(createStatement("a", "p1", "b"));
         lines.add(createLiteralStatement("a", "p1", "some literal"));
-        Dataset dataset = Dataset.fromLines(lines, excluded);
+        Dataset dataset = Dataset.fromLines(lines, "", excluded);
 
         assertThat(dataset.getGraph().vertexSet().size(), equalTo(2));
         assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
@@ -44,12 +44,22 @@ public class DatasetTest {
     @Test
     public void testGetGraph() throws Exception {
         lines.add(createStatement("a", "p1", "b"));
-        Dataset dataset = Dataset.fromLines(lines, excluded);
+        Dataset dataset = Dataset.fromLines(lines, "", excluded);
 
         DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
         Edge edge = graph.getEdge(url("a"),url("b"));
         assertThat(edge.getSource(), equalTo((Object)url("a")));
         assertThat(edge.getTarget(), equalTo((Object)url("b")));
+    }
+
+    public void testNamespace() {
+        lines.add(createStatement("a/Thing", "p1", "b/Other"));
+        lines.add(createStatement("a/Thing", "p1", "a/NotOther"));
+
+        Dataset dataset = Dataset.fromLines(lines, "http://a/", Arrays.asList("http://classes/"));
+        assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a/Thing"),url("a/NotOther")));
+        assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
+        assertThat(dataset.getGraph().getEdge(url("a/Thing"), url("a/NotOther")), notNullValue());
     }
 
     @Test
@@ -58,7 +68,7 @@ public class DatasetTest {
         lines.add(createStatement("a", "p1", "classes/Thing"));
         lines.add(createStatement("a", "p1", "b"));
 
-        Dataset dataset = Dataset.fromLines(lines, Arrays.asList("http://classes/"));
+        Dataset dataset = Dataset.fromLines(lines, "", Arrays.asList("http://classes/"));
         assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a"),url("b")));
         assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
 

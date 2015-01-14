@@ -76,7 +76,7 @@ public class GraphFeatures {
 	public List<GraphFeatures> getConnectedSubGraphFeatures(float minSize) {
 		List<Set<String>> sets = this.connectivity.connectedSets();
 		if (sets.size() <= 1) {
-			return null;
+			return Collections.emptyList();
 		}
 		List<GraphFeatures> connectedSubgraphFeatures = new ArrayList<>();
 

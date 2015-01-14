@@ -32,10 +32,9 @@ public class GraphFeaturesTest2 {
          */
         Dataset ds = Dataset.fromLines(Arrays.asList(
                 createStatement("a", "p1", "b"),
-
                 createStatement("c", "p1", "d"),
                 createStatement("d", "p1", "e"),
-                createStatement("e", "p1", "c")), new ArrayList<String>());
+                createStatement("e", "p1", "c")), "", new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
     }
 

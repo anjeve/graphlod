@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -17,26 +16,31 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
+import com.google.common.base.Preconditions;
+
 public class Dataset {
     private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private String namespace;
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
 
-    private Dataset(Collection<String> excludedNamespaces) {
+    private Dataset(String namespace, Collection<String> excludedNamespaces) {
+        Validate.notNull(namespace, "namespace must not be null");
+        Validate.notNull(excludedNamespaces, "excludedNamespaces must not be null");
+        this.namespace = namespace;
         this.excludedNamespaces = excludedNamespaces;
     }
 
-    static Dataset fromLines(Iterable<String> lines, Collection<String> excludedNamespaces) {
-        Dataset s = new Dataset(excludedNamespaces);
+    static Dataset fromLines(Iterable<String> lines, String namespace, Collection<String> excludedNamespaces) {
+        Dataset s = new Dataset(namespace, excludedNamespaces);
         s.readTriples(new NxParser(lines));
         s.cleanup();
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, Collection<String> excludedNamespaces) {
-        Validate.notNull(datasets);
-        Validate.notNull(excludedNamespaces);
-        Dataset s = new Dataset(excludedNamespaces);
+    public static Dataset fromFiles(Collection<String> datasets, String namespace, Collection<String> excludedNamespaces) {
+        Validate.notNull(datasets, "datasets must not be null");
+        Dataset s = new Dataset(namespace, excludedNamespaces);
 
         for (String dataset : datasets) {
             Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
@@ -84,16 +88,22 @@ public class Dataset {
             } else if (propertyUri.equals("http://www.w3.org/2002/07/owl#equivalentClass")) {
                 removeVertices.add(subjectUri);
                 removeVertices.add(objectUri);
+            } else if (!subjectUri.startsWith(namespace)) {
+                removeVertices.add(subjectUri);
+            } else if (!objectUri.startsWith(namespace)) {
+                removeVertices.add(objectUri);
             } else {
                 boolean skip = false;
                 for (String s : excludedNamespaces) {
                     if (subjectUri.startsWith(s)) {
                         removeVertices.add(subjectUri);
                         skip = true;
+                        break;
                     }
                     if (objectUri.startsWith(s)) {
                         removeVertices.add(objectUri);
                         skip = true;
+                        break;
                     }
                 }
                 if (skip) {

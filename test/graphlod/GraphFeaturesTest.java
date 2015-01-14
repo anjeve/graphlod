@@ -28,7 +28,7 @@ public class GraphFeaturesTest {
                 createStatement("b", "p1", "c"),
                 createStatement("b", "p1", "d"),
                 createStatement("d", "p1", "b"),
-                createStatement("c", "p1", "e")), new ArrayList<String>());
+                createStatement("c", "p1", "e")), "", new ArrayList<String>());
         features = new GraphFeatures(ds.getGraph());
 
     }
@@ -106,7 +106,7 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        assertThat(features.getConnectedSubGraphFeatures(0.0f), nullValue());
+        assertThat(features.getConnectedSubGraphFeatures(0.0f), empty());
     }
 
     @Test
