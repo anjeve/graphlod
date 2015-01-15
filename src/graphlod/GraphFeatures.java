@@ -30,8 +30,10 @@ public class GraphFeatures {
 	private Set<String> vertices;
 	private final Set<DefaultEdge> edges;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
+	private String id;
 
-	public GraphFeatures(DirectedGraph<String, DefaultEdge> graph) {
+	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph) {
+		this.id = id;
 		this.graph = graph;
 		this.vertices = this.graph.vertexSet();
 		this.edges = this.graph.edgeSet();
@@ -79,7 +81,7 @@ public class GraphFeatures {
 			return Collections.emptyList();
 		}
 		List<GraphFeatures> connectedSubgraphFeatures = new ArrayList<>();
-
+		int i = 0;
 		for (Set<String> set : sets) {
 			if (set.size() < minSize) {
 				continue;
@@ -94,7 +96,8 @@ public class GraphFeatures {
 					subgraph.addEdge(vertex, (String) edge.getTarget(), edge);
 				}
 			}
-			connectedSubgraphFeatures.add(new GraphFeatures(subgraph));
+			connectedSubgraphFeatures.add(new GraphFeatures("subgraph" + i, subgraph));
+			i++;
 		}
 		Collections.sort(connectedSubgraphFeatures, new Comparator<GraphFeatures>() {
 			@Override
@@ -132,6 +135,13 @@ public class GraphFeatures {
 		return this.indegrees;
 	}
 
+	public List<Degree> getIndegrees2() {
+		if(this.indegrees2 == null) {
+			getIndegrees();
+		}
+		return this.indegrees2;
+	}
+
 	public List<Integer> getOutdegrees() {
 		if (this.outdegrees == null) {
 			this.outdegrees = new ArrayList<>();
@@ -143,6 +153,14 @@ public class GraphFeatures {
 			}
 		}
 		return this.outdegrees;
+	}
+
+
+	public List<Degree> getOutdegrees2() {
+		if(this.outdegrees2 == null) {
+			getOutdegrees();
+		}
+		return this.outdegrees2;
 	}
 
 	public ArrayList<Integer> getEdgeCounts() {
@@ -163,6 +181,14 @@ public class GraphFeatures {
 
 	public int getChromaticNumber() {
 		return ChromaticNumber.findGreedyChromaticNumber(this.undirectedG);
+	}
+
+	public Set<String> getVertices() {
+		return vertices;
+	}
+
+	public String getId() {
+		return id;
 	}
 
 	static class Degree implements Comparable<Degree> {

@@ -31,7 +31,7 @@ public class CollectionUtils {
         }
         T result = collection.iterator().next();
         for (T element : collection) {
-            result = result.compareTo(element) > 0 ? result : element;
+            result = result.compareTo(element) < 0 ? result : element;
         }
         return result;
     }
@@ -42,7 +42,7 @@ public class CollectionUtils {
         }
         T result = collection.iterator().next();
         for (T element : collection) {
-            result = result.compareTo(element) < 0 ? result : element;
+            result = result.compareTo(element) > 0 ? result : element;
         }
         return result;
     }

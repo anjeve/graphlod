@@ -72,7 +72,7 @@ public class Dataset {
             }
 
             if (subjectUri.equals(objectUri)) {
-                continue; // TODO: why that?
+                continue;
             }
 
             if (propertyUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {

@@ -28,11 +28,17 @@ public class GraphLOD {
 	private static final Logger logger = Logger.getLogger(GraphLOD.class);
 	public static final int MAX_SIZE_FOR_DIAMETER = 500;
 
-	public GraphLOD(Collection<String> datasetFiles, boolean skipChromaticNumber, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+	public GraphCsvOutput graphCsvOutput;
+	public VertexCsvOutput vertexCsvOutput;
+
+	public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+		graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+		vertexCsvOutput = new VertexCsvOutput(name);
+
 		Stopwatch sw = Stopwatch.createStarted();
 		Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
 
-		GraphFeatures graphFeatures = new GraphFeatures(dataset.getGraph());
+		GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
 
 		System.out.println("Loading the dataset took " + sw + " to execute.");
 
@@ -85,6 +91,7 @@ public class GraphLOD {
 				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
 				analyzeConnectedGraph(subGraph, importantDegreeCount);
 			}
+
 			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
 		}
 
@@ -109,6 +116,8 @@ public class GraphLOD {
 			System.out.println("Chromatic Number: " + cN);
 			System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
 		}
+		graphCsvOutput.close();
+		vertexCsvOutput.close();
 	}
 
 	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount) {
@@ -118,6 +127,8 @@ public class GraphLOD {
 		} else {
 			System.out.println("\tGraph too big to show diameter");
 		}
+		graphCsvOutput.writeGraph(graph);
+		vertexCsvOutput.writeGraph(graph);
 
 		System.out.println("\thighest indegrees:");
 		System.out.println("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
@@ -133,6 +144,7 @@ public class GraphLOD {
 		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
 				.defaultHelp(true).description("calculates graph features.");
 		parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
+		parser.addArgument("--name").type(String.class).setDefault("");
 		parser.addArgument("--namespace").type(String.class).setDefault("");
 		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
@@ -145,7 +157,12 @@ public class GraphLOD {
 			parser.handleError(e);
 			System.exit(1);
 		}
+
 		List<String> dataset = result.getList("dataset");
+		String name = result.getString("name");
+		if(name.isEmpty()) {
+			name = dataset.get(0);
+		}
 		String namespace = result.getString("namespace");
 		List<String> excludedNamespaces = result.getList("excludedNamespaces");
 		boolean skipChromatic = result.getBoolean("skipChromatic");
@@ -153,6 +170,7 @@ public class GraphLOD {
 		int importantDegreeCount = result.getInt("importantDegreeCount");
 
 		System.out.println("reading: " + dataset);
+		System.out.println("name: " + name);
 		System.out.println("namespace: " + namespace);
 		System.out.println("skip chromatic: " + skipChromatic);
 		System.out.println("excluded namespaces: " + excludedNamespaces);
@@ -162,7 +180,7 @@ public class GraphLOD {
 
 		Locale.setDefault(Locale.US);
 
-		new GraphLOD(dataset, skipChromatic, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
+		new GraphLOD(name, dataset, skipChromatic, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
 	}
 
 }

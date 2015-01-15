@@ -29,7 +29,7 @@ public class GraphFeaturesTest {
                 createStatement("b", "p1", "d"),
                 createStatement("d", "p1", "b"),
                 createStatement("c", "p1", "e")), "", new ArrayList<String>());
-        features = new GraphFeatures(ds.getGraph());
+        features = new GraphFeatures("" , ds.getGraph());
 
     }
 
