@@ -17,21 +17,21 @@ java -Xmx80g -jar graphlod-0.1.jar --name diseasome --skipChromatic --excludedNa
     /data/graphlod/diseasome/diseasome.nt | tee diseasome.txt
 
 java -Xmx80g -jar graphlod-0.1.jar --name dbpedia_person --skipChromatic \
-    --namespace "http://dbpedia.org/resource" \
+    --namespace "http://dbpedia.org/" \
     /data/graphlod/dbpedia/persondata_en.nt | tee dbpedia_persondata.txt
 
 java -Xmx80g -jar graphlod-0.1.jar --name dbpedia_geo_coordinate --skipChromatic  \
-    --namespace "http://dbpedia.org/resource" \
+    --namespace "http://dbpedia.org/" \
     /data/graphlod/dbpedia/geo_coordinates_en.nt | tee geo_coordinate.txt
 
 java -Xmx80g -jar graphlod-0.1.jar --name dbpedia_homepages --skipChromatic  \
-    --namespace "http://dbpedia.org/resource" \
+    --namespace "http://dbpedia.org/" \
     /data/graphlod/dbpedia/homepages_en.nt | tee dbpedia_homepages.txt
 
 # fix mapping: sed 's/"\.$/" \./' mappingbased_properties_en.nt > mappingbased_properties_en_fixed.nt
 
 java -Xmx100g -jar graphlod-0.1.jar --name dbpedia_mapping --skipChromatic \
-    --namespace "http://dbpedia.org/resource" \
+    --namespace "http://dbpedia.org/" \
     mappingbased_properties_en_fixed.nt | tee dbpedia_mapping.txt
 
 java -Xmx80g -jar graphlod-0.1.jar --name linkedgeodata --skipChromatic \
@@ -39,4 +39,4 @@ java -Xmx80g -jar graphlod-0.1.jar --name linkedgeodata --skipChromatic \
     --namespace "http://linkedgeodata.org/" \
     | tee linkedgeodata.txt
 
-zip result.txt *.txt *.csv
+tar -zcvf result.tgz *.txt *.csv
