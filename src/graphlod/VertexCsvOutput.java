@@ -31,7 +31,7 @@ public class VertexCsvOutput {
 
 	public void writeGraph(GraphFeatures graph) {
 		List<GraphFeatures.Degree> inDegrees = graph.getIndegrees2();
-		List<GraphFeatures.Degree> outDegrees = graph.getIndegrees2();
+		List<GraphFeatures.Degree> outDegrees = graph.getOutdegrees2();
 
 		for (int i = 0; i < inDegrees.size(); i++) {
 			GraphFeatures.Degree in = inDegrees.get(i);
