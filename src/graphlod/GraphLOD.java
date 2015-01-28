@@ -125,7 +125,9 @@ public class GraphLOD {
 		vertexCsvOutput.close();
 
 		if(!skipGraphviz) {
+			sw = Stopwatch.createStarted();
 			new GraphRenderer().render(name, connectedGraphs);
+			System.out.println("visualization took " + sw);
 		}
 	}
 

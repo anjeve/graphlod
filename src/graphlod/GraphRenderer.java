@@ -16,7 +16,9 @@ import com.google.common.io.Files;
 
 public class GraphRenderer {
 
-	private static final int MAXVERTICES = 5000;
+	private static final int MAX_VERTICES_PER_GROUP = 5000;
+	public static final int MIN_VERTICES = 4;
+
 
 	public GraphRenderer() {
 
@@ -33,10 +35,14 @@ public class GraphRenderer {
 				Writer writer = createDot(fileName);
 				int written = 0;
 				lastI = i;
-				while (written == 0 || i < features.size() && written + features.get(i).getVertexCount() < MAXVERTICES  ) {
+				while (written == 0 || i < features.size() && written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP) {
 					GraphFeatures f = features.get(i);
-					written += f.getVertexCount();
-					writeDot(f, writer);
+					if (f.getVertexCount() > MIN_VERTICES) {
+						written += f.getVertexCount();
+						writeDot(f, writer);
+					} else {
+						lastI++;
+					}
 					i++;
 				}
 				closeDot(writer);
