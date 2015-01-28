@@ -106,7 +106,7 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        assertThat(features.getConnectedSubGraphFeatures(0.0f), empty());
+        assertThat(features.getConnectedSubGraphFeatures(), empty());
     }
 
     @Test

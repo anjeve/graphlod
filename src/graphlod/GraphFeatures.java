@@ -75,7 +75,7 @@ public class GraphFeatures {
 	/**
 	 * Creates a new graph for each connected component and adds each to a new GraphFeature instance.
 	 */
-	public List<GraphFeatures> getConnectedSubGraphFeatures(float minSize) {
+	public List<GraphFeatures> getConnectedSubGraphFeatures() {
 		List<Set<String>> sets = this.connectivity.connectedSets();
 		if (sets.size() <= 1) {
 			return Collections.emptyList();
@@ -83,9 +83,6 @@ public class GraphFeatures {
 		List<GraphFeatures> connectedSubgraphFeatures = new ArrayList<>();
 		int i = 0;
 		for (Set<String> set : sets) {
-			if (set.size() < minSize) {
-				continue;
-			}
 			DirectedGraph<String, DefaultEdge> subgraph = new DefaultDirectedGraph<>(DefaultEdge.class);
 			for (String vertex : set) {
 				subgraph.addVertex(vertex);
@@ -189,6 +186,10 @@ public class GraphFeatures {
 
 	public String getId() {
 		return id;
+	}
+
+	public Set<DefaultEdge> getEdges() {
+		return edges;
 	}
 
 	static class Degree implements Comparable<Degree> {

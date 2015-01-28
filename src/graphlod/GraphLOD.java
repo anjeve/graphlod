@@ -31,7 +31,7 @@ public class GraphLOD {
 	public GraphCsvOutput graphCsvOutput;
 	public VertexCsvOutput vertexCsvOutput;
 
-	public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+	public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
 		graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
 		vertexCsvOutput = new VertexCsvOutput(name);
 
@@ -81,17 +81,22 @@ public class GraphLOD {
 
 		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
+		List<GraphFeatures> connectedGraphs;
 		if (graphFeatures.isConnected()) {
 			System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
 			analyzeConnectedGraph(graphFeatures, importantDegreeCount);
+			connectedGraphs = Arrays.asList(graphFeatures);
 		} else {
 			sw = Stopwatch.createStarted();
-			List<GraphFeatures> connectedSubgraphs = graphFeatures.getConnectedSubGraphFeatures(minImportantSubgraphSize);
+			List<GraphFeatures> connectedSubgraphs = graphFeatures.getConnectedSubGraphFeatures();
 			for (GraphFeatures subGraph : connectedSubgraphs) {
+				if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+					continue;
+				}
 				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
 				analyzeConnectedGraph(subGraph, importantDegreeCount);
 			}
-
+			connectedGraphs = connectedSubgraphs;
 			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
 		}
 
@@ -118,6 +123,10 @@ public class GraphLOD {
 		}
 		graphCsvOutput.close();
 		vertexCsvOutput.close();
+
+		if(!skipGraphviz) {
+			new GraphRenderer().render(name, connectedGraphs);
+		}
 	}
 
 	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount) {
@@ -148,6 +157,7 @@ public class GraphLOD {
 		parser.addArgument("--namespace").type(String.class).setDefault("");
 		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
 		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
+		parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
 		parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(20);
 		parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
 		Namespace result = null;
@@ -166,6 +176,7 @@ public class GraphLOD {
 		String namespace = result.getString("namespace");
 		List<String> excludedNamespaces = result.getList("excludedNamespaces");
 		boolean skipChromatic = result.getBoolean("skipChromatic");
+		boolean skipGraphviz = result.getBoolean("skipGraphviz");
 		int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
 		int importantDegreeCount = result.getInt("importantDegreeCount");
 
@@ -173,6 +184,7 @@ public class GraphLOD {
 		System.out.println("name: " + name);
 		System.out.println("namespace: " + namespace);
 		System.out.println("skip chromatic: " + skipChromatic);
+		System.out.println("skip graphviz: " + skipGraphviz);
 		System.out.println("excluded namespaces: " + excludedNamespaces);
 		System.out.println("min important subgraph size: " + minImportantSubgraphSize);
 		System.out.println("number of important degrees: " + importantDegreeCount);
@@ -180,7 +192,7 @@ public class GraphLOD {
 
 		Locale.setDefault(Locale.US);
 
-		new GraphLOD(name, dataset, skipChromatic, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
+		new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
 	}
 
 }
