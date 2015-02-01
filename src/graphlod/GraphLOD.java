@@ -56,28 +56,13 @@ public class GraphLOD {
 			List<Set<String>> sets = graphFeatures.getConnectedSets();
 			System.out.println("Connected sets: " + formatInt(sets.size()));
 
-			Multiset<Integer> componentSizes = TreeMultiset.create();
-			for (Set<String> component : sets) {
-				componentSizes.add(component.size());
-			}
-
-			System.out.println("  Components (and sizes): ");
-			for (Multiset.Entry<Integer> group : componentSizes.entrySet()) {
-				System.out.println("    " + group.getCount() + " x " + group.getElement());
-			}
+			printComponentSizeAndCount(sets);
 		}
 
 		List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
 		System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
 
-		Multiset<Integer> sciSizes = TreeMultiset.create();
-		for (Set<String> component : sci_sets) {
-			sciSizes.add(component.size());
-		}
-		System.out.println("  Components (and sizes): ");
-		for (Multiset.Entry<Integer> group : sciSizes.entrySet()) {
-			System.out.println("    " + group.getCount() + " x " + group.getElement());
-		}
+		printComponentSizeAndCount(sci_sets);
 
 		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
@@ -131,6 +116,17 @@ public class GraphLOD {
 		}
 	}
 
+	private void printComponentSizeAndCount(List<Set<String>> sets) {
+		Multiset<Integer> sizes = TreeMultiset.create();
+		for (Set<String> component : sets) {
+			sizes.add(component.size());
+		}
+		System.out.println("\t\tComponents (and sizes): ");
+		for (Multiset.Entry<Integer> group : sizes.entrySet()) {
+			System.out.println("\t\t\t" + group.getCount() + " x " + group.getElement());
+		}
+	}
+
 	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount) {
 		Preconditions.checkArgument(graph.isConnected());
 		if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
@@ -145,6 +141,12 @@ public class GraphLOD {
 		System.out.println("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
 		System.out.println("\thighest outdegrees:");
 		System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
+		
+		Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
+		List<Set<String>> bccSetsList = new ArrayList<Set<String>>();
+		bccSetsList.addAll(bcc_sets); 
+		System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
+		printComponentSizeAndCount(bccSetsList);
 	}
 
 	private String formatInt(int integer) {
