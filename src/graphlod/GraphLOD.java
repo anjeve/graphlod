@@ -30,18 +30,18 @@ public class GraphLOD {
 
 	public GraphCsvOutput graphCsvOutput;
 	public VertexCsvOutput vertexCsvOutput;
+	GraphRenderer graphRenderer;
+	private String name;
 
 	public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+		this.name = name;
 		graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
 		vertexCsvOutput = new VertexCsvOutput(name);
+		graphRenderer = new GraphRenderer();
 
-		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
+		GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, excludedNamespaces);
 
-		GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
-
-		System.out.println("Loading the dataset took " + sw + " to execute.");
-
+		Stopwatch sw;
 		System.out.println("Vertices: " + formatInt(graphFeatures.getVertexCount()));
 		System.out.println("Edges: " + formatInt(graphFeatures.getEdgeCount()));
 
@@ -61,27 +61,27 @@ public class GraphLOD {
 
 		List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
 		System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
-
 		printComponentSizeAndCount(sci_sets);
+		graphRenderer.writeDotFiles(name, "strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
 
 		System.out.println("Getting the connectivity took " + sw + " to execute.");
 
-		List<GraphFeatures> connectedGraphs;
 		if (graphFeatures.isConnected()) {
 			System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
-			analyzeConnectedGraph(graphFeatures, importantDegreeCount);
-			connectedGraphs = Arrays.asList(graphFeatures);
+			analyzeConnectedGraph(graphFeatures, importantDegreeCount, 0);
+			graphRenderer.writeDotFiles(name,"connected", Arrays.asList(graphFeatures));
 		} else {
 			sw = Stopwatch.createStarted();
-			List<GraphFeatures> connectedSubgraphs = graphFeatures.getConnectedSubGraphFeatures();
+			List<GraphFeatures> connectedSubgraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
+			int i = 0;
 			for (GraphFeatures subGraph : connectedSubgraphs) {
 				if (subGraph.getVertexCount() < minImportantSubgraphSize) {
 					continue;
 				}
 				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
-				analyzeConnectedGraph(subGraph, importantDegreeCount);
+				analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
 			}
-			connectedGraphs = connectedSubgraphs;
+			graphRenderer.writeDotFiles(name, "connected", connectedSubgraphs);
 			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
 		}
 
@@ -95,7 +95,6 @@ public class GraphLOD {
 		System.out.printf("Average outdegree: %.3f\n", CollectionUtils.average(outdegrees));
 		System.out.println("Max outdegree: " + CollectionUtils.max(outdegrees));
 		System.out.println("Min outdegree: " + CollectionUtils.min(outdegrees));
-
 
 		ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
 		System.out.printf("Average links: %.3f\n", CollectionUtils.average(edgeCounts));
@@ -111,12 +110,20 @@ public class GraphLOD {
 
 		if(!skipGraphviz) {
 			sw = Stopwatch.createStarted();
-			new GraphRenderer().render(name, connectedGraphs);
+			graphRenderer.render();
 			System.out.println("visualization took " + sw);
 		}
 	}
 
-	private void printComponentSizeAndCount(List<Set<String>> sets) {
+	private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, Collection<String> excludedNamespaces) {
+		Stopwatch sw = Stopwatch.createStarted();
+		Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
+		GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
+		System.out.println("Loading the dataset took " + sw + " to execute.");
+		return graphFeatures;
+	}
+
+	private void printComponentSizeAndCount(Collection<Set<String>> sets) {
 		Multiset<Integer> sizes = TreeMultiset.create();
 		for (Set<String> component : sets) {
 			sizes.add(component.size());
@@ -127,7 +134,7 @@ public class GraphLOD {
 		}
 	}
 
-	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount) {
+	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount, int groupnr) {
 		Preconditions.checkArgument(graph.isConnected());
 		if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
 			System.out.printf("\tedges: %s, diameter: %s\n", graph.getEdgeCount(), graph.getDiameter());
@@ -142,11 +149,10 @@ public class GraphLOD {
 		System.out.println("\thighest outdegrees:");
 		System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
 		
-		Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
-		List<Set<String>> bccSetsList = new ArrayList<Set<String>>();
-		bccSetsList.addAll(bcc_sets); 
-		System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
-		printComponentSizeAndCount(bccSetsList);
+		//Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
+		//System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
+		//printComponentSizeAndCount(bcc_sets);
+		//graphRenderer.writeDotFiles(name, "biconnected_"+groupnr, graph.createSubGraphFeatures(bcc_sets));
 	}
 
 	private String formatInt(int integer) {

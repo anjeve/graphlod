@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -19,23 +20,36 @@ public class GraphRenderer {
 	private static final int MAX_VERTICES_PER_GROUP = 5000;
 	public static final int MIN_VERTICES = 4;
 
+	private static class DotFile {
+		public int vertices;
+		private int graphs;
+		public String fileName;
+
+		public DotFile(String fileName, int vertices, int graphs) {
+			this.fileName = fileName;
+			this.vertices = vertices;
+			this.graphs = graphs;
+		}
+	}
+
+	List<DotFile> files;
 
 	public GraphRenderer() {
-
+		files = new ArrayList<>();
 	}
 
 
-	public void render(String name, List<GraphFeatures> features) {
+	public void writeDotFiles(String name, String type, List<GraphFeatures> features) {
 		try {
 			int i = 0;
 			int lastI = 0;
 			int fileCounter = 0;
 			while (i < features.size()) {
-				String fileName = name + "_dotgraph" + (fileCounter++) + ".txt";
+				String fileName = "dot/" + name + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
 				Writer writer = createDot(fileName);
 				int written = 0;
 				lastI = i;
-				while (written == 0 || i < features.size() && written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP) {
+				while (i < features.size() && (written == 0 || written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP)) {
 					GraphFeatures f = features.get(i);
 					if (f.getVertexCount() > MIN_VERTICES) {
 						written += f.getVertexCount();
@@ -46,17 +60,24 @@ public class GraphRenderer {
 					i++;
 				}
 				closeDot(writer);
-				System.out.printf("processing visualization for %s vertices in %s graphs, output: %s\n", written, i - lastI, fileName);
-
-				callGraphViz(fileName);
-				createHtml(fileName);
-				if (!new File(fileName).delete()) {
-					System.out.println("could not delete: " + fileName);
-				}
+				files.add(new DotFile(fileName, written, i - lastI));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public void render() {
+		for (DotFile file : files) {
+			System.out.printf("processing visualization for %s vertices in %s graphs, output: %s\n", file.vertices, file.graphs, file.fileName);
+
+			callGraphViz(file.fileName);
+			createHtml(file.fileName);
+			if (!new File(file.fileName).delete()) {
+				System.out.println("could not delete: " + file.fileName);
+			}
+		}
+		files.clear();
 	}
 
 	private void createHtml(String fileName) {
@@ -78,8 +99,10 @@ public class GraphRenderer {
 		}
 	}
 
-	public Writer createDot(String fileName) throws IOException {
-		Writer writer = new BufferedWriter(new FileWriter(fileName));
+	private Writer createDot(String fileName) throws IOException {
+		File file = new File(fileName);
+		Files.createParentDirs(file);
+		Writer writer = new BufferedWriter(new FileWriter(file));
 		writer.write("digraph G {\n");
 		writer.write("node [fontname=Verdana,fontsize=12]\n");
 		writer.write("node [style=filled]\n");
@@ -92,7 +115,7 @@ public class GraphRenderer {
 		return writer;
 	}
 
-	public void writeDot(GraphFeatures features, Writer writer) throws IOException {
+	private void writeDot(GraphFeatures features, Writer writer) throws IOException {
 		for (String vertex : features.getVertices()) {
 			writer.write("\t\"" + vertex + "\" ");
 			writer.write("[tooltip=\"" + vertex.substring(StringUtils.lastOrdinalIndexOf(vertex, "/", 2)) + "\" ");
@@ -103,12 +126,12 @@ public class GraphRenderer {
 		}
 	}
 
-	public void closeDot(Writer writer) throws IOException {
+	private void closeDot(Writer writer) throws IOException {
 		writer.write("}");
 		writer.close();
 	}
 
-	public void callGraphViz(String fileName) {
+	private void callGraphViz(String fileName) {
 		Process p = null;
 		try {
 			p = new ProcessBuilder("sfdp", "-Goverlap=prism", "-Tpng", "-Tcmapx", "-Gsize=120,90", "-O", fileName).start();

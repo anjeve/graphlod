@@ -1,6 +1,7 @@
 package graphlod;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -75,12 +76,8 @@ public class GraphFeatures {
 	/**
 	 * Creates a new graph for each connected component and adds each to a new GraphFeature instance.
 	 */
-	public List<GraphFeatures> getConnectedSubGraphFeatures() {
-		List<Set<String>> sets = this.connectivity.connectedSets();
-		if (sets.size() <= 1) {
-			return Collections.emptyList();
-		}
-		List<GraphFeatures> connectedSubgraphFeatures = new ArrayList<>();
+	public List<GraphFeatures> createSubGraphFeatures(Collection<Set<String>> sets) {
+		List<GraphFeatures> subgraphFeatures = new ArrayList<>();
 		int i = 0;
 		for (Set<String> set : sets) {
 			DirectedGraph<String, DefaultEdge> subgraph = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -90,20 +87,23 @@ public class GraphFeatures {
 			for (String vertex : set) {
 				Set<DefaultEdge> edges = graph.outgoingEdgesOf(vertex);
 				for (DefaultEdge edge : edges) {
-					subgraph.addEdge(vertex, (String) edge.getTarget(), edge);
+					String target = (String) edge.getTarget();
+					if (set.contains(target)) {
+						subgraph.addEdge(vertex, target, edge);
+					}
 				}
 			}
-			connectedSubgraphFeatures.add(new GraphFeatures("subgraph" + i, subgraph));
+			subgraphFeatures.add(new GraphFeatures("subgraph" + i, subgraph));
 			i++;
 		}
-		Collections.sort(connectedSubgraphFeatures, new Comparator<GraphFeatures>() {
+		Collections.sort(subgraphFeatures, new Comparator<GraphFeatures>() {
 			@Override
 			public int compare(GraphFeatures g1, GraphFeatures g2) {
 				return Integer.compare(g1.getVertexCount(), g2.getVertexCount());
 			}
 		});
 
-		return connectedSubgraphFeatures;
+		return subgraphFeatures;
 	}
 
 	public List<Set<String>> getStronglyConnectedSets() {
@@ -133,7 +133,7 @@ public class GraphFeatures {
 	}
 
 	public List<Degree> getIndegrees2() {
-		if(this.indegrees2 == null) {
+		if (this.indegrees2 == null) {
 			getIndegrees();
 		}
 		return this.indegrees2;
@@ -154,7 +154,7 @@ public class GraphFeatures {
 
 
 	public List<Degree> getOutdegrees2() {
-		if(this.outdegrees2 == null) {
+		if (this.outdegrees2 == null) {
 			getOutdegrees();
 		}
 		return this.outdegrees2;

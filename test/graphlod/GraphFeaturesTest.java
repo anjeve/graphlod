@@ -7,6 +7,7 @@ import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.GraphPath;
@@ -106,7 +107,10 @@ public class GraphFeaturesTest {
 
     @Test
     public void testGetConnectedGraphFeatures() throws Exception {
-        assertThat(features.getConnectedSubGraphFeatures(), empty());
+        List<GraphFeatures> subGraphFeatures = features.createSubGraphFeatures(features.getConnectedSets());
+        assertThat(subGraphFeatures, hasSize(1));
+        assertThat(subGraphFeatures.get(0).getVertices(), equalTo(features.getVertices()));
+        assertThat(subGraphFeatures.get(0).getEdges(), equalTo(features.getEdges()));
     }
 
     @Test
