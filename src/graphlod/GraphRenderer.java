@@ -19,6 +19,7 @@ public class GraphRenderer {
 
 	private static final int MAX_VERTICES_PER_GROUP = 5000;
 	public static final int MIN_VERTICES = 4;
+	private String name;
 
 	private static class DotFile {
 		public int vertices;
@@ -34,12 +35,13 @@ public class GraphRenderer {
 
 	List<DotFile> files;
 
-	public GraphRenderer() {
+	public GraphRenderer(String name) {
+		this.name = name;
 		files = new ArrayList<>();
 	}
 
 
-	public void writeDotFiles(String name, String type, List<GraphFeatures> features) {
+	public void writeDotFiles(String type, List<GraphFeatures> features) {
 		try {
 			int i = 0;
 			int lastI = 0;
