@@ -7,6 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -29,6 +31,13 @@ public class GraphRenderer {
 			this.fileName = fileName;
 			this.vertices = vertices;
 			this.graphs = graphs;
+		}
+	}
+
+	private static class DotFileSorter implements Comparator<DotFile> {
+		@Override
+		public int compare(DotFile o1, DotFile o2) {
+			return Integer.compare(o1.vertices, o2.vertices);
 		}
 	}
 
@@ -68,7 +77,10 @@ public class GraphRenderer {
 	}
 
 	public void render() {
-		for (DotFile file : files) {
+		ArrayList<DotFile> sorted = new ArrayList<>(files);
+		Collections.sort(sorted, new DotFileSorter()); // process small files first
+
+		for (DotFile file : sorted) {
 			System.out.printf("processing visualization for %s vertices in %s graphs, output: %s\n", file.vertices, file.graphs, file.fileName);
 
 			callGraphViz(file.fileName);
@@ -84,7 +96,7 @@ public class GraphRenderer {
 		try {
 			BufferedWriter out = Files.newWriter(new File(fileName + ".html"), Charsets.UTF_8);
 			BufferedReader map = Files.newReader(new File(fileName + ".cmapx"), Charsets.UTF_8);
-			out.write("<img src=\"" + fileName + ".png\" USEMAP=\"#G\" />\n");
+			out.write("<img src=\"" + StringUtils.stripStart(fileName, "dot/") + ".png\" USEMAP=\"#G\" />\n");
 			String line;
 			while ((line = map.readLine()) != null) {
 				out.write(line + "\n");
