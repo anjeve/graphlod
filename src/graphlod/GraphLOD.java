@@ -24,185 +24,199 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 public class GraphLOD {
-	private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
-	private static final Logger logger = Logger.getLogger(GraphLOD.class);
-	public static final int MAX_SIZE_FOR_DIAMETER = 500;
+    private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
+    private static final Logger logger = Logger.getLogger(GraphLOD.class);
+    public static final int MAX_SIZE_FOR_DIAMETER = 500;
 
-	public GraphCsvOutput graphCsvOutput;
-	public VertexCsvOutput vertexCsvOutput;
-	GraphRenderer graphRenderer;
-	private String name;
+    private final GraphCsvOutput graphCsvOutput;
+    private final VertexCsvOutput vertexCsvOutput;
+    private final GraphRenderer graphRenderer;
 
-	public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
-		this.name = name;
-		graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
-		vertexCsvOutput = new VertexCsvOutput(name);
-		graphRenderer = new GraphRenderer();
+    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+        graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+        vertexCsvOutput = new VertexCsvOutput(name);
+        if (!skipGraphviz) {
+            graphRenderer = new GraphRenderer(name);
+        } else {
+            graphRenderer = null;
+        }
 
-		GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, excludedNamespaces);
+        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, excludedNamespaces);
+        analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+        graphFeatures = null;
 
-		Stopwatch sw;
-		System.out.println("Vertices: " + formatInt(graphFeatures.getVertexCount()));
-		System.out.println("Edges: " + formatInt(graphFeatures.getEdgeCount()));
+        graphCsvOutput.close();
+        vertexCsvOutput.close();
 
-		sw = Stopwatch.createStarted();
-		if (graphFeatures.isConnected()) {
-			System.out.println("Connectivity: yes");
-		} else {
-			System.out.println("Connectivity: no");
-		}
+        if (graphRenderer != null) {
+            Stopwatch sw = Stopwatch.createStarted();
+            graphRenderer.render();
+            System.out.println("visualization took " + sw);
+        }
+    }
 
-		if (!graphFeatures.isConnected()) {
-			List<Set<String>> sets = graphFeatures.getConnectedSets();
-			System.out.println("Connected sets: " + formatInt(sets.size()));
+    private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, Collection<String> excludedNamespaces) {
+        Stopwatch sw = Stopwatch.createStarted();
+        Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
+        GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
+        System.out.println("Loading the dataset took " + sw + " to execute.");
+        return graphFeatures;
+    }
 
-			printComponentSizeAndCount(sets);
-		}
+    private void analyze(GraphFeatures graphFeatures, float minImportantSubgraphSize, boolean skipChromaticNumber, int importantDegreeCount) {
+        Stopwatch sw;
+        System.out.println("Vertices: " + formatInt(graphFeatures.getVertexCount()));
+        System.out.println("Edges: " + formatInt(graphFeatures.getEdgeCount()));
 
-		List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
-		System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
-		printComponentSizeAndCount(sci_sets);
-		graphRenderer.writeDotFiles(name, "strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
+        sw = Stopwatch.createStarted();
+        if (graphFeatures.isConnected()) {
+            System.out.println("Connectivity: yes");
+        } else {
+            System.out.println("Connectivity: no");
+        }
 
-		System.out.println("Getting the connectivity took " + sw + " to execute.");
+        if (!graphFeatures.isConnected()) {
+            List<Set<String>> sets = graphFeatures.getConnectedSets();
+            System.out.println("Connected sets: " + formatInt(sets.size()));
 
-		if (graphFeatures.isConnected()) {
-			System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
-			analyzeConnectedGraph(graphFeatures, importantDegreeCount, 0);
-			graphRenderer.writeDotFiles(name,"connected", Arrays.asList(graphFeatures));
-		} else {
-			sw = Stopwatch.createStarted();
-			List<GraphFeatures> connectedSubgraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
-			int i = 0;
-			for (GraphFeatures subGraph : connectedSubgraphs) {
-				if (subGraph.getVertexCount() < minImportantSubgraphSize) {
-					continue;
-				}
-				System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
-				analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
-			}
-			graphRenderer.writeDotFiles(name, "connected", connectedSubgraphs);
-			System.out.println("Analysing the subgraphs took " + sw + " to execute.");
-		}
+            printComponentSizeAndCount(sets);
+        }
 
-		System.out.println("Vertex Degrees:");
-		List<Integer> indegrees = graphFeatures.getIndegrees();
-		System.out.printf("Average indegree: %.3f\n", CollectionUtils.average(indegrees));
-		System.out.println("Max indegree: " + CollectionUtils.max(indegrees));
-		System.out.println("Min indegree: " + CollectionUtils.min(indegrees));
+        List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
+        System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
+        printComponentSizeAndCount(sci_sets);
+        if (graphRenderer != null) {
+            graphRenderer.writeDotFiles( "strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
+        }
+        System.out.println("Getting the connectivity took " + sw + " to execute.");
 
-		List<Integer> outdegrees = graphFeatures.getOutdegrees();
-		System.out.printf("Average outdegree: %.3f\n", CollectionUtils.average(outdegrees));
-		System.out.println("Max outdegree: " + CollectionUtils.max(outdegrees));
-		System.out.println("Min outdegree: " + CollectionUtils.min(outdegrees));
+        if (graphFeatures.isConnected()) {
+            System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
+            analyzeConnectedGraph(graphFeatures, importantDegreeCount, 0);
+            if (graphRenderer != null) {
+                graphRenderer.writeDotFiles( "connected", Arrays.asList(graphFeatures));
+            }
+        } else {
+            sw = Stopwatch.createStarted();
+            List<GraphFeatures> connectedSubgraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
+            int i = 0;
+            for (GraphFeatures subGraph : connectedSubgraphs) {
+                if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+                    continue;
+                }
+                System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
+                analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+            }
+            if (graphRenderer != null) {
+                graphRenderer.writeDotFiles( "connected", connectedSubgraphs);
+            }
+            System.out.println("Analysing the subgraphs took " + sw + " to execute.");
+        }
 
-		ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
-		System.out.printf("Average links: %.3f\n", CollectionUtils.average(edgeCounts));
+        System.out.println("Vertex Degrees:");
+        List<Integer> indegrees = graphFeatures.getIndegrees();
+        System.out.printf("Average indegree: %.3f\n", CollectionUtils.average(indegrees));
+        System.out.println("Max indegree: " + CollectionUtils.max(indegrees));
+        System.out.println("Min indegree: " + CollectionUtils.min(indegrees));
 
-		if (!skipChromaticNumber) {
-			sw = Stopwatch.createStarted();
-			int cN = graphFeatures.getChromaticNumber();
-			System.out.println("Chromatic Number: " + cN);
-			System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
-		}
-		graphCsvOutput.close();
-		vertexCsvOutput.close();
+        List<Integer> outdegrees = graphFeatures.getOutdegrees();
+        System.out.printf("Average outdegree: %.3f\n", CollectionUtils.average(outdegrees));
+        System.out.println("Max outdegree: " + CollectionUtils.max(outdegrees));
+        System.out.println("Min outdegree: " + CollectionUtils.min(outdegrees));
 
-		if(!skipGraphviz) {
-			sw = Stopwatch.createStarted();
-			graphRenderer.render();
-			System.out.println("visualization took " + sw);
-		}
-	}
+        ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
+        System.out.printf("Average links: %.3f\n", CollectionUtils.average(edgeCounts));
 
-	private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, Collection<String> excludedNamespaces) {
-		Stopwatch sw = Stopwatch.createStarted();
-		Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
-		GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
-		System.out.println("Loading the dataset took " + sw + " to execute.");
-		return graphFeatures;
-	}
+        if (!skipChromaticNumber) {
+            sw = Stopwatch.createStarted();
+            int cN = graphFeatures.getChromaticNumber();
+            System.out.println("Chromatic Number: " + cN);
+            System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
+        }
+    }
 
-	private void printComponentSizeAndCount(Collection<Set<String>> sets) {
-		Multiset<Integer> sizes = TreeMultiset.create();
-		for (Set<String> component : sets) {
-			sizes.add(component.size());
-		}
-		System.out.println("\t\tComponents (and sizes): ");
-		for (Multiset.Entry<Integer> group : sizes.entrySet()) {
-			System.out.println("\t\t\t" + group.getCount() + " x " + group.getElement());
-		}
-	}
 
-	private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount, int groupnr) {
-		Preconditions.checkArgument(graph.isConnected());
-		if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
-			System.out.printf("\tedges: %s, diameter: %s\n", graph.getEdgeCount(), graph.getDiameter());
-		} else {
-			System.out.println("\tGraph too big to show diameter");
-		}
-		graphCsvOutput.writeGraph(graph);
-		vertexCsvOutput.writeGraph(graph);
+    private void printComponentSizeAndCount(Collection<Set<String>> sets) {
+        Multiset<Integer> sizes = TreeMultiset.create();
+        for (Set<String> component : sets) {
+            sizes.add(component.size());
+        }
+        System.out.println("\t\tComponents (and sizes): ");
+        for (Multiset.Entry<Integer> group : sizes.entrySet()) {
+            System.out.println("\t\t\t" + group.getCount() + " x " + group.getElement());
+        }
+    }
 
-		System.out.println("\thighest indegrees:");
-		System.out.println("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
-		System.out.println("\thighest outdegrees:");
-		System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
-		
-		//Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
-		//System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
-		//printComponentSizeAndCount(bcc_sets);
-		//graphRenderer.writeDotFiles(name, "biconnected_"+groupnr, graph.createSubGraphFeatures(bcc_sets));
-	}
+    private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount, int groupnr) {
+        Preconditions.checkArgument(graph.isConnected());
+        if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
+            System.out.printf("\tedges: %s, diameter: %s\n", graph.getEdgeCount(), graph.getDiameter());
+        } else {
+            System.out.println("\tGraph too big to show diameter");
+        }
+        graphCsvOutput.writeGraph(graph);
+        vertexCsvOutput.writeGraph(graph);
 
-	private String formatInt(int integer) {
-		return NumberFormat.getNumberInstance(Locale.US).format(integer);
-	}
+        System.out.println("\thighest indegrees:");
+        System.out.println("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
+        System.out.println("\thighest outdegrees:");
+        System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
 
-	public static void main(final String[] args) {
-		ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
-				.defaultHelp(true).description("calculates graph features.");
-		parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
-		parser.addArgument("--name").type(String.class).setDefault("");
-		parser.addArgument("--namespace").type(String.class).setDefault("");
-		parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
-		parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
-		parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
-		parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(20);
-		parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
-		Namespace result = null;
-		try {
-			result = parser.parseArgs(args);
-		} catch (ArgumentParserException e) {
-			parser.handleError(e);
-			System.exit(1);
-		}
+        // TODO: BiconnectedSets are to slow, even for diseasome!
+        //Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
+        //System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
+        //printComponentSizeAndCount(bcc_sets);
+        //graphRenderer.writeDotFiles(name, "biconnected_"+groupnr, graph.createSubGraphFeatures(bcc_sets));
+    }
 
-		List<String> dataset = result.getList("dataset");
-		String name = result.getString("name");
-		if(name.isEmpty()) {
-			name = dataset.get(0);
-		}
-		String namespace = result.getString("namespace");
-		List<String> excludedNamespaces = result.getList("excludedNamespaces");
-		boolean skipChromatic = result.getBoolean("skipChromatic");
-		boolean skipGraphviz = result.getBoolean("skipGraphviz");
-		int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
-		int importantDegreeCount = result.getInt("importantDegreeCount");
+    private String formatInt(int integer) {
+        return NumberFormat.getNumberInstance(Locale.US).format(integer);
+    }
 
-		System.out.println("reading: " + dataset);
-		System.out.println("name: " + name);
-		System.out.println("namespace: " + namespace);
-		System.out.println("skip chromatic: " + skipChromatic);
-		System.out.println("skip graphviz: " + skipGraphviz);
-		System.out.println("excluded namespaces: " + excludedNamespaces);
-		System.out.println("min important subgraph size: " + minImportantSubgraphSize);
-		System.out.println("number of important degrees: " + importantDegreeCount);
-		System.out.println();
+    public static void main(final String[] args) {
+        ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
+                .defaultHelp(true).description("calculates graph features.");
+        parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
+        parser.addArgument("--name").type(String.class).setDefault("");
+        parser.addArgument("--namespace").type(String.class).setDefault("");
+        parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
+        parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
+        parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
+        parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(20);
+        parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
+        Namespace result = null;
+        try {
+            result = parser.parseArgs(args);
+        } catch (ArgumentParserException e) {
+            parser.handleError(e);
+            System.exit(1);
+        }
 
-		Locale.setDefault(Locale.US);
+        List<String> dataset = result.getList("dataset");
+        String name = result.getString("name");
+        if (name.isEmpty()) {
+            name = dataset.get(0);
+        }
+        String namespace = result.getString("namespace");
+        List<String> excludedNamespaces = result.getList("excludedNamespaces");
+        boolean skipChromatic = result.getBoolean("skipChromatic");
+        boolean skipGraphviz = result.getBoolean("skipGraphviz");
+        int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
+        int importantDegreeCount = result.getInt("importantDegreeCount");
 
-		new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
-	}
+        System.out.println("reading: " + dataset);
+        System.out.println("name: " + name);
+        System.out.println("namespace: " + namespace);
+        System.out.println("skip chromatic: " + skipChromatic);
+        System.out.println("skip graphviz: " + skipGraphviz);
+        System.out.println("excluded namespaces: " + excludedNamespaces);
+        System.out.println("min important subgraph size: " + minImportantSubgraphSize);
+        System.out.println("number of important degrees: " + importantDegreeCount);
+        System.out.println();
+
+        Locale.setDefault(Locale.US);
+
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
+    }
 
 }
