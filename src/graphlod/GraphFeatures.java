@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -13,6 +14,7 @@ import org.jgrapht.GraphPath;
 import org.jgrapht.alg.BiconnectivityInspector;
 import org.jgrapht.alg.ChromaticNumber;
 import org.jgrapht.alg.ConnectivityInspector;
+import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.alg.StrongConnectivityInspector;
@@ -48,6 +50,11 @@ public class GraphFeatures {
 
 	public double getDiameter() {
 		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(graph);
+		return fw.getDiameter();
+	}
+
+	public double getDiameterUndirected() {
+		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(this.undirectedG);
 		return fw.getDiameter();
 	}
 
@@ -117,6 +124,50 @@ public class GraphFeatures {
 		}
 		BiconnectivityInspector<String, DefaultEdge> bici = new BiconnectivityInspector<>(this.undirectedG);
 		return bici.getBiconnectedVertexComponents();
+	}
+
+	public boolean containsCycles() {
+		CycleDetector<String, DefaultEdge> cycleDetector = new CycleDetector<>(this.graph);
+		return cycleDetector.detectCycles();
+	}
+	
+	public boolean isPathGraph() {
+		double diameter = getDiameterUndirected();
+		if (this.getVertexCount() == diameter + 1) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isDirectedPathGraph() {
+		// TODO fix directed in both directions = false atm
+		if (!isPathGraph()) {
+			return false;
+		}
+		for (String v : this.vertices) {
+			if ( this.graph.inDegreeOf(v) > 1) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public boolean isOutboundStarGraph() {
+		for (String v : this.vertices) {
+			if ((this.graph.inDegreeOf(v) == 0) && (this.graph.outDegreeOf(v) == this.getEdgeCount())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean isInboundStarGraph() {
+		for (String v : this.vertices) {
+			if ((this.graph.inDegreeOf(v) == this.getEdgeCount()) && (this.graph.outDegreeOf(v) == 0)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public List<Integer> getIndegrees() {

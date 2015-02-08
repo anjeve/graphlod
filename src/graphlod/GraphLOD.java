@@ -24,15 +24,14 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 public class GraphLOD {
-    private static final String DEFAULT_DATASET_LOCATION = "/Users/anjeve/Desktop/keket backup/mappingbased_properties_en.nt";
     private static final Logger logger = Logger.getLogger(GraphLOD.class);
     public static final int MAX_SIZE_FOR_DIAMETER = 500;
-
+    		
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
 
-    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, float minImportantSubgraphSize, int importantDegreeCount) {
+    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize, int importantDegreeCount) {
         graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         if (!skipGraphviz) {
@@ -90,42 +89,98 @@ public class GraphLOD {
         }
         System.out.println("Getting the connectivity took " + sw + " to execute.");
 
+        List<GraphFeatures> connectedGraphs = new ArrayList<>();
+        List<GraphFeatures> pathGraphs = new ArrayList<>();
+        List<GraphFeatures> directedPathGraphs = new ArrayList<>();
+        List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
+        List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
+
+        int i = 0;
+        
+        sw = Stopwatch.createStarted();
+
         if (graphFeatures.isConnected()) {
-            System.out.printf("Graph: %s vertices\n", graphFeatures.getVertexCount());
-            analyzeConnectedGraph(graphFeatures, importantDegreeCount, 0);
-            if (graphRenderer != null) {
-                graphRenderer.writeDotFiles( "connected", Arrays.asList(graphFeatures));
-            }
+            connectedGraphs.add(graphFeatures);
         } else {
-            sw = Stopwatch.createStarted();
-            List<GraphFeatures> connectedSubgraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
-            int i = 0;
-            for (GraphFeatures subGraph : connectedSubgraphs) {
-                if (subGraph.getVertexCount() < minImportantSubgraphSize) {
-                    continue;
-                }
-                System.out.printf("Subgraph: %s vertices\n", subGraph.getVertexCount());
-                analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+            connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
+        }        
+        
+        for (GraphFeatures subGraph : connectedGraphs) {
+            if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+                continue;
             }
-            if (graphRenderer != null) {
-                graphRenderer.writeDotFiles( "connected", connectedSubgraphs);
+            
+            if (connectedGraphs.size() == 1) {
+                System.out.printf("Graph: ", subGraph.getVertexCount());
+            } else {
+                System.out.printf("Subgraph: ", subGraph.getVertexCount());
             }
-            System.out.println("Analysing the subgraphs took " + sw + " to execute.");
+            System.out.printf("%s vertices\n", subGraph.getVertexCount());
+
+            analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+
+            boolean cycles = subGraph.containsCycles();
+            System.out.printf("\tContains cycles: %s\n", cycles);
+            
+            boolean isPathGraph = subGraph.isPathGraph();
+            System.out.printf("\tPath graph: %s\n", isPathGraph);
+            if (isPathGraph) {
+            	pathGraphs.add(subGraph);
+            	boolean isDirectedPathGraph = subGraph.isDirectedPathGraph();
+                System.out.printf("\tDirected path graph: %s\n", isDirectedPathGraph);
+                if (isDirectedPathGraph) {
+            		directedPathGraphs.add(subGraph);
+            	}
+            } else {
+            	boolean isOutboundStarGraph = subGraph.isOutboundStarGraph();
+                if (isOutboundStarGraph) {
+                	System.out.printf("\tOutbound star graph: %s\n", isOutboundStarGraph);
+                	outboundStarGraphs.add(subGraph);
+            	} else {
+            		boolean isInboundStarGraph = subGraph.isInboundStarGraph();
+                    if (isInboundStarGraph) {
+                    	System.out.printf("\tInbound star graph: %s\n", isInboundStarGraph);
+                    	inboundStarGraphs.add(subGraph);
+                    }
+            	}
+            }
         }
+        if (graphRenderer != null) {
+            graphRenderer.writeDotFiles( "connected", connectedGraphs);
+            if (!pathGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "pathgraphs", pathGraphs);
+            }
+            if (!directedPathGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "directedpathgraphs", directedPathGraphs);
+            }
+            if (!outboundStarGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "outboundstargraphs", outboundStarGraphs);
+            }
+            if (!inboundStarGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "inboundstargraphs", inboundStarGraphs);
+            }
+            if (!inboundStarGraphs.isEmpty() || !outboundStarGraphs.isEmpty()) {
+            	List<GraphFeatures> starGraphs = inboundStarGraphs;
+            	starGraphs.addAll(outboundStarGraphs);
+            	graphRenderer.writeDotFiles( "stargraphs", starGraphs);
+            }
+        }
+        
+        System.out.println("Analysing the components took " + sw + " to execute.");
 
         System.out.println("Vertex Degrees:");
         List<Integer> indegrees = graphFeatures.getIndegrees();
-        System.out.printf("Average indegree: %.3f\n", CollectionUtils.average(indegrees));
-        System.out.println("Max indegree: " + CollectionUtils.max(indegrees));
-        System.out.println("Min indegree: " + CollectionUtils.min(indegrees));
+        System.out.printf("\tAverage indegree: %.3f\n", CollectionUtils.average(indegrees));
+        System.out.println("\tMax indegree: " + CollectionUtils.max(indegrees));
+        System.out.println("\tMin indegree: " + CollectionUtils.min(indegrees));
 
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
-        System.out.printf("Average outdegree: %.3f\n", CollectionUtils.average(outdegrees));
-        System.out.println("Max outdegree: " + CollectionUtils.max(outdegrees));
-        System.out.println("Min outdegree: " + CollectionUtils.min(outdegrees));
+        System.out.printf("\tAverage outdegree: %.3f\n", CollectionUtils.average(outdegrees));
+        System.out.println("\tMax outdegree: " + CollectionUtils.max(outdegrees));
+        System.out.println("\tMin outdegree: " + CollectionUtils.min(outdegrees));
 
         ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
-        System.out.printf("Average links: %.3f\n", CollectionUtils.average(edgeCounts));
+        System.out.printf("\tAverage links: %.3f\n", CollectionUtils.average(edgeCounts));
 
         if (!skipChromaticNumber) {
             sw = Stopwatch.createStarted();
@@ -162,7 +217,7 @@ public class GraphLOD {
         System.out.println("\thighest outdegrees:");
         System.out.println("\t\t" + StringUtils.join(graph.maxOutDegrees(importantDegreeCount), "\n\t\t"));
 
-        // TODO: BiconnectedSets are to slow, even for diseasome!
+        // TODO: BiconnectedSets are too slow, even for diseasome!
         //Set<Set<String>> bcc_sets = graph.getBiConnectedSets();
         //System.out.println("\tBiconnected components: " + formatInt(bcc_sets.size()));
         //printComponentSizeAndCount(bcc_sets);
@@ -176,7 +231,7 @@ public class GraphLOD {
     public static void main(final String[] args) {
         ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
                 .defaultHelp(true).description("calculates graph features.");
-        parser.addArgument("dataset").nargs("+").setDefault(Arrays.asList(DEFAULT_DATASET_LOCATION));
+        parser.addArgument("dataset").nargs("+").setDefault(Collections.emptyList());
         parser.addArgument("--name").type(String.class).setDefault("");
         parser.addArgument("--namespace").type(String.class).setDefault("");
         parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());

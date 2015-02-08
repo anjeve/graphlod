@@ -20,8 +20,9 @@ import com.google.common.io.Files;
 public class GraphRenderer {
 
 	private static final int MAX_VERTICES_PER_GROUP = 5000;
-	public static final int MIN_VERTICES = 4;
-	private String name;
+	public static final int MIN_VERTICES = 2;
+	private String fileName;
+	private String filePath;
 
 	private static class DotFile {
 		public int vertices;
@@ -44,8 +45,12 @@ public class GraphRenderer {
 
 	List<DotFile> files;
 
-	public GraphRenderer(String name) {
-		this.name = name;
+	public GraphRenderer(String fileName) {
+		System.out.println(fileName);
+		this.fileName = new File(fileName).getName();
+		System.out.println(this.fileName);
+		this.filePath = fileName.replaceFirst("(?s)"+this.fileName+"(?!.*?"+this.fileName+")", "");
+		System.out.println(this.filePath);
 		files = new ArrayList<>();
 	}
 
@@ -56,8 +61,8 @@ public class GraphRenderer {
 			int lastI = 0;
 			int fileCounter = 0;
 			while (i < features.size()) {
-				String fileName = "dot/" + name + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
-				Writer writer = createDot(fileName);
+				String dotFileName = "dot/" + this.fileName + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
+				Writer writer = createDot(this.filePath + dotFileName);
 				int written = 0;
 				lastI = i;
 				while (i < features.size() && (written == 0 || written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP)) {
@@ -71,7 +76,7 @@ public class GraphRenderer {
 					i++;
 				}
 				closeDot(writer);
-				files.add(new DotFile(fileName, written, i - lastI));
+				files.add(new DotFile(dotFileName, written, i - lastI));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -96,8 +101,8 @@ public class GraphRenderer {
 
 	private void createHtml(String fileName) {
 		try {
-			BufferedWriter out = Files.newWriter(new File(fileName + ".html"), Charsets.UTF_8);
-			BufferedReader map = Files.newReader(new File(fileName + ".cmapx"), Charsets.UTF_8);
+			BufferedWriter out = Files.newWriter(new File(this.filePath + fileName + ".html"), Charsets.UTF_8);
+			BufferedReader map = Files.newReader(new File(this.filePath + fileName + ".cmapx"), Charsets.UTF_8);
 			out.write("<img src=\"" + StringUtils.stripStart(fileName, "dot/") + ".png\" USEMAP=\"#G\" />\n");
 			String line;
 			while ((line = map.readLine()) != null) {
@@ -105,8 +110,8 @@ public class GraphRenderer {
 			}
 			map.close();
 			out.close();
-			if (!new File(fileName + ".cmapx").delete()) {
-				System.out.println("could not delete: " + fileName + ".cmapx");
+			if (!new File(this.filePath + fileName + ".cmapx").delete()) {
+				System.out.println("could not delete: " + this.filePath + fileName + ".cmapx");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
