@@ -94,6 +94,7 @@ public class GraphLOD {
         List<GraphFeatures> directedPathGraphs = new ArrayList<>();
         List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
         List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
+        List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
 
         int i = 0;
         
@@ -105,46 +106,60 @@ public class GraphLOD {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }        
         
-        for (GraphFeatures subGraph : connectedGraphs) {
-            if (subGraph.getVertexCount() < minImportantSubgraphSize) {
-                continue;
-            }
-            
-            if (connectedGraphs.size() == 1) {
-                System.out.printf("Graph: ", subGraph.getVertexCount());
-            } else {
-                System.out.printf("Subgraph: ", subGraph.getVertexCount());
-            }
-            System.out.printf("%s vertices\n", subGraph.getVertexCount());
+		for (GraphFeatures subGraph : connectedGraphs) {
+			if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+				continue;
+			}
 
-            analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+			if (connectedGraphs.size() == 1) {
+				System.out.printf("Graph: ", subGraph.getVertexCount());
+			} else {
+				System.out.printf("Subgraph: ", subGraph.getVertexCount());
+			}
+			System.out.printf("%s vertices\n", subGraph.getVertexCount());
 
-            boolean cycles = subGraph.containsCycles();
-            System.out.printf("\tContains cycles: %s\n", cycles);
-            
-            boolean isPathGraph = subGraph.isPathGraph();
-            System.out.printf("\tPath graph: %s\n", isPathGraph);
-            if (isPathGraph) {
-            	pathGraphs.add(subGraph);
-            	boolean isDirectedPathGraph = subGraph.isDirectedPathGraph();
-                System.out.printf("\tDirected path graph: %s\n", isDirectedPathGraph);
-                if (isDirectedPathGraph) {
-            		directedPathGraphs.add(subGraph);
-            	}
-            } else {
-            	boolean isOutboundStarGraph = subGraph.isOutboundStarGraph();
-                if (isOutboundStarGraph) {
-                	System.out.printf("\tOutbound star graph: %s\n", isOutboundStarGraph);
-                	outboundStarGraphs.add(subGraph);
-            	} else {
-            		boolean isInboundStarGraph = subGraph.isInboundStarGraph();
-                    if (isInboundStarGraph) {
-                    	System.out.printf("\tInbound star graph: %s\n", isInboundStarGraph);
-                    	inboundStarGraphs.add(subGraph);
-                    }
-            	}
-            }
-        }
+			analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+
+			boolean cycles = subGraph.containsCycles();
+			System.out.printf("\tContains cycles: %s\n", cycles);
+
+			if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
+				boolean isPathGraph = subGraph.isPathGraph();
+				System.out.printf("\tPath graph: %s\n", isPathGraph);
+				if (isPathGraph) {
+					pathGraphs.add(subGraph);
+					boolean isDirectedPathGraph = subGraph.isDirectedPathGraph();
+					System.out.printf("\tDirected path graph: %s\n",
+							isDirectedPathGraph);
+					if (isDirectedPathGraph) {
+						directedPathGraphs.add(subGraph);
+					}
+				} else {
+					boolean isMixedDirectedStarGraph = subGraph
+							.isMixedDirectedStarGraph();
+					if (isMixedDirectedStarGraph) {
+						System.out.printf(
+								"\tMixed directed star graph: %s\n",
+								isMixedDirectedStarGraph);
+						mixedDirectedStarGraphs.add(subGraph);
+						boolean isOutboundStarGraph = subGraph.isOutboundStarGraph();
+						if (isOutboundStarGraph) {
+							System.out.printf("\tOutbound star graph: %s\n",
+									isOutboundStarGraph);
+							outboundStarGraphs.add(subGraph);
+						} else {
+							boolean isInboundStarGraph = subGraph.isInboundStarGraph();
+							if (isInboundStarGraph) {
+								System.out.printf("\tInbound star graph: %s\n",
+										isInboundStarGraph);
+								inboundStarGraphs.add(subGraph);
+							}
+						}
+	
+					}
+				}
+			}
+		}
         if (graphRenderer != null) {
             graphRenderer.writeDotFiles( "connected", connectedGraphs);
             if (!pathGraphs.isEmpty()) {
@@ -159,10 +174,8 @@ public class GraphLOD {
             if (!inboundStarGraphs.isEmpty()) {
                 graphRenderer.writeDotFiles( "inboundstargraphs", inboundStarGraphs);
             }
-            if (!inboundStarGraphs.isEmpty() || !outboundStarGraphs.isEmpty()) {
-            	List<GraphFeatures> starGraphs = inboundStarGraphs;
-            	starGraphs.addAll(outboundStarGraphs);
-            	graphRenderer.writeDotFiles( "stargraphs", starGraphs);
+            if (!mixedDirectedStarGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "stargraphs", mixedDirectedStarGraphs);
             }
         }
         
@@ -188,6 +201,16 @@ public class GraphLOD {
             System.out.println("Chromatic Number: " + cN);
             System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
         }
+        
+        System.out.println("\nPath graphs: " + pathGraphs.size());
+        System.out.println("\tDirected path graphs: " + directedPathGraphs.size());
+        
+        System.out.println("Star graphs: " + mixedDirectedStarGraphs.size());
+        System.out.println("\tInbound star graphs: " + inboundStarGraphs.size());
+        System.out.println("\tOutbound star graphs: " + outboundStarGraphs.size());
+        
+        int unrecognizedPatterns = connectedGraphs.size() - mixedDirectedStarGraphs.size() - pathGraphs.size();
+        System.out.println("Unrecognized graph patterns: " + unrecognizedPatterns);
     }
 
 

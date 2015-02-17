@@ -170,6 +170,15 @@ public class GraphFeatures {
 		return false;
 	}
 
+	public boolean isMixedDirectedStarGraph() {
+		for (String v : this.undirectedG.vertexSet()) {
+			if (this.undirectedG.degreeOf(v) == this.getEdgeCount()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public List<Integer> getIndegrees() {
 		if (this.indegrees == null) {
 			this.indegrees = new ArrayList<>();
