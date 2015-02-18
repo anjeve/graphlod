@@ -23,6 +23,7 @@ public class GraphRenderer {
 	public static final int MIN_VERTICES = 2;
 	private String fileName;
 	private String filePath;
+	private GraphLOD graphLOD;
 
 	private static class DotFile {
 		public int vertices;
@@ -83,7 +84,8 @@ public class GraphRenderer {
 		}
 	}
 
-	public void render() {
+	public void render(GraphLOD graphLOD) {
+		this.graphLOD = graphLOD;
 		ArrayList<DotFile> sorted = new ArrayList<>(files);
 		Collections.sort(sorted, new DotFileSorter()); // process small files first
 
@@ -101,7 +103,9 @@ public class GraphRenderer {
 
 	private void createHtml(String fileName) {
 		try {
-			BufferedWriter out = Files.newWriter(new File(this.filePath + fileName + ".html"), Charsets.UTF_8);
+			String file = this.filePath + fileName + ".html";
+			BufferedWriter out = Files.newWriter(new File(file), Charsets.UTF_8);
+			this.graphLOD.addHtmlFile(file);
 			BufferedReader map = Files.newReader(new File(this.filePath + fileName + ".cmapx"), Charsets.UTF_8);
 			out.write("<img src=\"" + StringUtils.stripStart(fileName, "dot/") + ".png\" USEMAP=\"#G\" />\n");
 			String line;

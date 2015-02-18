@@ -4,13 +4,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
+import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.BiconnectivityInspector;
 import org.jgrapht.alg.ChromaticNumber;
 import org.jgrapht.alg.ConnectivityInspector;
@@ -18,8 +19,15 @@ import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.alg.StrongConnectivityInspector;
+import org.jgrapht.event.EdgeTraversalEvent;
+import org.jgrapht.event.TraversalListenerAdapter;
+import org.jgrapht.event.VertexTraversalEvent;
+import org.jgrapht.experimental.GraphTests;
 import org.jgrapht.graph.AsUndirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.SimpleGraph;
+import org.jgrapht.traverse.DepthFirstIterator;
+import org.jgrapht.traverse.GraphIterator;
 
 import com.google.common.base.MoreObjects;
 
@@ -34,6 +42,11 @@ public class GraphFeatures {
 	private final Set<DefaultEdge> edges;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
 	private String id;
+	private List<DefaultEdge> edgesDeletedTemp = new ArrayList<>();
+	private List<String> verticesDeletedTemp = new ArrayList<>();
+	private Boolean isPathGraph;
+	private Boolean isTree;
+	private boolean containsCycle;
 
 	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph) {
 		this.id = id;
@@ -130,13 +143,17 @@ public class GraphFeatures {
 		CycleDetector<String, DefaultEdge> cycleDetector = new CycleDetector<>(this.graph);
 		return cycleDetector.detectCycles();
 	}
-	
+
 	public boolean isPathGraph() {
-		double diameter = getDiameterUndirected();
-		if (this.getVertexCount() == diameter + 1) {
-			return true;
+		if (this.isPathGraph == null) {
+			double diameter = getDiameterUndirected();
+			if (this.getVertexCount() == diameter + 1) {
+				this.isPathGraph = true;
+			} else {
+				this.isPathGraph = false;
+			}
 		}
-		return false;
+		return this.isPathGraph;
 	}
 
 	public boolean isDirectedPathGraph() {
@@ -177,6 +194,81 @@ public class GraphFeatures {
 			}
 		}
 		return false;
+	}
+
+	public boolean isCompleteGraph() {
+		for (String v : this.undirectedG.vertexSet()) {
+			if (this.undirectedG.degreeOf(v) != this.getEdgeCount()-1) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public boolean isTree() {
+		if (this.isTree == null) {
+			return isTree(this.undirectedG, true);
+		}
+		return this.isTree;
+	}
+
+	public boolean isTree(UndirectedGraph<String, DefaultEdge> g, boolean overwriteCheck) {
+		/*
+		GraphIterator<String, DefaultEdge> iterator = new TreeDepthFirstIterator(g, this);
+        while (iterator.hasNext()) {
+            String v = iterator.next();
+            if (containsCycle) {
+            	if (overwriteCheck) {
+            		this.isTree = false;
+            	}
+            	return false;
+            }
+        }
+    	if (overwriteCheck) {
+    		this.isTree = true;
+    	}
+        return true;
+        */
+		boolean isTree = GraphTests.isTree(g);
+		if (isTree) {
+			if (overwriteCheck) {
+	    		this.isTree = true;
+	    	}
+			return true;
+		}
+		if (overwriteCheck) {
+    		this.isTree = false;
+    	}
+		return false;
+	}
+
+	public boolean isCaterpillar() {
+		if (!isTree() || isPathGraph()) {
+			return false;
+		}
+	    
+		UndirectedGraph<String, DefaultEdge> tempG = new SimpleGraph<>(DefaultEdge.class);
+
+		GraphIterator<String, DefaultEdge> iterator = new DepthFirstIterator<>(this.undirectedG);
+		iterator.addTraversalListener(new CaterpillarListener(this.undirectedG, this));
+		while (iterator.hasNext()) {
+			iterator.next();
+        }
+		
+		for (String v : this.vertices) {
+			if (!verticesDeletedTemp.contains(v)) {
+				tempG.addVertex(v);
+			}
+		}
+		for (DefaultEdge e : this.edges) {
+			if (!edgesDeletedTemp.contains(e)) {
+				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
+			}
+		}
+		if (!isTree(tempG, false)) {
+			return false;
+		}
+        return true;
 	}
 
 	public List<Integer> getIndegrees() {
@@ -284,5 +376,80 @@ public class GraphFeatures {
 			getIndegrees();
 		}
 		return CollectionUtils.maxValues(indegrees2, count);
+	}
+	
+	
+	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
+		
+		String lastSeenVertex;
+		DefaultEdge lastSeenEdge;
+		
+		UndirectedGraph<String, DefaultEdge> g;
+		private boolean newComponent;
+		private String reference;
+		private GraphFeatures gF;
+		
+		public CaterpillarListener(UndirectedGraph<String, DefaultEdge> g, GraphFeatures gF) {
+			this.g = g;
+			this.gF = gF;
+		}
+		
+		
+		@Override
+		public void edgeTraversed(EdgeTraversalEvent<String, DefaultEdge> e) {
+			lastSeenEdge = e.getEdge();
+		}
+
+		@Override
+		public void vertexTraversed(VertexTraversalEvent<String> e) {
+			String vertex = e.getVertex();
+			/*
+			if (newComponent) {
+				reference = vertex;
+				newComponent = false;
+			}
+			
+			int l = DijkstraShortestPath.findPathBetween( g, reference, vertex).size();
+			String x = "";
+			for (int i=0; i<l; i++) x+= "\t";
+			System.out.println( x + "vertex: " + vertex);
+			*/
+			this.lastSeenVertex = vertex;
+		}
+
+		@Override
+		public void vertexFinished(VertexTraversalEvent<String> e) {
+			String vertex = e.getVertex();
+			// System.out.println("finished vertex: " + vertex);
+			if (lastSeenVertex.equals(vertex)) {
+				gF.addForDeletion(lastSeenVertex, lastSeenEdge);
+			}
+		}
+	}
+	
+	class TreeDepthFirstIterator extends DepthFirstIterator<String, DefaultEdge> {
+		private List<String> alreadySeenVertices = new ArrayList<>();
+		private GraphFeatures graphFeature;
+		
+		public TreeDepthFirstIterator(Graph<String, DefaultEdge> g, GraphFeatures graphFeature) {
+			super(g);
+			this.graphFeature = graphFeature;
+		}
+		
+		protected void encounterVertexAgain(String vertex,DefaultEdge edge) {
+			if (this.alreadySeenVertices.contains(vertex)) {
+				this.graphFeature.containsCycle();
+			}
+			this.alreadySeenVertices.add(vertex);
+		}
+	}
+	
+	private void addForDeletion(String v, DefaultEdge e) {
+		this.edgesDeletedTemp.add(e);
+		this.verticesDeletedTemp.add(v);
+	}
+
+	public void containsCycle() {
+		this.containsCycle = true;
 	}
 }

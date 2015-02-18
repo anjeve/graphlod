@@ -1,10 +1,17 @@
 package graphlod;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -12,10 +19,12 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
+import com.google.common.io.Files;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
@@ -30,9 +39,23 @@ public class GraphLOD {
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
-
+	private String name;
+	
+	List<GraphFeatures> connectedGraphs = new ArrayList<>();
+    List<GraphFeatures> pathGraphs = new ArrayList<>();
+    List<GraphFeatures> directedPathGraphs = new ArrayList<>();
+    List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
+    List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
+    List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
+    List<GraphFeatures> treeGraphs = new ArrayList<>();
+    List<GraphFeatures> caterpillarGraphs = new ArrayList<>();
+    List<GraphFeatures> completeGraphs = new ArrayList<>();
+    
+    List<String> htmlFiles = new ArrayList<>();
+    
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize, int importantDegreeCount) {
-        graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+        this.name = name;
+    	graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         if (!skipGraphviz) {
             graphRenderer = new GraphRenderer(name);
@@ -49,9 +72,10 @@ public class GraphLOD {
 
         if (graphRenderer != null) {
             Stopwatch sw = Stopwatch.createStarted();
-            graphRenderer.render();
+            graphRenderer.render(this);
             System.out.println("visualization took " + sw);
         }
+        createHtml();
     }
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, Collection<String> excludedNamespaces) {
@@ -89,13 +113,6 @@ public class GraphLOD {
         }
         System.out.println("Getting the connectivity took " + sw + " to execute.");
 
-        List<GraphFeatures> connectedGraphs = new ArrayList<>();
-        List<GraphFeatures> pathGraphs = new ArrayList<>();
-        List<GraphFeatures> directedPathGraphs = new ArrayList<>();
-        List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
-        List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
-        List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
-
         int i = 0;
         
         sw = Stopwatch.createStarted();
@@ -122,7 +139,27 @@ public class GraphLOD {
 
 			boolean cycles = subGraph.containsCycles();
 			System.out.printf("\tContains cycles: %s\n", cycles);
-
+			
+			if (!cycles) {
+				boolean isTree = subGraph.isTree();
+				if (isTree) {
+					System.out.printf("\tTree: %s\n", isTree);
+					treeGraphs.add(subGraph);
+					boolean isCaterpillar = subGraph.isCaterpillar();
+					if (isCaterpillar) {
+						System.out.printf("\tCaterpillar: %s\n", isCaterpillar);
+						caterpillarGraphs.add(subGraph);
+					}
+				}
+			}
+			
+			boolean isCompleteGraph = subGraph.isCompleteGraph();
+			if (isCompleteGraph) {
+				System.out.printf("\tComplete graph: %s\n", isCompleteGraph);
+				completeGraphs.add(subGraph);
+			}
+			
+			
 			if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
 				boolean isPathGraph = subGraph.isPathGraph();
 				System.out.printf("\tPath graph: %s\n", isPathGraph);
@@ -177,6 +214,15 @@ public class GraphLOD {
             if (!mixedDirectedStarGraphs.isEmpty()) {
                 graphRenderer.writeDotFiles( "stargraphs", mixedDirectedStarGraphs);
             }
+            if (!treeGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "trees", treeGraphs);
+            }
+            if (!caterpillarGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "caterpillargraphs", caterpillarGraphs);
+            }
+            if (!completeGraphs.isEmpty()) {
+                graphRenderer.writeDotFiles( "completegraphs", completeGraphs);
+            }
         }
         
         System.out.println("Analysing the components took " + sw + " to execute.");
@@ -201,20 +247,141 @@ public class GraphLOD {
             System.out.println("Chromatic Number: " + cN);
             System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
         }
-        
-        System.out.println("\nPath graphs: " + pathGraphs.size());
-        System.out.println("\tDirected path graphs: " + directedPathGraphs.size());
-        
-        System.out.println("Star graphs: " + mixedDirectedStarGraphs.size());
-        System.out.println("\tInbound star graphs: " + inboundStarGraphs.size());
-        System.out.println("\tOutbound star graphs: " + outboundStarGraphs.size());
-        
-        int unrecognizedPatterns = connectedGraphs.size() - mixedDirectedStarGraphs.size() - pathGraphs.size();
-        System.out.println("Unrecognized graph patterns: " + unrecognizedPatterns);
     }
 
+    private void exportEntities(List<GraphFeatures> graphs, String string) {
+		File file = new File("entities/" + string + ".csv");
+		try {
+			Files.createParentDirs(file);
+			Writer writer = new BufferedWriter(new FileWriter(file));
+			for (GraphFeatures graph: graphs) {
+				for (String v : graph.getVertices()) {
+					writer.write(v+"\n");
+				}
+			}
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-    private void printComponentSizeAndCount(Collection<Set<String>> sets) {
+	private void printStats(BufferedWriter out, List<GraphFeatures> graphs, String string, int times) throws IOException {
+		out.write("<tr>\n");
+        for (int i = 1; i <= times; i++) {
+    		System.out.print("\t");
+        }
+		System.out.println(string + ": " + graphs.size());
+		out.write("<td>"+graphs.size()+"</td>\n");
+		out.write("<td>" + string + "</td>\n");
+    	if (graphs.size() == 0) {
+    		out.write("<td>0</td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("</tr>\n");
+    		return;
+    	}
+    	int min = 0;
+    	int max = 0;
+    	List<Integer> sizes = new ArrayList<>();
+    	for (GraphFeatures graph : graphs) {
+    		sizes.add(graph.getVertexCount());
+    		if (min == 0) {
+    			min = graph.getVertexCount();
+    		} else if (graph.getVertexCount() < min) {
+    			min = graph.getVertexCount();
+    		}
+    		if (graph.getVertexCount() > max) {
+    			max = graph.getVertexCount();
+    		}
+    	}
+    	for (int i = 0; i <= times; i++) {
+    		System.out.print("\t");
+        }
+    	double avg = calculateAverage(sizes);
+		out.write("<td>" + min + "</td>\n");
+		out.write("<td>" + max + "</td>\n");
+		out.write("<td>" + avg + "</td>\n");
+		System.out.println("min #v: " + min + ", max #v: " + max + ", avg #v: " + avg);
+
+		String stringNormalized = string.toLowerCase().replace(" ", "");
+		exportEntities(graphs, stringNormalized);
+		
+		out.write("<td>\n");
+		for (String file : htmlFiles) {
+			if (file.contains(stringNormalized)) {
+				out.write("<a href=../" + file + ">*</a> \n");
+			}
+		}
+		out.write("</td>\n");
+
+		out.write("</tr>\n");
+	}
+	
+	private void createHtml() {
+		
+		System.out.println("\nPattern Statistics");
+        
+        
+        
+		try {
+			File file = new File("stats/" + name + "_statistics.html");
+			Files.createParentDirs(file);
+			BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
+			out.write("<h1>"+this.name+"</h1>\n");
+			out.write("<table>\n");
+			out.write("<tr>\n");
+			out.write("<td>Pattern</td>\n");
+			out.write("<td>Number</td>\n");
+			out.write("<td># Vertices (min)</td>\n");
+			out.write("<td># Vertices (max)</td>\n");
+			out.write("<td># Vertices (avg)</td>\n");
+			out.write("<td>Graphs</td>\n");
+			out.write("</tr>\n");
+	        printStats(out, completeGraphs, "Complete graphs", 0);
+	        printStats(out, pathGraphs, "Path graphs", 0);
+	        printStats(out, directedPathGraphs, "Directed path graphs", 1);
+	        printStats(out, mixedDirectedStarGraphs, "Star graphs", 0);
+	        printStats(out, inboundStarGraphs, "Inbound star graphs", 1);
+	        printStats(out, outboundStarGraphs, "Outbound star graphs", 1);
+	        printStats(out, treeGraphs, "Trees", 0);
+	        printStats(out, caterpillarGraphs, "Caterpillars", 1);
+	        
+	        // TODO paths of size 2 are also complete, do not count twice   
+	        // also trees can be stars
+	        int unrecognizedPatterns = connectedGraphs.size() - mixedDirectedStarGraphs.size() - pathGraphs.size() - treeGraphs.size() - completeGraphs.size();
+	        System.out.println("Unrecognized graph patterns: " + unrecognizedPatterns);
+
+    		out.write("<tr>\n");
+    		out.write("<td>Unrecognized</td>\n");
+    		out.write("<td>"+unrecognizedPatterns+"</td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("<td></td>\n");
+    		out.write("</tr>\n");
+
+			out.write("</table>\n");
+			out.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+    
+	private double calculateAverage(List<Integer> sizes) {
+		Integer sum = 0;
+		if (!sizes.isEmpty()) {
+			for (Integer size : sizes) {
+				sum += size;
+			}
+			return sum.doubleValue() / sizes.size();
+		}
+		return sum;
+	}
+
+	private void printComponentSizeAndCount(Collection<Set<String>> sets) {
         Multiset<Integer> sizes = TreeMultiset.create();
         for (Set<String> component : sets) {
             sizes.add(component.size());
@@ -296,5 +463,9 @@ public class GraphLOD {
 
         new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount);
     }
+
+	public void addHtmlFile(String file) {
+		htmlFiles.add(file);
+	}
 
 }
