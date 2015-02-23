@@ -6,14 +6,10 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Set;
-
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Verify;
 
 public class GraphCsvOutput {
 

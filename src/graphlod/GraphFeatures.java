@@ -46,7 +46,7 @@ public class GraphFeatures {
 	private List<String> verticesDeletedTemp = new ArrayList<>();
 	private Boolean isPathGraph;
 	private Boolean isTree;
-	private boolean containsCycle;
+	private Boolean containsCycle;
 
 	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph) {
 		this.id = id;
@@ -197,12 +197,17 @@ public class GraphFeatures {
 	}
 
 	public boolean isCompleteGraph() {
-		for (String v : this.undirectedG.vertexSet()) {
+		/* for (String v : this.undirectedG.vertexSet()) {
 			if (this.undirectedG.degreeOf(v) != this.getEdgeCount()-1) {
 				return false;
 			}
 		}
-		return true;
+		return true; */
+		
+		if (GraphTests.isComplete(this.undirectedG)) {
+			return true;
+		}
+		return false;
 	}
 
 	public boolean isTree() {
@@ -385,8 +390,8 @@ public class GraphFeatures {
 		DefaultEdge lastSeenEdge;
 		
 		UndirectedGraph<String, DefaultEdge> g;
-		private boolean newComponent;
-		private String reference;
+//		private boolean newComponent;
+//		private String reference;
 		private GraphFeatures gF;
 		
 		public CaterpillarListener(UndirectedGraph<String, DefaultEdge> g, GraphFeatures gF) {
