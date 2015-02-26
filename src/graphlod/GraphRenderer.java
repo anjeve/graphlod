@@ -12,18 +12,22 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
 public class GraphRenderer {
+    private static final Logger logger = Logger.getLogger(GraphRenderer.class);
 
 	private static final int MAX_VERTICES_PER_GROUP = 5000;
-	public static final int MIN_VERTICES = 2;
+	public static final int MIN_VERTICES = 1;
 	private String fileName;
 	private String filePath;
 	private GraphLOD graphLOD;
+	private List<DotFile> files;
 
 	private static class DotFile {
 		public int vertices;
@@ -44,14 +48,17 @@ public class GraphRenderer {
 		}
 	}
 
-	List<DotFile> files;
-
-	public GraphRenderer(String fileName) {
-		System.out.println(fileName);
+	public GraphRenderer(String fileName, boolean debugMode, String output) {
+		if (debugMode) {
+        	logger.setLevel(Level.DEBUG);
+        } else {
+        	logger.setLevel(Level.INFO);
+        }
+		this.filePath = output;
+		//this.filePath = fileName.replaceFirst("(?s)"+this.fileName+"(?!.*?"+this.fileName+")", "");
+		logger.debug(this.filePath);
 		this.fileName = new File(fileName).getName();
-		System.out.println(this.fileName);
-		this.filePath = fileName.replaceFirst("(?s)"+this.fileName+"(?!.*?"+this.fileName+")", "");
-		System.out.println(this.filePath);
+		logger.debug(this.fileName);
 		files = new ArrayList<>();
 	}
 
@@ -62,13 +69,13 @@ public class GraphRenderer {
 			int lastI = 0;
 			int fileCounter = 0;
 			while (i < features.size()) {
-				String dotFileName = "dot/" + this.fileName + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
-				Writer writer = createDot(this.filePath + dotFileName);
+				String dotFileName = this.filePath + "dot/" + this.fileName + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
+				Writer writer = createDot(dotFileName);
 				int written = 0;
 				lastI = i;
 				while (i < features.size() && (written == 0 || written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP)) {
 					GraphFeatures f = features.get(i);
-					if (f.getVertexCount() > MIN_VERTICES) {
+					if (f.getVertexCount() >= MIN_VERTICES) {
 						written += f.getVertexCount();
 						writeDot(f, writer);
 					} else {
@@ -90,12 +97,16 @@ public class GraphRenderer {
 		Collections.sort(sorted, new DotFileSorter()); // process small files first
 
 		for (DotFile file : sorted) {
-			System.out.printf("processing visualization for %s vertices in %s graphs, output: %s\n", file.vertices, file.graphs, file.fileName);
+			logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
 
-			callGraphViz(file.fileName);
-			createHtml(file.fileName);
+			if (file.vertices > MAX_VERTICES_PER_GROUP) {
+				logger.warn("Won't process " + file.fileName + " (too large)");
+			} else {
+				callGraphViz(file.fileName);
+				createHtml(file.fileName);
+			}
 			if (!new File(file.fileName).delete()) {
-				System.out.println("could not delete: " + file.fileName);
+				logger.warn("could not delete: " + file.fileName);
 			}
 		}
 		files.clear();
@@ -103,19 +114,22 @@ public class GraphRenderer {
 
 	private void createHtml(String fileName) {
 		try {
-			String file = this.filePath + fileName + ".html";
-			BufferedWriter out = Files.newWriter(new File(file), Charsets.UTF_8);
-			this.graphLOD.addHtmlFile(file);
-			BufferedReader map = Files.newReader(new File(this.filePath + fileName + ".cmapx"), Charsets.UTF_8);
-			out.write("<img src=\"" + StringUtils.stripStart(fileName, "dot/") + ".png\" USEMAP=\"#G\" />\n");
+			logger.debug("Creating HTML statistics for " + fileName);
+			File file = new File(fileName + ".html");
+			String localFileName = file.getName();
+			Files.createParentDirs(file);
+			BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
+			this.graphLOD.addHtmlFile(fileName + ".html");
+			BufferedReader map = Files.newReader(new File(fileName + ".cmapx"), Charsets.UTF_8);
+			out.write("<img src=\"" + localFileName.replaceAll("\\.html$", "")  + ".png\" USEMAP=\"#G\" />\n");
 			String line;
 			while ((line = map.readLine()) != null) {
 				out.write(line + "\n");
 			}
 			map.close();
 			out.close();
-			if (!new File(this.filePath + fileName + ".cmapx").delete()) {
-				System.out.println("could not delete: " + this.filePath + fileName + ".cmapx");
+			if (!new File(fileName + ".cmapx").delete()) {
+				logger.warn("could not delete: " + fileName + ".cmapx");
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

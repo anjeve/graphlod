@@ -141,9 +141,17 @@ public class GraphFeatures {
 
 	public boolean containsCycles() {
 		CycleDetector<String, DefaultEdge> cycleDetector = new CycleDetector<>(this.graph);
-		return cycleDetector.detectCycles();
+		this.containsCycle = cycleDetector.detectCycles();
+		return this.containsCycle;
 	}
 
+	public boolean isBipartite() {
+		if (GraphTests.isBipartite(this.undirectedG)) {
+			return true;
+		}
+		return false;
+	}
+	
 	public boolean isPathGraph() {
 		if (this.isPathGraph == null) {
 			double diameter = getDiameterUndirected();
@@ -197,13 +205,6 @@ public class GraphFeatures {
 	}
 
 	public boolean isCompleteGraph() {
-		/* for (String v : this.undirectedG.vertexSet()) {
-			if (this.undirectedG.degreeOf(v) != this.getEdgeCount()-1) {
-				return false;
-			}
-		}
-		return true; */
-		
 		if (GraphTests.isComplete(this.undirectedG)) {
 			return true;
 		}
@@ -218,22 +219,6 @@ public class GraphFeatures {
 	}
 
 	public boolean isTree(UndirectedGraph<String, DefaultEdge> g, boolean overwriteCheck) {
-		/*
-		GraphIterator<String, DefaultEdge> iterator = new TreeDepthFirstIterator(g, this);
-        while (iterator.hasNext()) {
-            String v = iterator.next();
-            if (containsCycle) {
-            	if (overwriteCheck) {
-            		this.isTree = false;
-            	}
-            	return false;
-            }
-        }
-    	if (overwriteCheck) {
-    		this.isTree = true;
-    	}
-        return true;
-        */
 		boolean isTree = GraphTests.isTree(g);
 		if (isTree) {
 			if (overwriteCheck) {
