@@ -123,9 +123,7 @@ public class GraphRenderer {
             });
         }
         try {
-            boolean allFinished = pool.awaitTermination(5, TimeUnit.HOURS);
-            if (!allFinished) {
-                logger.warn("Terminated graphviz before all images were rendered");
+            while(!pool.awaitTermination(10, TimeUnit.SECONDS)){
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
