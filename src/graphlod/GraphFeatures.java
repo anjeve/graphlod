@@ -146,10 +146,7 @@ public class GraphFeatures {
 	}
 
 	public boolean isBipartite() {
-		if (GraphTests.isBipartite(this.undirectedG)) {
-			return true;
-		}
-		return false;
+		return GraphTests.isBipartite(this.undirectedG);
 	}
 	
 	public boolean isPathGraph() {

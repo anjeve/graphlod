@@ -11,15 +11,14 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.jgrapht.alg.StrongConnectivityInspector;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -37,12 +36,12 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public class GraphLOD {
     private static final Logger logger = Logger.getLogger(GraphLOD.class);
     public static final int MAX_SIZE_FOR_DIAMETER = 500;
-    		
+
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
 	private String name;
-	
+
 	List<GraphFeatures> connectedGraphs = new ArrayList<>();
 	List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     List<GraphFeatures> pathGraphs = new ArrayList<>();
@@ -55,11 +54,13 @@ public class GraphLOD {
     List<GraphFeatures> completeGraphs = new ArrayList<>();
     List<GraphFeatures> bipartiteGraphs = new ArrayList<>();
     List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
-    
+
     List<String> htmlFiles = new ArrayList<>();
 	private String output;
-    
-    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz, String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize, int importantDegreeCount, String output, boolean debugMode) {
+
+    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
+                    String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
+                    int importantDegreeCount, String output, boolean debugMode, int threadcount) {
         if (debugMode) {
         	logger.setLevel(Level.DEBUG);
         } else {
@@ -79,7 +80,7 @@ public class GraphLOD {
     	graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         if (!skipGraphviz) {
-            graphRenderer = new GraphRenderer(name, debugMode, this.output);
+            graphRenderer = new GraphRenderer(name, debugMode, this.output, threadcount);
         } else {
             graphRenderer = null;
         }
@@ -93,8 +94,8 @@ public class GraphLOD {
 
         if (graphRenderer != null) {
             Stopwatch sw = Stopwatch.createStarted();
-            graphRenderer.render(this);
-            logger.debug("visualization took " + sw);
+	        htmlFiles = graphRenderer.render();
+	        logger.debug("visualization took " + sw);
         }
         createHtmlStructures();
         createHtmlConnectedSets();
@@ -129,19 +130,19 @@ public class GraphLOD {
         List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
         System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
         printComponentSizeAndCount(sci_sets);
-        stronglyConnectedGraphs = graphFeatures.createSubGraphFeatures(sci_sets);			
+        stronglyConnectedGraphs = graphFeatures.createSubGraphFeatures(sci_sets);
 		logger.debug("Getting the connectivity took " + sw + " to execute.");
 
         int i = 0;
-        
+
         sw = Stopwatch.createStarted();
 
         if (graphFeatures.isConnected()) {
             connectedGraphs.add(graphFeatures);
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
-        }        
-        
+        }
+
 		for (GraphFeatures subGraph : connectedGraphs) {
 			if (subGraph.getVertexCount() < minImportantSubgraphSize) {
 				continue;
@@ -158,7 +159,7 @@ public class GraphLOD {
 
 			boolean cycles = subGraph.containsCycles();
 			System.out.printf("\tContains cycles: %s\n", cycles);
-			
+
 			boolean isTree = false;
 			boolean isCaterpillar = false;
 			if (!cycles) {
@@ -173,13 +174,13 @@ public class GraphLOD {
 					}
 				}
 			}
-			
+
 			boolean isCompleteGraph = subGraph.isCompleteGraph();
 			if (isCompleteGraph) {
 				System.out.printf("\tComplete graph: %s\n", isCompleteGraph);
 				completeGraphs.add(subGraph);
 			}
-			
+
 			boolean isBipartiteGraph = false;
 			/* TODO Takes too long for some graphs and results in OutOfMemoryError. Deal with that first.
 			boolean isBipartiteGraph = subGraph.isBipartite();
@@ -188,13 +189,13 @@ public class GraphLOD {
 				bipartiteGraphs.add(subGraph);
 			}
 			*/
-			
+
 			boolean isPathGraph = false;
 			boolean isDirectedPathGraph = false;
 			boolean isMixedDirectedStarGraph = false;
 			boolean isOutboundStarGraph = false;
 			boolean isInboundStarGraph = false;
-			
+
 			if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
 				isPathGraph = subGraph.isPathGraph();
 				System.out.printf("\tPath graph: %s\n", isPathGraph);
@@ -227,52 +228,32 @@ public class GraphLOD {
 								inboundStarGraphs.add(subGraph);
 							}
 						}
-	
+
 					}
 				}
 			}
-			
+
 	        if (!isTree && !isBipartiteGraph && !isCaterpillar && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
 	        	unrecognizedStructure.add(subGraph);
 	        }
 
 		}
-		
+
         if (graphRenderer != null) {
-            graphRenderer.writeDotFiles( "connected", connectedGraphs);
-            graphRenderer.writeDotFiles( "strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
-            if (!pathGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "pathgraphs", pathGraphs);
-            }
-            if (!directedPathGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "directedpathgraphs", directedPathGraphs);
-            }
-            if (!outboundStarGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "outboundstargraphs", outboundStarGraphs);
-            }
-            if (!inboundStarGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "inboundstargraphs", inboundStarGraphs);
-            }
-            if (!mixedDirectedStarGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "stargraphs", mixedDirectedStarGraphs);
-            }
-            if (!treeGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "trees", treeGraphs);
-            }
-            if (!caterpillarGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "caterpillargraphs", caterpillarGraphs);
-            }
-            if (!completeGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "completegraphs", completeGraphs);
-            }
-            if (!bipartiteGraphs.isEmpty()) {
-                graphRenderer.writeDotFiles( "bipartitegraphs", completeGraphs);
-            }
-            if (!unrecognizedStructure.isEmpty()) {
-                graphRenderer.writeDotFiles( "unrecognized", unrecognizedStructure);
-            }
+            graphRenderer.writeDotFiles("connected", connectedGraphs);
+            graphRenderer.writeDotFiles("strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
+            graphRenderer.writeDotFiles("pathgraphs", pathGraphs);
+            graphRenderer.writeDotFiles("directedpathgraphs", directedPathGraphs);
+            graphRenderer.writeDotFiles("outboundstargraphs", outboundStarGraphs);
+            graphRenderer.writeDotFiles("inboundstargraphs", inboundStarGraphs);
+            graphRenderer.writeDotFiles("stargraphs", mixedDirectedStarGraphs);
+            graphRenderer.writeDotFiles("trees", treeGraphs);
+            graphRenderer.writeDotFiles("caterpillargraphs", caterpillarGraphs);
+            graphRenderer.writeDotFiles("completegraphs", completeGraphs);
+            graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs);
+	        graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure);
         }
-        
+
         logger.debug("Analysing the components took " + sw + " to execute.");
 
         logger.info("Vertex Degrees:");
@@ -362,7 +343,7 @@ public class GraphLOD {
 			stringNormalized = "strongly-connected";
 		}
 		exportEntities(graphs, stringNormalized);
-		
+
 		out.write("<td>\n");
 		for (String file : htmlFiles) {
 			String htmlFile = new File(file).getName();
@@ -374,7 +355,7 @@ public class GraphLOD {
 
 		out.write("</tr>\n");
 	}
-	
+
     private void createHtmlConnectedSets() {
 		try {
 			File file = new File(this.output + this.name + "_cs_statistics.html");
@@ -393,7 +374,7 @@ public class GraphLOD {
 
 	private void createHtmlStructures() {
 		logger.info("\nStructure Statistics");
-        
+
 		try {
 			File file = new File(this.output + this.name + "_statistics.html");
 			Files.createParentDirs(file);
@@ -432,7 +413,7 @@ public class GraphLOD {
 		out.write("</tr>\n");
 	}
 
-    
+
 	private double calculateAverage(List<Integer> sizes) {
 		Integer sum = 0;
 		if (!sizes.isEmpty()) {
@@ -443,7 +424,7 @@ public class GraphLOD {
 		}
 		return sum;
 	}
-	
+
 	private double round(double value, int places) {
 		if (places < 0) throw new IllegalArgumentException();
 		BigDecimal bd = new BigDecimal(value);
@@ -499,6 +480,7 @@ public class GraphLOD {
         parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
         parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(1);
         parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
+        parser.addArgument("--threadcount").type(Integer.class).action(Arguments.store()).setDefault(4);
         parser.addArgument("--debug").action(Arguments.storeTrue());
         parser.addArgument("--output").type(String.class).setDefault("");
         Namespace result = null;
@@ -520,9 +502,11 @@ public class GraphLOD {
         boolean skipGraphviz = result.getBoolean("skipGraphviz");
         int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
         int importantDegreeCount = result.getInt("importantDegreeCount");
+        int threadcount = result.getInt("threadcount");
         boolean debugMode = result.getBoolean("debug");
         String output = result.getString("output");
 
+	    BasicConfigurator.configure();
         logger.info("reading: " + dataset);
         logger.info("name: " + name);
         logger.info("namespace: " + namespace);
@@ -531,16 +515,12 @@ public class GraphLOD {
         logger.info("excluded namespaces: " + excludedNamespaces);
         logger.info("min important subgraph size: " + minImportantSubgraphSize);
         logger.info("number of important degrees: " + importantDegreeCount);
+        logger.info("threadcount: " + threadcount);
         logger.info("output: " + output);
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, debugMode);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, debugMode, threadcount);
     }
-
-	public void addHtmlFile(String file) {
-		//logger.debug("Added "+ file);
-		htmlFiles.add(file);
-	}
 
 }
