@@ -40,10 +40,10 @@ public class GraphLOD {
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
-	private String name;
+    private String name;
 
-	List<GraphFeatures> connectedGraphs = new ArrayList<>();
-	List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
+    List<GraphFeatures> connectedGraphs = new ArrayList<>();
+    List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     List<GraphFeatures> pathGraphs = new ArrayList<>();
     List<GraphFeatures> directedPathGraphs = new ArrayList<>();
     List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
@@ -56,28 +56,28 @@ public class GraphLOD {
     List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
 
     List<String> htmlFiles = new ArrayList<>();
-	private String output;
+    private String output;
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
                     int importantDegreeCount, String output, boolean debugMode, int threadcount) {
         if (debugMode) {
-        	logger.setLevel(Level.DEBUG);
+            logger.setLevel(Level.DEBUG);
         } else {
-        	logger.setLevel(Level.INFO);
+            logger.setLevel(Level.INFO);
         }
         this.output = output;
         if (!this.output.isEmpty()) {
-        	try {
-        		File file = new File(this.output);
-        		Files.createParentDirs(file);
-			} catch (IOException e) {
-				this.output = "";
-				e.printStackTrace();
-			}
+            try {
+                File file = new File(this.output);
+                Files.createParentDirs(file);
+            } catch (IOException e) {
+                this.output = "";
+                e.printStackTrace();
+            }
         }
-    	this.name = name;
-    	graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+        this.name = name;
+        graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         if (!skipGraphviz) {
             graphRenderer = new GraphRenderer(name, debugMode, this.output, threadcount);
@@ -94,8 +94,8 @@ public class GraphLOD {
 
         if (graphRenderer != null) {
             Stopwatch sw = Stopwatch.createStarted();
-	        htmlFiles = graphRenderer.render();
-	        logger.debug("visualization took " + sw);
+            htmlFiles = graphRenderer.render();
+            logger.debug("visualization took " + sw);
         }
         createHtmlStructures();
         createHtmlConnectedSets();
@@ -131,7 +131,7 @@ public class GraphLOD {
         System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
         printComponentSizeAndCount(sci_sets);
         stronglyConnectedGraphs = graphFeatures.createSubGraphFeatures(sci_sets);
-		logger.debug("Getting the connectivity took " + sw + " to execute.");
+        logger.debug("Getting the connectivity took " + sw + " to execute.");
 
         int i = 0;
 
@@ -143,101 +143,101 @@ public class GraphLOD {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
 
-		for (GraphFeatures subGraph : connectedGraphs) {
-			if (subGraph.getVertexCount() < minImportantSubgraphSize) {
-				continue;
-			}
+        for (GraphFeatures subGraph : connectedGraphs) {
+            if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+                continue;
+            }
 
-			if (connectedGraphs.size() == 1) {
-				logger.info("Graph: " + subGraph.getVertexCount());
-			} else {
-				logger.info("Subgraph: " + subGraph.getVertexCount());
-			}
-			logger.info("  "+ subGraph.getVertexCount() + " vertices");
+            if (connectedGraphs.size() == 1) {
+                logger.info("Graph: " + subGraph.getVertexCount());
+            } else {
+                logger.info("Subgraph: " + subGraph.getVertexCount());
+            }
+            logger.info("  " + subGraph.getVertexCount() + " vertices");
 
-			analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+            analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
 
-			boolean cycles = subGraph.containsCycles();
-			System.out.printf("\tContains cycles: %s\n", cycles);
+            boolean cycles = subGraph.containsCycles();
+            System.out.printf("\tContains cycles: %s\n", cycles);
 
-			boolean isTree = false;
-			boolean isCaterpillar = false;
-			if (!cycles) {
-				isTree = subGraph.isTree();
-				if (isTree) {
-					System.out.printf("\tTree: %s\n", isTree);
-					treeGraphs.add(subGraph);
-					isCaterpillar = subGraph.isCaterpillar();
-					if (isCaterpillar) {
-						System.out.printf("\tCaterpillar: %s\n", isCaterpillar);
-						caterpillarGraphs.add(subGraph);
-					}
-				}
-			}
+            boolean isTree = false;
+            boolean isCaterpillar = false;
+            if (!cycles) {
+                isTree = subGraph.isTree();
+                if (isTree) {
+                    System.out.printf("\tTree: %s\n", isTree);
+                    treeGraphs.add(subGraph);
+                    isCaterpillar = subGraph.isCaterpillar();
+                    if (isCaterpillar) {
+                        System.out.printf("\tCaterpillar: %s\n", isCaterpillar);
+                        caterpillarGraphs.add(subGraph);
+                    }
+                }
+            }
 
-			boolean isCompleteGraph = subGraph.isCompleteGraph();
-			if (isCompleteGraph) {
-				System.out.printf("\tComplete graph: %s\n", isCompleteGraph);
-				completeGraphs.add(subGraph);
-			}
+            boolean isCompleteGraph = subGraph.isCompleteGraph();
+            if (isCompleteGraph) {
+                System.out.printf("\tComplete graph: %s\n", isCompleteGraph);
+                completeGraphs.add(subGraph);
+            }
 
-			boolean isBipartiteGraph = false;
-			/* TODO Takes too long for some graphs and results in OutOfMemoryError. Deal with that first.
-			boolean isBipartiteGraph = subGraph.isBipartite();
-			if (isBipartiteGraph) {
-				System.out.printf("\tBipartite graph: %s\n", isBipartiteGraph);
-				bipartiteGraphs.add(subGraph);
-			}
-			*/
+            boolean isBipartiteGraph = false;
+            /* TODO Takes too long for some graphs and results in OutOfMemoryError. Deal with that first.
+            boolean isBipartiteGraph = subGraph.isBipartite();
+            if (isBipartiteGraph) {
+                System.out.printf("\tBipartite graph: %s\n", isBipartiteGraph);
+                bipartiteGraphs.add(subGraph);
+            }
+            */
 
-			boolean isPathGraph = false;
-			boolean isDirectedPathGraph = false;
-			boolean isMixedDirectedStarGraph = false;
-			boolean isOutboundStarGraph = false;
-			boolean isInboundStarGraph = false;
+            boolean isPathGraph = false;
+            boolean isDirectedPathGraph = false;
+            boolean isMixedDirectedStarGraph = false;
+            boolean isOutboundStarGraph = false;
+            boolean isInboundStarGraph = false;
 
-			if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
-				isPathGraph = subGraph.isPathGraph();
-				System.out.printf("\tPath graph: %s\n", isPathGraph);
-				if (isPathGraph) {
-					pathGraphs.add(subGraph);
-					isDirectedPathGraph = subGraph.isDirectedPathGraph();
-					System.out.printf("\tDirected path graph: %s\n",
-							isDirectedPathGraph);
-					if (isDirectedPathGraph) {
-						directedPathGraphs.add(subGraph);
-					}
-				} else {
-					isMixedDirectedStarGraph = subGraph
-							.isMixedDirectedStarGraph();
-					if (isMixedDirectedStarGraph) {
-						System.out.printf(
-								"\tMixed directed star graph: %s\n",
-								isMixedDirectedStarGraph);
-						mixedDirectedStarGraphs.add(subGraph);
-						isOutboundStarGraph = subGraph.isOutboundStarGraph();
-						if (isOutboundStarGraph) {
-							System.out.printf("\tOutbound star graph: %s\n",
-									isOutboundStarGraph);
-							outboundStarGraphs.add(subGraph);
-						} else {
-							isInboundStarGraph = subGraph.isInboundStarGraph();
-							if (isInboundStarGraph) {
-								System.out.printf("\tInbound star graph: %s\n",
-										isInboundStarGraph);
-								inboundStarGraphs.add(subGraph);
-							}
-						}
+            if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
+                isPathGraph = subGraph.isPathGraph();
+                System.out.printf("\tPath graph: %s\n", isPathGraph);
+                if (isPathGraph) {
+                    pathGraphs.add(subGraph);
+                    isDirectedPathGraph = subGraph.isDirectedPathGraph();
+                    System.out.printf("\tDirected path graph: %s\n",
+                            isDirectedPathGraph);
+                    if (isDirectedPathGraph) {
+                        directedPathGraphs.add(subGraph);
+                    }
+                } else {
+                    isMixedDirectedStarGraph = subGraph
+                            .isMixedDirectedStarGraph();
+                    if (isMixedDirectedStarGraph) {
+                        System.out.printf(
+                                "\tMixed directed star graph: %s\n",
+                                isMixedDirectedStarGraph);
+                        mixedDirectedStarGraphs.add(subGraph);
+                        isOutboundStarGraph = subGraph.isOutboundStarGraph();
+                        if (isOutboundStarGraph) {
+                            System.out.printf("\tOutbound star graph: %s\n",
+                                    isOutboundStarGraph);
+                            outboundStarGraphs.add(subGraph);
+                        } else {
+                            isInboundStarGraph = subGraph.isInboundStarGraph();
+                            if (isInboundStarGraph) {
+                                System.out.printf("\tInbound star graph: %s\n",
+                                        isInboundStarGraph);
+                                inboundStarGraphs.add(subGraph);
+                            }
+                        }
 
-					}
-				}
-			}
+                    }
+                }
+            }
 
-	        if (!isTree && !isBipartiteGraph && !isCaterpillar && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
-	        	unrecognizedStructure.add(subGraph);
-	        }
+            if (!isTree && !isBipartiteGraph && !isCaterpillar && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
+                unrecognizedStructure.add(subGraph);
+            }
 
-		}
+        }
 
         if (graphRenderer != null) {
             graphRenderer.writeDotFiles("connected", connectedGraphs);
@@ -251,7 +251,7 @@ public class GraphLOD {
             graphRenderer.writeDotFiles("caterpillargraphs", caterpillarGraphs);
             graphRenderer.writeDotFiles("completegraphs", completeGraphs);
             graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs);
-	        graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure);
+            graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure);
         }
 
         logger.debug("Analysing the components took " + sw + " to execute.");
@@ -278,177 +278,177 @@ public class GraphLOD {
         }
     }
 
-	private void exportEntities(List<GraphFeatures> graphs, String string) {
-		File file = new File("entities/" + string + ".csv");
-		try {
-			Files.createParentDirs(file);
-			Writer writer = new BufferedWriter(new FileWriter(file));
-			for (GraphFeatures graph: graphs) {
-				for (String v : graph.getVertices()) {
-					writer.write(v+"\n");
-				}
-			}
-			writer.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+    private void exportEntities(List<GraphFeatures> graphs, String string) {
+        File file = new File("entities/" + string + ".csv");
+        try {
+            Files.createParentDirs(file);
+            Writer writer = new BufferedWriter(new FileWriter(file));
+            for (GraphFeatures graph : graphs) {
+                for (String v : graph.getVertices()) {
+                    writer.write(v + "\n");
+                }
+            }
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-	private void printStats(BufferedWriter out, List<GraphFeatures> graphs, String string, int times) throws IOException {
-		out.write("<tr>\n");
-		out.write("<td>");
+    private void printStats(BufferedWriter out, List<GraphFeatures> graphs, String string, int times) throws IOException {
+        out.write("<tr>\n");
+        out.write("<td>");
         for (int i = 1; i <= times; i++) {
-    		System.out.print("\t");
-    		out.write("&nbsp;&nbsp;");
+            System.out.print("\t");
+            out.write("&nbsp;&nbsp;");
         }
-		out.write(string + "</td>\n");
-		System.out.println(string + ": " + graphs.size());
-		out.write("<td>"+graphs.size()+"</td>\n");
-    	if (graphs.size() == 0) {
-    		out.write("<td></td>\n");
-    		out.write("<td></td>\n");
-    		out.write("<td></td>\n");
-    		out.write("<td></td>\n");
-    		out.write("</tr>\n");
-    		return;
-    	}
-    	int min = 0;
-    	int max = 0;
-    	List<Integer> sizes = new ArrayList<>();
-    	for (GraphFeatures graph : graphs) {
-    		sizes.add(graph.getVertexCount());
-    		if (min == 0) {
-    			min = graph.getVertexCount();
-    		} else if (graph.getVertexCount() < min) {
-    			min = graph.getVertexCount();
-    		}
-    		if (graph.getVertexCount() > max) {
-    			max = graph.getVertexCount();
-    		}
-    	}
-    	for (int i = 0; i <= times; i++) {
-    		System.out.print("\t");
+        out.write(string + "</td>\n");
+        System.out.println(string + ": " + graphs.size());
+        out.write("<td>" + graphs.size() + "</td>\n");
+        if (graphs.size() == 0) {
+            out.write("<td></td>\n");
+            out.write("<td></td>\n");
+            out.write("<td></td>\n");
+            out.write("<td></td>\n");
+            out.write("</tr>\n");
+            return;
         }
-    	double avg = calculateAverage(sizes);
-		out.write("<td>" + min + "</td>\n");
-		out.write("<td>" + max + "</td>\n");
-		out.write("<td>" + avg + "</td>\n");
-		System.out.println("min #v: " + min + ", max #v: " + max + ", avg #v: " + avg);
+        int min = 0;
+        int max = 0;
+        List<Integer> sizes = new ArrayList<>();
+        for (GraphFeatures graph : graphs) {
+            sizes.add(graph.getVertexCount());
+            if (min == 0) {
+                min = graph.getVertexCount();
+            } else if (graph.getVertexCount() < min) {
+                min = graph.getVertexCount();
+            }
+            if (graph.getVertexCount() > max) {
+                max = graph.getVertexCount();
+            }
+        }
+        for (int i = 0; i <= times; i++) {
+            System.out.print("\t");
+        }
+        double avg = calculateAverage(sizes);
+        out.write("<td>" + min + "</td>\n");
+        out.write("<td>" + max + "</td>\n");
+        out.write("<td>" + avg + "</td>\n");
+        System.out.println("min #v: " + min + ", max #v: " + max + ", avg #v: " + avg);
 
-		String stringNormalized = string.toLowerCase().replace(" ", "");
-		if (stringNormalized.startsWith("connected")) {
-			stringNormalized = "_connected";
-		}
-		if (stringNormalized.startsWith("strongly")) {
-			stringNormalized = "strongly-connected";
-		}
-		exportEntities(graphs, stringNormalized);
+        String stringNormalized = string.toLowerCase().replace(" ", "");
+        if (stringNormalized.startsWith("connected")) {
+            stringNormalized = "_connected";
+        }
+        if (stringNormalized.startsWith("strongly")) {
+            stringNormalized = "strongly-connected";
+        }
+        exportEntities(graphs, stringNormalized);
 
-		out.write("<td>\n");
-		for (String file : htmlFiles) {
-			String htmlFile = new File(file).getName();
-			if (htmlFile.contains(stringNormalized)) {
-				out.write("<a href=dot/" + htmlFile + ">*</a> \n");
-			}
-		}
-		out.write("</td>\n");
+        out.write("<td>\n");
+        for (String file : htmlFiles) {
+            String htmlFile = new File(file).getName();
+            if (htmlFile.contains(stringNormalized)) {
+                out.write("<a href=dot/" + htmlFile + ">*</a> \n");
+            }
+        }
+        out.write("</td>\n");
 
-		out.write("</tr>\n");
-	}
+        out.write("</tr>\n");
+    }
 
     private void createHtmlConnectedSets() {
-		try {
-			File file = new File(this.output + this.name + "_cs_statistics.html");
-			Files.createParentDirs(file);
-			BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
-			printTableHeader(out);
-	        printStats(out, connectedGraphs, "Connected sets", 0);
-	        printStats(out, stronglyConnectedGraphs, "Strongly connected sets", 0);
+        try {
+            File file = new File(this.output + this.name + "_cs_statistics.html");
+            Files.createParentDirs(file);
+            BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
+            printTableHeader(out);
+            printStats(out, connectedGraphs, "Connected sets", 0);
+            printStats(out, stronglyConnectedGraphs, "Strongly connected sets", 0);
 
-	        printTableFooter(out);
-			out.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+            printTableFooter(out);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-	private void createHtmlStructures() {
-		logger.info("\nStructure Statistics");
+    private void createHtmlStructures() {
+        logger.info("\nStructure Statistics");
 
-		try {
-			File file = new File(this.output + this.name + "_statistics.html");
-			Files.createParentDirs(file);
-			BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
-			printTableHeader(out);
-	        // TODO printStats(out, bipartiteGraphs, "Bipartite graphs", 0);
-	        printStats(out, completeGraphs, "Complete graphs", 0);
-	        printStats(out, treeGraphs, "Trees", 0);
-	        printStats(out, caterpillarGraphs, "Caterpillar graphs", 1);
-	        printStats(out, pathGraphs, "Path graphs", 1);
-	        printStats(out, directedPathGraphs, "Directed path graphs", 2);
-	        printStats(out, mixedDirectedStarGraphs, "Star graphs", 1);
-	        printStats(out, inboundStarGraphs, "Inbound star graphs", 2);
-	        printStats(out, outboundStarGraphs, "Outbound star graphs", 2);
-	        printStats(out, unrecognizedStructure, "Unrecognized", 0);
-	        printTableFooter(out);
-			out.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+        try {
+            File file = new File(this.output + this.name + "_statistics.html");
+            Files.createParentDirs(file);
+            BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
+            printTableHeader(out);
+            // TODO printStats(out, bipartiteGraphs, "Bipartite graphs", 0);
+            printStats(out, completeGraphs, "Complete graphs", 0);
+            printStats(out, treeGraphs, "Trees", 0);
+            printStats(out, caterpillarGraphs, "Caterpillar graphs", 1);
+            printStats(out, pathGraphs, "Path graphs", 1);
+            printStats(out, directedPathGraphs, "Directed path graphs", 2);
+            printStats(out, mixedDirectedStarGraphs, "Star graphs", 1);
+            printStats(out, inboundStarGraphs, "Inbound star graphs", 2);
+            printStats(out, outboundStarGraphs, "Outbound star graphs", 2);
+            printStats(out, unrecognizedStructure, "Unrecognized", 0);
+            printTableFooter(out);
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-	private void printTableFooter(BufferedWriter out) throws IOException {
-		out.write("</table></p>\n");
-	}
+    private void printTableFooter(BufferedWriter out) throws IOException {
+        out.write("</table></p>\n");
+    }
 
-	private void printTableHeader(BufferedWriter out) throws IOException {
-		out.write("<p><table>\n");
-		out.write("<tr>\n");
-		out.write("<td>Structure</td>\n");
-		out.write("<td>Number</td>\n");
-		out.write("<td># Vertices (min)</td>\n");
-		out.write("<td># Vertices (max)</td>\n");
-		out.write("<td># Vertices (avg)</td>\n");
-		out.write("<td>Graphs</td>\n");
-		out.write("</tr>\n");
-	}
+    private void printTableHeader(BufferedWriter out) throws IOException {
+        out.write("<p><table>\n");
+        out.write("<tr>\n");
+        out.write("<td>Structure</td>\n");
+        out.write("<td>Number</td>\n");
+        out.write("<td># Vertices (min)</td>\n");
+        out.write("<td># Vertices (max)</td>\n");
+        out.write("<td># Vertices (avg)</td>\n");
+        out.write("<td>Graphs</td>\n");
+        out.write("</tr>\n");
+    }
 
 
-	private double calculateAverage(List<Integer> sizes) {
-		Integer sum = 0;
-		if (!sizes.isEmpty()) {
-			for (Integer size : sizes) {
-				sum += size;
-			}
-			return round(sum.doubleValue() / sizes.size(), 2);
-		}
-		return sum;
-	}
+    private double calculateAverage(List<Integer> sizes) {
+        Integer sum = 0;
+        if (!sizes.isEmpty()) {
+            for (Integer size : sizes) {
+                sum += size;
+            }
+            return round(sum.doubleValue() / sizes.size(), 2);
+        }
+        return sum;
+    }
 
-	private double round(double value, int places) {
-		if (places < 0) throw new IllegalArgumentException();
-		BigDecimal bd = new BigDecimal(value);
-		bd = bd.setScale(places, RoundingMode.HALF_UP);
-		return bd.doubleValue();
-	}
+    private double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+        BigDecimal bd = new BigDecimal(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
 
-	private void printComponentSizeAndCount(Collection<Set<String>> sets) {
+    private void printComponentSizeAndCount(Collection<Set<String>> sets) {
         Multiset<Integer> sizes = TreeMultiset.create();
         for (Set<String> component : sets) {
             sizes.add(component.size());
         }
         logger.info("\t\tComponents (and sizes): ");
         for (Multiset.Entry<Integer> group : sizes.entrySet()) {
-        	logger.info("\t\t\t" + group.getCount() + " x " + group.getElement());
+            logger.info("\t\t\t" + group.getCount() + " x " + group.getElement());
         }
     }
 
     private void analyzeConnectedGraph(GraphFeatures graph, int importantDegreeCount, int groupnr) {
         Preconditions.checkArgument(graph.isConnected());
         if (graph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
-        	logger.info("\tedges: " + graph.getEdgeCount() + ", diameter: " + graph.getDiameter());
+            logger.info("\tedges: " + graph.getEdgeCount() + ", diameter: " + graph.getDiameter());
         } else {
-        	logger.warn("\tGraph too big to show diameter");
+            logger.warn("\tGraph too big to show diameter");
         }
         graphCsvOutput.writeGraph(graph);
         vertexCsvOutput.writeGraph(graph);
@@ -506,7 +506,7 @@ public class GraphLOD {
         boolean debugMode = result.getBoolean("debug");
         String output = result.getString("output");
 
-	    BasicConfigurator.configure();
+        BasicConfigurator.configure();
         logger.info("reading: " + dataset);
         logger.info("name: " + name);
         logger.info("namespace: " + namespace);
