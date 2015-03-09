@@ -1,5 +1,6 @@
 package graphlod;
 
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -185,6 +187,20 @@ public class GraphRenderer {
         }
     }
 
+    private Color getColor(String className) {
+    	int R = (int)(Math.random()*256);
+    	int G = (int)(Math.random()*256);
+    	int B= (int)(Math.random()*256);
+    	Color color = new Color(R, G, B); //random color, but can be bright or dull
+
+    	//to get rainbow, pastel colors
+    	Random random = new Random();
+    	final float hue = random.nextFloat();
+    	final float saturation = 0.9f;//1.0 for brilliant, 0.0 for dull
+    	final float luminance = 1.0f; //1.0 for brighter, 0.0 for black
+    	return Color.getHSBColor(hue, saturation, luminance);
+    }
+    
     private void closeDot(Writer writer) throws IOException {
         writer.write("}");
         writer.close();

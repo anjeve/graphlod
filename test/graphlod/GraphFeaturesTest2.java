@@ -34,8 +34,8 @@ public class GraphFeaturesTest2 {
                 createStatement("a", "p1", "b"),
                 createStatement("c", "p1", "d"),
                 createStatement("d", "p1", "e"),
-                createStatement("e", "p1", "c")), "", new ArrayList<String>());
-        features = new GraphFeatures("", ds.getGraph());
+                createStatement("e", "p1", "c")), "", "", new ArrayList<String>());
+        features = new GraphFeatures("", ds.getGraph(), ds.getSimpleGraph());
     }
 
     @Test

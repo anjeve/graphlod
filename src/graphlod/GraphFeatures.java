@@ -47,10 +47,12 @@ public class GraphFeatures {
 	private Boolean isPathGraph;
 	private Boolean isTree;
 	private Boolean containsCycle;
+	private SimpleGraph<String, DefaultEdge> simpleGraph;
 
-	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph) {
+	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph, SimpleGraph<String, DefaultEdge> simpleGraph) {
 		this.id = id;
 		this.graph = graph;
+		this.simpleGraph = simpleGraph;
 		this.vertices = this.graph.vertexSet();
 		this.edges = this.graph.edgeSet();
 		this.connectivity = new ConnectivityInspector<>(this.graph);
@@ -67,7 +69,12 @@ public class GraphFeatures {
 	}
 
 	public double getDiameterUndirected() {
-		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(this.undirectedG);
+		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(this.simpleGraph);
+		return fw.getDiameter();
+	}
+
+	public double getDiameterUndirected(Graph<String, DefaultEdge> graph) {
+		FloydWarshallShortestPaths<String, DefaultEdge> fw = new FloydWarshallShortestPaths<>(graph);
 		return fw.getDiameter();
 	}
 
@@ -101,8 +108,10 @@ public class GraphFeatures {
 		int i = 0;
 		for (Set<String> set : sets) {
 			DirectedGraph<String, DefaultEdge> subgraph = new DefaultDirectedGraph<>(DefaultEdge.class);
+			SimpleGraph<String, DefaultEdge> simpleSubgraph = new SimpleGraph<>(DefaultEdge.class);
 			for (String vertex : set) {
 				subgraph.addVertex(vertex);
+				simpleSubgraph.addVertex(vertex);
 			}
 			for (String vertex : set) {
 				Set<DefaultEdge> edges = graph.outgoingEdgesOf(vertex);
@@ -110,10 +119,11 @@ public class GraphFeatures {
 					String target = (String) edge.getTarget();
 					if (set.contains(target)) {
 						subgraph.addEdge(vertex, target, edge);
+						simpleSubgraph.addEdge(vertex, target, edge);
 					}
 				}
 			}
-			subgraphFeatures.add(new GraphFeatures("subgraph" + i, subgraph));
+			subgraphFeatures.add(new GraphFeatures("subgraph" + i, subgraph, simpleSubgraph));
 			i++;
 		}
 		Collections.sort(subgraphFeatures, new Comparator<GraphFeatures>() {
@@ -161,6 +171,14 @@ public class GraphFeatures {
 		return this.isPathGraph;
 	}
 
+	public boolean isPath(Graph<String, DefaultEdge> graph) {
+		double diameter = getDiameterUndirected(graph);
+		if (graph.vertexSet().size() == diameter + 1) {
+			return true;
+		}
+		return false;
+	}
+
 	public boolean isDirectedPathGraph() {
 		// TODO fix directed in both directions = false atm
 		if (!isPathGraph()) {
@@ -193,8 +211,8 @@ public class GraphFeatures {
 	}
 
 	public boolean isMixedDirectedStarGraph() {
-		for (String v : this.undirectedG.vertexSet()) {
-			if (this.undirectedG.degreeOf(v) == this.getEdgeCount()) {
+		for (String v : this.simpleGraph.vertexSet()) {
+			if (this.simpleGraph.degreeOf(v) == this.getEdgeCount()) {
 				return true;
 			}
 		}
@@ -210,7 +228,7 @@ public class GraphFeatures {
 
 	public boolean isTree() {
 		if (this.isTree == null) {
-			return isTree(this.undirectedG, true);
+			return isTree(this.simpleGraph, true);
 		}
 		return this.isTree;
 	}
@@ -236,8 +254,8 @@ public class GraphFeatures {
 	    
 		UndirectedGraph<String, DefaultEdge> tempG = new SimpleGraph<>(DefaultEdge.class);
 
-		GraphIterator<String, DefaultEdge> iterator = new DepthFirstIterator<>(this.undirectedG);
-		iterator.addTraversalListener(new CaterpillarListener(this.undirectedG, this));
+		GraphIterator<String, DefaultEdge> iterator = new DepthFirstIterator<>(this.simpleGraph);
+		iterator.addTraversalListener(new CaterpillarListener(this.simpleGraph, this));
 		while (iterator.hasNext()) {
 			iterator.next();
         }
@@ -252,12 +270,68 @@ public class GraphFeatures {
 				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
 			}
 		}
-		if (!isTree(tempG, false)) {
+		// this check was isTree but should be isPath
+		if (!isPath(tempG)) {
 			return false;
 		}
         return true;
 	}
 
+	public boolean isCaterpillar(SimpleGraph<String, DefaultEdge> graph) {
+		UndirectedGraph<String, DefaultEdge> tempG = new SimpleGraph<>(DefaultEdge.class);
+
+		GraphIterator<String, DefaultEdge> iterator = new DepthFirstIterator<>(graph);
+		iterator.addTraversalListener(new CaterpillarListener(graph, this));
+		while (iterator.hasNext()) {
+			iterator.next();
+        }
+		
+		for (String v : graph.vertexSet()) {
+			if (!verticesDeletedTemp.contains(v)) {
+				tempG.addVertex(v);
+			}
+		}
+		for (DefaultEdge e : graph.edgeSet()) {
+			if (!edgesDeletedTemp.contains(e)) {
+				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
+			}
+		}
+		// this check was isTree but should be isPath
+		if (!isPath(tempG)) {
+			return false;
+		}
+        return true;
+	}
+	
+	public boolean isLobster() {
+		if (!isTree() || isPathGraph()) {
+			return false;
+		}
+	    
+		SimpleGraph<String, DefaultEdge> tempG = new SimpleGraph<>(DefaultEdge.class);
+
+		GraphIterator<String, DefaultEdge> iterator = new DepthFirstIterator<>(this.simpleGraph);
+		iterator.addTraversalListener(new CaterpillarListener(this.simpleGraph, this));
+		while (iterator.hasNext()) {
+			iterator.next();
+        }
+		
+		for (String v : this.vertices) {
+			if (!verticesDeletedTemp.contains(v)) {
+				tempG.addVertex(v);
+			}
+		}
+		for (DefaultEdge e : this.edges) {
+			if (!edgesDeletedTemp.contains(e)) {
+				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
+			}
+		}
+		// this check was isTree but should be isPath
+		if (!isCaterpillar(tempG)) {
+			return false;
+		}
+        return true;
+	}
 	public List<Integer> getIndegrees() {
 		if (this.indegrees == null) {
 			this.indegrees = new ArrayList<>();
@@ -316,7 +390,7 @@ public class GraphFeatures {
 	}
 
 	public int getChromaticNumber() {
-		return ChromaticNumber.findGreedyChromaticNumber(this.undirectedG);
+		return ChromaticNumber.findGreedyChromaticNumber(this.simpleGraph);
 	}
 
 	public Set<String> getVertices() {

@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,6 +14,7 @@ import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.SimpleGraph;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
@@ -21,26 +23,30 @@ import com.google.common.base.Preconditions;
 public class Dataset {
     private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private String namespace;
+    private String ontologyNamespace;
+    private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
+    private HashMap<String, String> classes = new HashMap<>();
 
-    private Dataset(String namespace, Collection<String> excludedNamespaces) {
+    private Dataset(String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
         Validate.notNull(excludedNamespaces, "excludedNamespaces must not be null");
         this.namespace = namespace;
+        this.ontologyNamespace = ontologyNamespace;
         this.excludedNamespaces = excludedNamespaces;
     }
 
-    static Dataset fromLines(Iterable<String> lines, String namespace, Collection<String> excludedNamespaces) {
-        Dataset s = new Dataset(namespace, excludedNamespaces);
+    static Dataset fromLines(Iterable<String> lines, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
         s.readTriples(new NxParser(lines));
         s.cleanup();
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String namespace, Collection<String> excludedNamespaces) {
+    public static Dataset fromFiles(Collection<String> datasets, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(datasets, "datasets must not be null");
-        Dataset s = new Dataset(namespace, excludedNamespaces);
+        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
 
         for (String dataset : datasets) {
             Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
@@ -82,6 +88,8 @@ public class Dataset {
                 } else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class")) {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
+                } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
+                	classes.put(subjectUri, objectUri);
                 }
                 // owl:DatatypeProperty
                 // owl:ObjectProperty
@@ -112,9 +120,11 @@ public class Dataset {
 
                 if (!g.containsVertex(subjectUri)) {
                     g.addVertex(subjectUri);
+                    simpleGraph.addVertex(subjectUri);
                 }
                 if (!g.containsVertex(objectUri)) {
                     g.addVertex(objectUri);
+                    simpleGraph.addVertex(objectUri);
                 }
                 if (g instanceof DirectedGraph) {
                     DefaultEdge e = new DefaultEdge();
@@ -124,6 +134,7 @@ public class Dataset {
                 } else {
                     if (!g.containsEdge(subjectUri, objectUri) && !g.containsEdge(objectUri, subjectUri)) {
                         g.addEdge(subjectUri, objectUri);
+                        simpleGraph.addEdge(subjectUri, objectUri);
                     }
                 }
             }
@@ -151,4 +162,7 @@ public class Dataset {
         return this.g;
     }
 
+    public SimpleGraph<String, DefaultEdge> getSimpleGraph() {
+        return this.simpleGraph;
+    }
 }

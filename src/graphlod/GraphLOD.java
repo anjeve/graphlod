@@ -51,6 +51,7 @@ public class GraphLOD {
     List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
     List<GraphFeatures> treeGraphs = new ArrayList<>();
     List<GraphFeatures> caterpillarGraphs = new ArrayList<>();
+    List<GraphFeatures> lobsterGraphs = new ArrayList<>();
     List<GraphFeatures> completeGraphs = new ArrayList<>();
     List<GraphFeatures> bipartiteGraphs = new ArrayList<>();
     List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
@@ -59,7 +60,7 @@ public class GraphLOD {
     private String output;
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
-                    String namespace, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
+                    String namespace, String ontns, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
                     int importantDegreeCount, String output, boolean debugMode, int threadcount) {
         if (debugMode) {
             logger.setLevel(Level.DEBUG);
@@ -85,7 +86,7 @@ public class GraphLOD {
             graphRenderer = null;
         }
 
-        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, excludedNamespaces);
+        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontns, excludedNamespaces);
         analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
         graphFeatures = null;
 
@@ -101,10 +102,10 @@ public class GraphLOD {
         createHtmlConnectedSets();
     }
 
-    private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, Collection<String> excludedNamespaces) {
+    private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, excludedNamespaces);
-        GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph());
+        Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, ontns, excludedNamespaces);
+        GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
         System.out.println("Loading the dataset took " + sw + " to execute.");
         return graphFeatures;
     }
@@ -162,6 +163,7 @@ public class GraphLOD {
 
             boolean isTree = false;
             boolean isCaterpillar = false;
+			boolean isLobster = false;
             if (!cycles) {
                 isTree = subGraph.isTree();
                 if (isTree) {
@@ -171,7 +173,12 @@ public class GraphLOD {
                     if (isCaterpillar) {
                         System.out.printf("\tCaterpillar: %s\n", isCaterpillar);
                         caterpillarGraphs.add(subGraph);
-                    }
+                    } else {
+						isLobster = subGraph.isLobster();
+						System.out.printf("\tLobster: %s\n", isLobster);
+						lobsterGraphs.add(subGraph);
+						
+					}
                 }
             }
 
@@ -233,7 +240,7 @@ public class GraphLOD {
                 }
             }
 
-            if (!isTree && !isBipartiteGraph && !isCaterpillar && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
+            if (!isTree && !isBipartiteGraph && !isCaterpillar && !isLobster && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
                 unrecognizedStructure.add(subGraph);
             }
 
@@ -249,6 +256,7 @@ public class GraphLOD {
             graphRenderer.writeDotFiles("stargraphs", mixedDirectedStarGraphs);
             graphRenderer.writeDotFiles("trees", treeGraphs);
             graphRenderer.writeDotFiles("caterpillargraphs", caterpillarGraphs);
+            graphRenderer.writeDotFiles("lobstergraphs", lobsterGraphs);
             graphRenderer.writeDotFiles("completegraphs", completeGraphs);
             graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs);
             graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure);
@@ -384,6 +392,7 @@ public class GraphLOD {
             printStats(out, completeGraphs, "Complete graphs", 0);
             printStats(out, treeGraphs, "Trees", 0);
             printStats(out, caterpillarGraphs, "Caterpillar graphs", 1);
+            printStats(out, lobsterGraphs, "Lobster graphs", 1);
             printStats(out, pathGraphs, "Path graphs", 1);
             printStats(out, directedPathGraphs, "Directed path graphs", 2);
             printStats(out, mixedDirectedStarGraphs, "Star graphs", 1);
@@ -475,6 +484,7 @@ public class GraphLOD {
         parser.addArgument("dataset").nargs("+").setDefault(Collections.emptyList());
         parser.addArgument("--name").type(String.class).setDefault("");
         parser.addArgument("--namespace").type(String.class).setDefault("");
+        parser.addArgument("--ontns").type(String.class).setDefault("");
         parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
         parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
         parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
@@ -497,6 +507,10 @@ public class GraphLOD {
             name = dataset.get(0);
         }
         String namespace = result.getString("namespace");
+        String ontns = result.getString("ontns");
+        if (ontns.isEmpty() && !namespace.isEmpty()) {
+        	ontns = namespace;
+        }
         List<String> excludedNamespaces = result.getList("excludedNamespaces");
         boolean skipChromatic = result.getBoolean("skipChromatic");
         boolean skipGraphviz = result.getBoolean("skipGraphviz");
@@ -510,6 +524,7 @@ public class GraphLOD {
         logger.info("reading: " + dataset);
         logger.info("name: " + name);
         logger.info("namespace: " + namespace);
+        logger.info("ontology namespace: " + ontns);
         logger.info("skip chromatic: " + skipChromatic);
         logger.info("skip graphviz: " + skipGraphviz);
         logger.info("excluded namespaces: " + excludedNamespaces);
@@ -520,7 +535,7 @@ public class GraphLOD {
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, debugMode, threadcount);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, debugMode, threadcount);
     }
 
 }
