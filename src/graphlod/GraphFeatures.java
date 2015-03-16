@@ -270,7 +270,6 @@ public class GraphFeatures {
 				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
 			}
 		}
-		// this check was isTree but should be isPath
 		if (!isPath(tempG)) {
 			return false;
 		}
@@ -293,10 +292,11 @@ public class GraphFeatures {
 		}
 		for (DefaultEdge e : graph.edgeSet()) {
 			if (!edgesDeletedTemp.contains(e)) {
-				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
+				if ((e.getSource() != null) && (e.getTarget() != null)) {
+					tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
+				}
 			}
 		}
-		// this check was isTree but should be isPath
 		if (!isPath(tempG)) {
 			return false;
 		}
@@ -441,20 +441,15 @@ public class GraphFeatures {
 	
 	
 	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
-		
-		String lastSeenVertex;
-		DefaultEdge lastSeenEdge;
-		
-		UndirectedGraph<String, DefaultEdge> g;
-//		private boolean newComponent;
-//		private String reference;
+		private String lastSeenVertex;
+		private DefaultEdge lastSeenEdge;
+		private UndirectedGraph<String, DefaultEdge> g;
 		private GraphFeatures gF;
 		
 		public CaterpillarListener(UndirectedGraph<String, DefaultEdge> g, GraphFeatures gF) {
 			this.g = g;
 			this.gF = gF;
 		}
-		
 		
 		@Override
 		public void edgeTraversed(EdgeTraversalEvent<String, DefaultEdge> e) {
@@ -464,24 +459,12 @@ public class GraphFeatures {
 		@Override
 		public void vertexTraversed(VertexTraversalEvent<String> e) {
 			String vertex = e.getVertex();
-			/*
-			if (newComponent) {
-				reference = vertex;
-				newComponent = false;
-			}
-			
-			int l = DijkstraShortestPath.findPathBetween( g, reference, vertex).size();
-			String x = "";
-			for (int i=0; i<l; i++) x+= "\t";
-			System.out.println( x + "vertex: " + vertex);
-			*/
 			this.lastSeenVertex = vertex;
 		}
 
 		@Override
 		public void vertexFinished(VertexTraversalEvent<String> e) {
 			String vertex = e.getVertex();
-			// System.out.println("finished vertex: " + vertex);
 			if (lastSeenVertex.equals(vertex)) {
 				gF.addForDeletion(lastSeenVertex, lastSeenEdge);
 			}

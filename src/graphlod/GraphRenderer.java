@@ -10,6 +10,7 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -33,6 +34,10 @@ public class GraphRenderer {
     private String filePath;
     private List<DotFile> files;
     private ExecutorService pool;
+    
+    private HashMap<String, String> classColors = new HashMap<>();
+
+	private Dataset dataset;
 
 
     private static class DotFile {
@@ -70,6 +75,10 @@ public class GraphRenderer {
     }
 
 
+    public void setDataset(Dataset dataset) {
+        this.dataset = dataset;
+    }
+    
     public void writeDotFiles(String type, List<GraphFeatures> features) {
         try {
             int i = 0;
@@ -104,9 +113,11 @@ public class GraphRenderer {
         final List<String> htmlFiles = Collections.synchronizedList(new ArrayList<String>());
 
         for (final DotFile file : sorted) {
+        	/*
             pool.execute(new Runnable() {
                 @Override
                 public void run() {
+                */
                     logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
 
                     if (file.vertices > MAX_VERTICES_PER_GROUP) {
@@ -121,14 +132,17 @@ public class GraphRenderer {
                     if (!new File(file.fileName).delete()) {
                         logger.warn("could not delete: " + file.fileName);
                     }
+                    /*
                 }
             });
         }
         try {
             while(!pool.awaitTermination(10, TimeUnit.SECONDS)){
+            	logger.debug("waiting");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        */
         }
         files.clear();
         return htmlFiles;
@@ -179,7 +193,12 @@ public class GraphRenderer {
     private void writeDot(GraphFeatures features, Writer writer) throws IOException {
         for (String vertex : features.getVertices()) {
             writer.write("\t\"" + vertex + "\" ");
-            writer.write("[tooltip=\"" + vertex.substring(StringUtils.lastOrdinalIndexOf(vertex, "/", 2)) + "\" ");
+            writer.write("[");
+            if (dataset.getClass(vertex) != null) {
+                logger.debug(vertex + " will be of color " + getColor(dataset.getClass(vertex)));
+            	writer.write("color=\"#" + getColor(dataset.getClass(vertex)) + "\",fillcolor=\"#" + getColor(dataset.getClass(vertex)) + "\",");
+            }
+            writer.write("tooltip=\"" + vertex.substring(StringUtils.lastOrdinalIndexOf(vertex, "/", 2)) + "\" ");
             writer.write("URL=\"" + vertex + "\"]\n");
         }
         for (DefaultEdge edge : features.getEdges()) {
@@ -187,7 +206,10 @@ public class GraphRenderer {
         }
     }
 
-    private Color getColor(String className) {
+    private String getColor(String className) {
+    	if (classColors.containsKey(className)) {
+    		return classColors.get(className);
+    	}
     	int R = (int)(Math.random()*256);
     	int G = (int)(Math.random()*256);
     	int B= (int)(Math.random()*256);
@@ -198,7 +220,14 @@ public class GraphRenderer {
     	final float hue = random.nextFloat();
     	final float saturation = 0.9f;//1.0 for brilliant, 0.0 for dull
     	final float luminance = 1.0f; //1.0 for brighter, 0.0 for black
-    	return Color.getHSBColor(hue, saturation, luminance);
+    	color = Color.getHSBColor(hue, saturation, luminance);
+    	
+    	String hexString = Integer.toHexString( color.getRGB() & 0x00ffffff );
+    	while(hexString.length() < 6) {
+    	    hexString = "0" + hexString;
+    	}
+    	classColors.put(className, hexString);
+    	return hexString;
     }
     
     private void closeDot(Writer writer) throws IOException {

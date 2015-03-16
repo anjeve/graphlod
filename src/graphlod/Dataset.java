@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.commons.lang3.Validate;
+import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -21,6 +22,7 @@ import org.semanticweb.yars.nx.parser.NxParser;
 import com.google.common.base.Preconditions;
 
 public class Dataset {
+    private static final Logger logger = Logger.getLogger(Dataset.class);
     private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private String namespace;
     private String ontologyNamespace;
@@ -57,7 +59,7 @@ public class Dataset {
                 throw new RuntimeException(e);
             }
             s.readTriples(nxp);
-            System.out.println("finished reading " + dataset);
+            logger.info("finished reading " + dataset);
         }
         s.cleanup();
         return s;
@@ -89,6 +91,7 @@ public class Dataset {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
                 } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
+                	// TODO find top classes for each class hierarchy tree path and only save top one
                 	classes.put(subjectUri, objectUri);
                 }
                 // owl:DatatypeProperty
@@ -139,6 +142,10 @@ public class Dataset {
                 }
             }
         }
+    }
+    
+    public String getClass(String subjectUri) {
+    	return classes.get(subjectUri);
     }
 
     private void cleanup() {

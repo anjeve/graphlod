@@ -41,22 +41,21 @@ public class GraphLOD {
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
     private String name;
-
-    List<GraphFeatures> connectedGraphs = new ArrayList<>();
-    List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
-    List<GraphFeatures> pathGraphs = new ArrayList<>();
-    List<GraphFeatures> directedPathGraphs = new ArrayList<>();
-    List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
-    List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
-    List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
-    List<GraphFeatures> treeGraphs = new ArrayList<>();
-    List<GraphFeatures> caterpillarGraphs = new ArrayList<>();
-    List<GraphFeatures> lobsterGraphs = new ArrayList<>();
-    List<GraphFeatures> completeGraphs = new ArrayList<>();
-    List<GraphFeatures> bipartiteGraphs = new ArrayList<>();
-    List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
-
-    List<String> htmlFiles = new ArrayList<>();
+    private Dataset dataset;
+    private List<GraphFeatures> connectedGraphs = new ArrayList<>();
+    private List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
+    private List<GraphFeatures> pathGraphs = new ArrayList<>();
+    private List<GraphFeatures> directedPathGraphs = new ArrayList<>();
+    private List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
+    private List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
+    private List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
+    private List<GraphFeatures> treeGraphs = new ArrayList<>();
+    private List<GraphFeatures> caterpillarGraphs = new ArrayList<>();
+    private List<GraphFeatures> lobsterGraphs = new ArrayList<>();
+    private List<GraphFeatures> completeGraphs = new ArrayList<>();
+    private List<GraphFeatures> bipartiteGraphs = new ArrayList<>();
+    private List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
+    private List<String> htmlFiles = new ArrayList<>();
     private String output;
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
@@ -80,12 +79,12 @@ public class GraphLOD {
         this.name = name;
         graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
+        
         if (!skipGraphviz) {
             graphRenderer = new GraphRenderer(name, debugMode, this.output, threadcount);
         } else {
             graphRenderer = null;
         }
-
         GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontns, excludedNamespaces);
         analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
         graphFeatures = null;
@@ -104,7 +103,10 @@ public class GraphLOD {
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        Dataset dataset = Dataset.fromFiles(datasetFiles, namespace, ontns, excludedNamespaces);
+        dataset = Dataset.fromFiles(datasetFiles, namespace, ontns, excludedNamespaces);
+        if (graphRenderer != null) {
+        	graphRenderer.setDataset(dataset);
+        }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
         System.out.println("Loading the dataset took " + sw + " to execute.");
         return graphFeatures;
@@ -281,8 +283,8 @@ public class GraphLOD {
         if (!skipChromaticNumber) {
             sw = Stopwatch.createStarted();
             int cN = graphFeatures.getChromaticNumber();
-            System.out.println("Chromatic Number: " + cN);
-            System.out.println("Getting the Chromatic Number took " + sw + " to execute.");
+            logger.info("Chromatic Number: " + cN);
+            logger.debug("Getting the Chromatic Number took " + sw + " to execute.");
         }
     }
 
