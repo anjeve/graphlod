@@ -16,6 +16,7 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Level;
@@ -111,13 +112,13 @@ public class GraphRenderer {
         ArrayList<DotFile> sorted = new ArrayList<>(files);
         Collections.sort(sorted, new DotFileSorter()); // process small files first
         final List<String> htmlFiles = Collections.synchronizedList(new ArrayList<String>());
+        final AtomicInteger jobs = new AtomicInteger(0);
 
         for (final DotFile file : sorted) {
-        	/*
+        	jobs.incrementAndGet();
             pool.execute(new Runnable() {
                 @Override
                 public void run() {
-                */
                     logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
 
                     if (file.vertices > MAX_VERTICES_PER_GROUP) {
@@ -132,17 +133,17 @@ public class GraphRenderer {
                     if (!new File(file.fileName).delete()) {
                         logger.warn("could not delete: " + file.fileName);
                     }
-                    /*
+                    jobs.decrementAndGet();
                 }
             });
         }
+        pool.shutdown();
         try {
             while(!pool.awaitTermination(10, TimeUnit.SECONDS)){
-            	logger.debug("waiting");
+            	logger.debug("waiting on " + jobs.get() + " graphviz jobs");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        */
         }
         files.clear();
         return htmlFiles;
