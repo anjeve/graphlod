@@ -102,7 +102,6 @@ public class GraphFeaturesTest {
     @Test
     public void testGetChromaticNumber() throws Exception {
         assertThat(features.getChromaticNumber(), equalTo(2));
-        assertThat(features.getChromaticNumber(), equalTo(2));
     }
 
     @Test

@@ -4,7 +4,6 @@ package graphlod;
 import static graphlod.TestUtils.createLiteralStatement;
 import static graphlod.TestUtils.createStatement;
 import static graphlod.TestUtils.url;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
@@ -12,8 +11,6 @@ import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-
 import org.jgraph.graph.DefaultEdge;
 import org.jgraph.graph.Edge;
 import org.jgrapht.DirectedGraph;

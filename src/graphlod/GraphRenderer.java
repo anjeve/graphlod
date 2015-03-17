@@ -32,14 +32,17 @@ public class GraphRenderer {
     private static final int MAX_VERTICES_PER_GROUP = 5000;
     public static final int MIN_VERTICES = 1;
     private String fileName;
-    private String filePath;
-    private List<DotFile> files;
+
+	private String filePath;
+
+	private List<DotFile> files;
     private ExecutorService pool;
     
     private HashMap<String, String> classColors = new HashMap<>();
 
 	private Dataset dataset;
 
+	private boolean colored;
 
     private static class DotFile {
         public int vertices;
@@ -80,7 +83,22 @@ public class GraphRenderer {
         this.dataset = dataset;
     }
     
-    public void writeDotFiles(String type, List<GraphFeatures> features) {
+    public String getFilePath() {
+		return filePath;
+	}
+    
+    public String getFileName() {
+		return fileName;
+	}
+
+    public void writeDotFile(String type, GraphFeatures features, boolean colored) {
+    	ArrayList<GraphFeatures> featureList = new ArrayList<GraphFeatures>();
+    	featureList.add(features);
+    	writeDotFiles(type, featureList, colored);
+    }
+    
+    public void writeDotFiles(String type, List<GraphFeatures> features, boolean colored) {
+    	this.colored = colored;
         try {
             int i = 0;
             int lastI = 0;
@@ -102,7 +120,7 @@ public class GraphRenderer {
                 }
                 closeDot(writer);
                 files.add(new DotFile(dotFileName, written, i - lastI));
-            }
+            } 
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -140,7 +158,7 @@ public class GraphRenderer {
         pool.shutdown();
         try {
             while(!pool.awaitTermination(10, TimeUnit.SECONDS)){
-            	logger.debug("waiting on " + jobs.get() + " graphviz jobs");
+            	logger.debug("Waiting on " + jobs.get() + " graphviz jobs");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -195,8 +213,8 @@ public class GraphRenderer {
         for (String vertex : features.getVertices()) {
             writer.write("\t\"" + vertex + "\" ");
             writer.write("[");
-            if (dataset.getClass(vertex) != null) {
-                logger.debug(vertex + " will be of color " + getColor(dataset.getClass(vertex)));
+            if (this.colored && (dataset.getClass(vertex) != null)) {
+                //logger.debug(vertex + " will be of color " + getColor(dataset.getClass(vertex)));
             	writer.write("color=\"#" + getColor(dataset.getClass(vertex)) + "\",fillcolor=\"#" + getColor(dataset.getClass(vertex)) + "\",");
             }
             writer.write("tooltip=\"" + vertex.substring(StringUtils.lastOrdinalIndexOf(vertex, "/", 2)) + "\" ");

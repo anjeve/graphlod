@@ -19,8 +19,6 @@ import org.jgrapht.graph.SimpleGraph;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
-import com.google.common.base.Preconditions;
-
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
     private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);

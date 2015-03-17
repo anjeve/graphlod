@@ -49,6 +49,10 @@ public class GraphFeatures {
 	private Boolean containsCycle;
 	private SimpleGraph<String, DefaultEdge> simpleGraph;
 
+	public SimpleGraph<String, DefaultEdge> getSimpleGraph() {
+		return simpleGraph;
+	}
+
 	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph, SimpleGraph<String, DefaultEdge> simpleGraph) {
 		this.id = id;
 		this.graph = graph;
@@ -59,6 +63,10 @@ public class GraphFeatures {
 		this.undirectedG = new AsUndirectedGraph<>(this.graph);
 	}
 
+	public Integer getHashCode() {
+		return this.simpleGraph.hashCode();
+	}
+	
 	public boolean isConnected() {
 		return this.connectivity.isGraphConnected();
 	}

@@ -8,12 +8,7 @@ import java.io.Writer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.BasicConfigurator;
@@ -32,10 +27,15 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory;
+import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+
+import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.*;
 
 public class GraphLOD {
     private static final Logger logger = Logger.getLogger(GraphLOD.class);
     public static final int MAX_SIZE_FOR_DIAMETER = 500;
+    public static final int MAX_SIZE_FOR_CS_PRINT = 50;
 
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;
@@ -57,6 +57,8 @@ public class GraphLOD {
     private List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
     private List<String> htmlFiles = new ArrayList<>();
     private String output;
+    private HashMap<Integer, List<GraphFeatures>> groups = new HashMap<>();
+    private List<List<GraphFeatures>> isomorphicGraphs = new ArrayList<>();
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     String namespace, String ontns, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
@@ -124,11 +126,9 @@ public class GraphLOD {
             System.out.println("Connectivity: no");
         }
 
-        if (!graphFeatures.isConnected()) {
-            List<Set<String>> sets = graphFeatures.getConnectedSets();
-            System.out.println("Connected sets: " + formatInt(sets.size()));
-            printComponentSizeAndCount(sets);
-        }
+        List<Set<String>> sets = graphFeatures.getConnectedSets();
+        System.out.println("Connected sets: " + formatInt(sets.size()));
+        printComponentSizeAndCount(sets);
 
         List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
         System.out.println("Strongly connected components: " + formatInt(sci_sets.size()));
@@ -145,6 +145,7 @@ public class GraphLOD {
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
+        groupGraphs();
 
         for (GraphFeatures subGraph : connectedGraphs) {
             if (subGraph.getVertexCount() < minImportantSubgraphSize) {
@@ -249,19 +250,19 @@ public class GraphLOD {
         }
 
         if (graphRenderer != null) {
-            graphRenderer.writeDotFiles("connected", connectedGraphs);
-            graphRenderer.writeDotFiles("strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets));
-            graphRenderer.writeDotFiles("pathgraphs", pathGraphs);
-            graphRenderer.writeDotFiles("directedpathgraphs", directedPathGraphs);
-            graphRenderer.writeDotFiles("outboundstargraphs", outboundStarGraphs);
-            graphRenderer.writeDotFiles("inboundstargraphs", inboundStarGraphs);
-            graphRenderer.writeDotFiles("stargraphs", mixedDirectedStarGraphs);
-            graphRenderer.writeDotFiles("trees", treeGraphs);
-            graphRenderer.writeDotFiles("caterpillargraphs", caterpillarGraphs);
-            graphRenderer.writeDotFiles("lobstergraphs", lobsterGraphs);
-            graphRenderer.writeDotFiles("completegraphs", completeGraphs);
-            graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs);
-            graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure);
+            graphRenderer.writeDotFiles("connected", connectedGraphs, true);
+            graphRenderer.writeDotFiles("strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets), true);
+            graphRenderer.writeDotFiles("pathgraphs", pathGraphs, true);
+            graphRenderer.writeDotFiles("directedpathgraphs", directedPathGraphs, true);
+            graphRenderer.writeDotFiles("outboundstargraphs", outboundStarGraphs, true);
+            graphRenderer.writeDotFiles("inboundstargraphs", inboundStarGraphs, true);
+            graphRenderer.writeDotFiles("stargraphs", mixedDirectedStarGraphs, true);
+            graphRenderer.writeDotFiles("trees", treeGraphs, true);
+            graphRenderer.writeDotFiles("caterpillargraphs", caterpillarGraphs, true);
+            graphRenderer.writeDotFiles("lobstergraphs", lobsterGraphs, true);
+            graphRenderer.writeDotFiles("completegraphs", completeGraphs, true);
+            graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs, true);
+            graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure, true);
         }
 
         logger.debug("Analysing the components took " + sw + " to execute.");
@@ -374,15 +375,28 @@ public class GraphLOD {
             printTableHeader(out);
             printStats(out, connectedGraphs, "Connected sets", 0);
             printStats(out, stronglyConnectedGraphs, "Strongly connected sets", 0);
-
             printTableFooter(out);
+            printGroups(out);
             out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void createHtmlStructures() {
+    private void printGroups(BufferedWriter out) {
+        for (List<GraphFeatures> graphs : this.isomorphicGraphs) {
+            try {
+                out.write("<p>" + graphs.size() + " x ");
+                String imgName = "dot/" + this.graphRenderer.getFileName() + "_" + this.isomorphicGraphs.indexOf(graphs) + "_dotgraph"  + "0.txt.png";
+                String imgDetailedName = "dot/" + this.graphRenderer.getFileName() + "_" + this.isomorphicGraphs.indexOf(graphs) + "_detailed_dotgraph"  + "0.txt.html";
+                out.write("<a href=\"" + imgDetailedName + "\"><img src=\"" + imgName + "\"></a></p>");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+	}
+
+	private void createHtmlStructures() {
         logger.info("\nStructure Statistics");
 
         try {
@@ -424,6 +438,55 @@ public class GraphLOD {
         out.write("</tr>\n");
     }
 
+    private void groupGraphs() {
+        /*
+    	for (GraphFeatures connectedSet : this.connectedGraphs) {
+    		if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
+    		Integer hashCode = connectedSet.getHashCode();
+    		List<GraphFeatures> graphs = new ArrayList<>();
+    		if (groups.containsKey(hashCode)) {
+    			graphs = groups.get(hashCode);
+    		}
+    		graphs.add(connectedSet);
+    		groups.put(hashCode, graphs);
+    	}
+    	for (Map.Entry<Integer, List<GraphFeatures>> entry: groups.entrySet()) {
+    		this.graphRenderer.writeDotFile(entry.getKey().toString(), entry.getValue().get(0), false);
+        } */
+
+        for (GraphFeatures connectedSet : this.connectedGraphs) {
+            if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
+
+            int putIntoBag = -1;
+            for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
+                GraphFeatures firstGraph = isomorphicGraphList.get(0);
+                if ((firstGraph.getVertexCount() != connectedSet.getVertexCount()) || (firstGraph.getEdgeCount() != connectedSet.getEdgeCount())) continue;
+                GraphIsomorphismInspector inspector = createIsomorphismInspector(connectedSet.getSimpleGraph(), firstGraph.getSimpleGraph());
+                if (inspector.isIsomorphic()) {
+                    putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+                }
+            }
+            List<GraphFeatures> graphs = new ArrayList<>();
+            if (putIntoBag >= 0) {
+                graphs = this.isomorphicGraphs.get(putIntoBag);
+                this.isomorphicGraphs.remove(putIntoBag);
+            } else {
+                putIntoBag = 0;
+            }
+            graphs.add(connectedSet);
+            this.isomorphicGraphs.add(putIntoBag, graphs);
+        }
+        Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>(){
+            public int compare(List<?> a1, List<?> a2) {
+                return a2.size() - a1.size();
+            }
+        });
+        for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
+            Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
+            this.graphRenderer.writeDotFile(index.toString(), isomorphicGraphList.get(0), false);
+            this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphList, true);
+        }
+    }
 
     private double calculateAverage(List<Integer> sizes) {
         Integer sum = 0;
@@ -507,7 +570,11 @@ public class GraphLOD {
         String name = result.getString("name");
         if (name.isEmpty()) {
             name = dataset.get(0);
+            File file = new File(name);
+            name = file.getName().replaceAll("\\..*", "");
         }
+
+
         String namespace = result.getString("namespace");
         String ontns = result.getString("ontns");
         if (ontns.isEmpty() && !namespace.isEmpty()) {

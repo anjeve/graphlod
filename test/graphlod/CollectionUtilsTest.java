@@ -1,8 +1,6 @@
 package graphlod;
 
 import java.util.Arrays;
-import java.util.Collection;
-
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -10,7 +8,6 @@ import com.google.common.collect.Lists;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.*;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 
 public class CollectionUtilsTest {
 
