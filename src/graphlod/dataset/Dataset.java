@@ -1,4 +1,4 @@
-package graphlod;
+package graphlod.dataset;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,7 +37,7 @@ public class Dataset {
         this.excludedNamespaces = excludedNamespaces;
     }
 
-    static Dataset fromLines(Iterable<String> lines, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+    public static Dataset fromLines(Iterable<String> lines, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
         s.readTriples(new NxParser(lines));
         s.cleanup();

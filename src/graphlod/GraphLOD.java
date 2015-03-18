@@ -10,6 +10,11 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.*;
 
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
+import graphlod.output.GraphCsvOutput;
+import graphlod.output.VertexCsvOutput;
+import graphlod.output.renderer.GraphRenderer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
@@ -27,7 +32,6 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
 
 import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.*;
@@ -145,7 +149,7 @@ public class GraphLOD {
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
-        groupGraphs();
+        groupIsomorphicGraphs();
 
         for (GraphFeatures subGraph : connectedGraphs) {
             if (subGraph.getVertexCount() < minImportantSubgraphSize) {
@@ -438,25 +442,9 @@ public class GraphLOD {
         out.write("</tr>\n");
     }
 
-    private void groupGraphs() {
-        /*
-    	for (GraphFeatures connectedSet : this.connectedGraphs) {
-    		if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
-    		Integer hashCode = connectedSet.getHashCode();
-    		List<GraphFeatures> graphs = new ArrayList<>();
-    		if (groups.containsKey(hashCode)) {
-    			graphs = groups.get(hashCode);
-    		}
-    		graphs.add(connectedSet);
-    		groups.put(hashCode, graphs);
-    	}
-    	for (Map.Entry<Integer, List<GraphFeatures>> entry: groups.entrySet()) {
-    		this.graphRenderer.writeDotFile(entry.getKey().toString(), entry.getValue().get(0), false);
-        } */
-
+    private void groupIsomorphicGraphs() {
         for (GraphFeatures connectedSet : this.connectedGraphs) {
             if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
-
             int putIntoBag = -1;
             for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
                 GraphFeatures firstGraph = isomorphicGraphList.get(0);
@@ -467,14 +455,14 @@ public class GraphLOD {
                 }
             }
             List<GraphFeatures> graphs = new ArrayList<>();
-            if (putIntoBag >= 0) {
-                graphs = this.isomorphicGraphs.get(putIntoBag);
-                this.isomorphicGraphs.remove(putIntoBag);
-            } else {
-                putIntoBag = 0;
-            }
             graphs.add(connectedSet);
-            this.isomorphicGraphs.add(putIntoBag, graphs);
+            if (putIntoBag >= 0) {
+                graphs.addAll(this.isomorphicGraphs.get(putIntoBag));
+                this.isomorphicGraphs.remove(putIntoBag);
+                this.isomorphicGraphs.add(putIntoBag, graphs);
+            } else {
+                this.isomorphicGraphs.add(graphs);
+            }
         }
         Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>(){
             public int compare(List<?> a1, List<?> a2) {

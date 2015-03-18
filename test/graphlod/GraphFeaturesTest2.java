@@ -15,8 +15,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import org.jgraph.graph.DefaultEdge;
-import org.jgrapht.GraphPath;
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
 import org.junit.Before;
 import org.junit.Test;
 

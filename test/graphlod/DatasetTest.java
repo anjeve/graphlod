@@ -11,6 +11,8 @@ import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import graphlod.dataset.Dataset;
 import org.jgraph.graph.DefaultEdge;
 import org.jgraph.graph.Edge;
 import org.jgrapht.DirectedGraph;

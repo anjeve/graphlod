@@ -1,4 +1,4 @@
-package graphlod;
+package graphlod.algorithms;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -7,6 +7,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
+import graphlod.CollectionUtils;
+import graphlod.graph.Degree;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
@@ -340,6 +342,7 @@ public class GraphFeatures {
 		}
         return true;
 	}
+
 	public List<Integer> getIndegrees() {
 		if (this.indegrees == null) {
 			this.indegrees = new ArrayList<>();
@@ -413,25 +416,6 @@ public class GraphFeatures {
 		return edges;
 	}
 
-	static class Degree implements Comparable<Degree> {
-		public String vertex;
-		public int degree;
-
-		public Degree(String vertex, int degree) {
-			this.vertex = vertex;
-			this.degree = degree;
-		}
-
-		@Override
-		public int compareTo(Degree other) {
-			return Integer.compare(degree, other.degree);
-		}
-
-		@Override
-		public String toString() {
-			return MoreObjects.toStringHelper(this).add("vertex", vertex).add("degree", degree).toString();
-		}
-	}
 
 	public List<Degree> maxOutDegrees(int count) {
 		if (outdegrees2 == null) {

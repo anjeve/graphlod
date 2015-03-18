@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.GraphPath;
 import org.junit.Before;

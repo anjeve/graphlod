@@ -1,4 +1,4 @@
-package graphlod;
+package graphlod.output.renderer;
 
 import java.awt.Color;
 import java.io.BufferedReader;
@@ -18,6 +18,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
