@@ -21,15 +21,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GraphRenderer {
-    private static final Logger logger = Logger.getLogger(GraphRenderer.class);
+    private static final Logger logger = LoggerFactory.getLogger(GraphRenderer.class);
 
     private static final int MAX_VERTICES_PER_GROUP = 5000;
     public static final int MIN_VERTICES = 1;
@@ -65,12 +65,7 @@ public class GraphRenderer {
         }
     }
 
-    public GraphRenderer(String fileName, boolean debugMode, String output, int threadcount) {
-        if (debugMode) {
-            logger.setLevel(Level.DEBUG);
-        } else {
-            logger.setLevel(Level.INFO);
-        }
+    public GraphRenderer(String fileName, String output, int threadcount) {
         this.filePath = output;
         //this.filePath = fileName.replaceFirst("(?s)"+this.fileName+"(?!.*?"+this.fileName+")", "");
         logger.debug(this.filePath);
@@ -100,7 +95,7 @@ public class GraphRenderer {
     }
     
     public void writeDotFiles(String type, List<GraphFeatures> features, boolean colored) {
-    	this.colored = colored;
+    	/*this.colored = colored;
         try {
             int i = 0;
             int lastI = 0;
@@ -126,6 +121,42 @@ public class GraphRenderer {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        */
+        this.colored = colored;
+        try {
+            int i = 0;
+            int c = 0;
+            int lastVertexCount = 0;
+            int vertexCount = 0;
+            Writer writer = null;
+            for (GraphFeatures f : features) {
+                vertexCount = f.getVertexCount();
+                String dotFileName = this.filePath + "dot/" + this.fileName + "_" + type + "_dotgraph" + (vertexCount) + ".txt";
+
+                if (lastVertexCount != vertexCount) {
+                    if (lastVertexCount > 0) {
+                        closeDot(writer);
+                    }
+                    writer = createDot(dotFileName);
+                }
+                int written = 0;
+                if (f.getVertexCount() >= MIN_VERTICES) {
+                    written += f.getVertexCount();
+                    writeDot(f, writer);
+                    i++;
+                }
+                if (((lastVertexCount != vertexCount) && (i > 0)) || ((c == features.size() && (i > 0)))) {
+                    files.add(new DotFile(dotFileName, written, i));
+                }
+                c++;
+                lastVertexCount = vertexCount;
+            }
+            if (writer != null) {
+                closeDot(writer);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public List<String> render() {
@@ -141,7 +172,7 @@ public class GraphRenderer {
                 public void run() {
                     logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
 
-                    if (file.vertices > MAX_VERTICES_PER_GROUP) {
+                    if ((file.vertices > MAX_VERTICES_PER_GROUP) && (file.graphs == 1)) {
                         logger.warn("Won't process " + file.fileName + " (too large)");
                     } else {
                         callGraphViz(file.fileName);

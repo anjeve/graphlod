@@ -14,6 +14,9 @@
             <url>http://nxparser.googlecode.com/svn/snapshots</url>
         </repository>
     </repositories>
+    <properties>
+        <slf4jVersion>1.6.1</slf4jVersion>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>net.sourceforge.argparse4j</groupId>
@@ -40,11 +43,27 @@
             <artifactId>jgrapht-ext</artifactId>
             <version>0.9.0</version>
         </dependency>
-       <!-- <dependency>
-            <groupId>org.tinyjee.jgraphx</groupId>
-            <artifactId>jgraphx</artifactId>
-            <version>2.0.0.1</version>
-        </dependency>-->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4jVersion}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${slf4jVersion}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.0.13</version>
+        </dependency>
+        <!-- <dependency>
+             <groupId>org.tinyjee.jgraphx</groupId>
+             <artifactId>jgraphx</artifactId>
+             <version>2.0.0.1</version>
+         </dependency>-->
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-core</artifactId>
@@ -64,11 +83,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>18.0</version>
-        </dependency>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
         </dependency>
         <dependency>
             <groupId>org.semanticweb.yars</groupId>
