@@ -57,7 +57,7 @@ public class Dataset {
                 throw new RuntimeException(e);
             }
             s.readTriples(nxp);
-            logger.info("finished reading " + dataset);
+            logger.info("Finished reading " + dataset);
         }
         s.cleanup();
         return s;

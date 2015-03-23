@@ -363,6 +363,13 @@ public class GraphFeatures {
 		return this.indegrees2;
 	}
 
+    public double getAverageIndegree() {
+        if (this.indegrees == null) {
+            getIndegrees();
+        }
+        return CollectionUtils.average(this.indegrees);
+    }
+
 	public List<Integer> getOutdegrees() {
 		if (this.outdegrees == null) {
 			this.outdegrees = new ArrayList<>();
@@ -430,9 +437,22 @@ public class GraphFeatures {
 		}
 		return CollectionUtils.maxValues(indegrees2, count);
 	}
-	
-	
-	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
+
+    public int getMaxIndegree() {
+        if (this.indegrees == null) {
+            getIndegrees();
+        }
+        return CollectionUtils.max(this.indegrees);
+    }
+
+    public int getMinIndegree() {
+        if (this.indegrees == null) {
+            getIndegrees();
+        }
+        return CollectionUtils.min(this.indegrees);
+    }
+
+    class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
 		private String lastSeenVertex;
 		private DefaultEdge lastSeenEdge;
 		private UndirectedGraph<String, DefaultEdge> g;

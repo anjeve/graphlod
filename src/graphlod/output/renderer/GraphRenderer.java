@@ -32,7 +32,7 @@ public class GraphRenderer {
     private static final Logger logger = LoggerFactory.getLogger(GraphRenderer.class);
 
     private static final int MAX_VERTICES_PER_GROUP = 5000;
-    public static final int MIN_VERTICES = 1;
+    public static final int MIN_VERTICES = 2;
     private String fileName;
 
 	private String filePath;
@@ -145,10 +145,10 @@ public class GraphRenderer {
                     writeDot(f, writer);
                     i++;
                 }
+                c++;
                 if (((lastVertexCount != vertexCount) && (i > 0)) || ((c == features.size() && (i > 0)))) {
                     files.add(new DotFile(dotFileName, written, i));
                 }
-                c++;
                 lastVertexCount = vertexCount;
             }
             if (writer != null) {
@@ -170,11 +170,10 @@ public class GraphRenderer {
             pool.execute(new Runnable() {
                 @Override
                 public void run() {
-                    logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
-
                     if ((file.vertices > MAX_VERTICES_PER_GROUP) && (file.graphs == 1)) {
                         logger.warn("Won't process " + file.fileName + " (too large)");
                     } else {
+                        logger.debug("Processing visualization for " + file.vertices + " vertices in " + file.graphs + " graphs, output: " + file.fileName);
                         callGraphViz(file.fileName);
                         String htmlFile = createHtml(file.fileName);
                         if (htmlFile != null) {

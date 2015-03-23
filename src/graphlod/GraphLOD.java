@@ -278,10 +278,9 @@ public class GraphLOD {
         logger.debug("Analysing the components took " + sw + " to execute.");
 
         logger.info("Vertex Degrees:");
-        List<Integer> indegrees = graphFeatures.getIndegrees();
-        logger.info("\tAverage indegree: {}", CollectionUtils.average(indegrees));
-        logger.info("\tMax indegree: " + CollectionUtils.max(indegrees));
-        logger.info("\tMin indegree: " + CollectionUtils.min(indegrees));
+        logger.info("\tAverage indegree: {}", graphFeatures.getAverageIndegree());
+        logger.info("\tMax indegree: " + graphFeatures.getMaxIndegree());
+        logger.info("\tMin indegree: " + graphFeatures.getMinIndegree());
 
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
         logger.info("\tAverage outdegree: {}", CollectionUtils.average(outdegrees));
@@ -450,13 +449,16 @@ public class GraphLOD {
     }
 
     private void groupIsomorphicGraphs() {
+        int i = 0;
         for (GraphFeatures connectedSet : this.connectedGraphs) {
+            logger.debug("\tChecking graph {}/{}.", ++i, this.connectedGraphs.size());
             if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
             int putIntoBag = -1;
             for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
                 GraphFeatures firstGraph = isomorphicGraphList.get(0);
                 try {
                     if ((firstGraph.getVertexCount() != connectedSet.getVertexCount()) || (firstGraph.getEdgeCount() != connectedSet.getEdgeCount())) continue;
+                    if (firstGraph.getAverageIndegree() != connectedSet.getAverageIndegree()) continue;
                     GraphIsomorphismInspector inspector = createIsomorphismInspector(connectedSet.getSimpleGraph(), firstGraph.getSimpleGraph());
                     if (inspector.isIsomorphic()) {
                         putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
@@ -472,8 +474,10 @@ public class GraphLOD {
                 graphs.addAll(this.isomorphicGraphs.get(putIntoBag));
                 this.isomorphicGraphs.remove(putIntoBag);
                 this.isomorphicGraphs.add(putIntoBag, graphs);
+                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), graphs.size()-1);
             } else {
                 this.isomorphicGraphs.add(graphs);
+                logger.debug("\tCreating a new isomorphism bag for graph of size {}.", connectedSet.getVertexCount());
             }
         }
         Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>(){
