@@ -87,9 +87,11 @@ public class Dataset {
         obj.put("nodes", jsonNodes);
 
         for (DefaultEdge edge : g.edgeSet()) {
-            jsonLinks.add("uri: " + edge.toString());
-            jsonLinks.add("source: " + vertexIds.get(edge.getSource().toString()));
-            jsonLinks.add("target: " + vertexIds.get(edge.getTarget().toString()));
+            JSONObject vertexObject = new JSONObject();
+            vertexObject.put("uri", edge.toString());
+            vertexObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
+            vertexObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
+            jsonLinks.add(vertexObject);
         }
         obj.put("links", jsonLinks);
 
