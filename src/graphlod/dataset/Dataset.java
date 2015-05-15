@@ -1,23 +1,23 @@
 package graphlod.dataset;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.commons.lang3.Validate;
 import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
+
+import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
@@ -27,7 +27,7 @@ public class Dataset {
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
-    private HashMap<String, String> classes = new HashMap<>();
+    private static HashMap<String, String> classes = new HashMap<>();
 
     private Dataset(String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
@@ -44,7 +44,7 @@ public class Dataset {
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+    public static Dataset fromFiles(Collection<String> datasets, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, String output) {
         Validate.notNull(datasets, "datasets must not be null");
         Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
 
@@ -60,10 +60,55 @@ public class Dataset {
             logger.info("Finished reading " + dataset);
         }
         s.cleanup();
+
+        if (exportJson) {
+            s.exportJson(output);
+        }
         return s;
     }
 
+    private void exportJson(String output) {
+        JSONObject obj = new JSONObject();
+
+        JSONArray jsonNodes = new JSONArray();
+        int id = 1;
+        HashMap<String, Integer> vertexIds = new HashMap<>();
+        JSONArray jsonLinks = new JSONArray();
+
+        for (String vertex : g.vertexSet()) {
+            vertexIds.put(vertex, id);
+            JSONObject vertexObject = new JSONObject();
+            vertexObject.put("id", id++);
+            vertexObject.put("uri", vertex);
+            vertexObject.put("class", getClass(vertex));
+            jsonNodes.add(vertexObject);
+        }
+
+        obj.put("nodes", jsonNodes);
+
+        for (DefaultEdge edge : g.edgeSet()) {
+            jsonLinks.add("uri: " + edge.toString());
+            jsonLinks.add("source: " + vertexIds.get(edge.getSource().toString()));
+            jsonLinks.add("target: " + vertexIds.get(edge.getTarget().toString()));
+        }
+        obj.put("links", jsonLinks);
+
+        try {
+            FileWriter file = new FileWriter(output + "nodes.json");
+            file.write(obj.toJSONString());
+            logger.debug("Successfully Copied JSON Object to File...");
+            // logger.debug("\nJSON Object: " + obj);
+            file.flush();
+            file.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+
+        }
+
+    }
+
     private void readTriples(NxParser nxp) {
+
         while (nxp.hasNext()) {
             Node[] nodes = nxp.next();
             if (nodes.length != 3) {
@@ -128,7 +173,7 @@ public class Dataset {
                     simpleGraph.addVertex(objectUri);
                 }
                 if (g instanceof DirectedGraph) {
-                    DefaultEdge e = new DefaultEdge();
+                    DefaultEdge e = new DefaultEdge(propertyUri);
                     e.setSource(subjectUri);
                     e.setTarget(objectUri);
                     g.addEdge(subjectUri, objectUri, e);
@@ -142,7 +187,7 @@ public class Dataset {
         }
     }
     
-    public String getClass(String subjectUri) {
+    public static String getClass(String subjectUri) {
     	return classes.get(subjectUri);
     }
 
