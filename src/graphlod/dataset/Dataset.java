@@ -28,25 +28,27 @@ public class Dataset {
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
     private static HashMap<String, String> classes = new HashMap<>();
+    private String name;
 
-    private Dataset(String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+    private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
         Validate.notNull(excludedNamespaces, "excludedNamespaces must not be null");
+        this.name = name;
         this.namespace = namespace;
         this.ontologyNamespace = ontologyNamespace;
         this.excludedNamespaces = excludedNamespaces;
     }
 
-    public static Dataset fromLines(Iterable<String> lines, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
-        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
+    public static Dataset fromLines(Iterable<String> lines, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+        Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
         s.readTriples(new NxParser(lines));
         s.cleanup();
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, String output) {
+    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, String output) {
         Validate.notNull(datasets, "datasets must not be null");
-        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
+        Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
 
         for (String dataset : datasets) {
             Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
@@ -96,7 +98,7 @@ public class Dataset {
         obj.put("links", jsonLinks);
 
         try {
-            FileWriter file = new FileWriter(output + "nodes.json");
+            FileWriter file = new FileWriter(output + this.name + ".json");
             file.write(obj.toJSONString());
             logger.debug("Successfully Copied JSON Object to File...");
             // logger.debug("\nJSON Object: " + obj);

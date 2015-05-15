@@ -103,7 +103,7 @@ public class GraphLOD {
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        dataset = Dataset.fromFiles(datasetFiles, namespace, ontns, excludedNamespaces, this.exportJson, this.output);
+        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces, this.exportJson, this.output);
         if (graphRenderer != null) {
         	graphRenderer.setDataset(dataset);
         }
