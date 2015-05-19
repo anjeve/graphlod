@@ -14,10 +14,7 @@ import org.semanticweb.yars.nx.parser.NxParser;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
@@ -46,7 +43,7 @@ public class Dataset {
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, String output) {
+    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, boolean exportGrami, String output) {
         Validate.notNull(datasets, "datasets must not be null");
         Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
 
@@ -66,7 +63,41 @@ public class Dataset {
         if (exportJson) {
             s.exportJson(output);
         }
+        if (exportGrami) {
+            s.exportGrami(output);
+        }
         return s;
+    }
+
+    private void exportGrami(String output) {
+        File file = new File(output + this.name + ".lg");
+        try {
+            Writer writer = new BufferedWriter(new FileWriter(file));
+            HashMap<String, Integer> vertexIds = new HashMap<>();
+            List<String> classIds = new ArrayList<>();
+            int id = 0;
+            writer.write("# t 1" + System.lineSeparator());
+            for (String vertex : g.vertexSet()) {
+                String classUri = getClass(vertex);
+                if (!classIds.contains(classUri)) {
+                    classIds.add(classUri);
+                }
+                vertexIds.put(vertex, id);
+                writer.write("v " + id++ + " " + classIds.indexOf(classUri));
+                writer.write(System.lineSeparator());
+            }
+
+            for (DefaultEdge edge : g.edgeSet()) {
+                writer.write("e " + new Integer(vertexIds.get(edge.getSource().toString())) + " "  + new Integer(vertexIds.get(edge.getTarget().toString())) + " 1");
+                writer.write(System.lineSeparator());
+            }
+            writer.close();
+            logger.debug("Successfully written Grami file");
+        } catch (IOException e) {
+            e.printStackTrace();
+
+        }
+
     }
 
     private void exportJson(String output) {
@@ -106,9 +137,7 @@ public class Dataset {
             file.close();
         } catch (IOException e) {
             e.printStackTrace();
-
         }
-
     }
 
     private void readTriples(NxParser nxp) {

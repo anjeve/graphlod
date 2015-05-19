@@ -471,7 +471,20 @@ public class GraphFeatures {
         return true;
     }
 
-    class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
+	public String getDegreeDistribution() {
+		HashMap<Integer, Integer> degreeCounts = new HashMap<>();
+		for (String vertex : this.graph.vertexSet()) {
+			Set<DefaultEdge> edges = this.graph.edgesOf(vertex);
+			if (degreeCounts.containsKey(edges.size())) {
+				degreeCounts.put(edges.size(), 1);
+			} else {
+				degreeCounts.put(edges.size(), degreeCounts.get(edges.size()+1));
+			}
+		}
+		return degreeCounts.toString();
+	}
+
+	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
 		private String lastSeenVertex;
 		private DefaultEdge lastSeenEdge;
 		private UndirectedGraph<String, DefaultEdge> g;

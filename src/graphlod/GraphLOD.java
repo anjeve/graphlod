@@ -42,6 +42,7 @@ public class GraphLOD {
     private String name;
     private Dataset dataset;
     private boolean exportJson;
+    private boolean exportGrami;
     private List<GraphFeatures> connectedGraphs = new ArrayList<>();
     private List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     private List<GraphFeatures> pathGraphs = new ArrayList<>();
@@ -61,7 +62,7 @@ public class GraphLOD {
     private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
-                    boolean exportJson, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
+                    boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
                     int importantDegreeCount, String output, int threadCount) {
         this.output = output;
         if (!this.output.isEmpty()) {
@@ -75,16 +76,17 @@ public class GraphLOD {
         }
         this.name = name;
         this.exportJson = exportJson;
+        this.exportGrami = exportGrami;
         graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         
-        if (skipGraphviz || exportJson) {
+        if (skipGraphviz || exportJson || exportGrami) {
             graphRenderer = null;
         } else {
             graphRenderer = new GraphRenderer(name, this.output, threadCount);
         }
         GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
-        if (!exportJson) {
+        if (!exportJson && !exportGrami) {
             analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
 
             graphCsvOutput.close();
@@ -103,7 +105,7 @@ public class GraphLOD {
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces, this.exportJson, this.output);
+        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces, this.exportJson, this.exportGrami, this.output);
         if (graphRenderer != null) {
         	graphRenderer.setDataset(dataset);
         }
@@ -281,6 +283,8 @@ public class GraphLOD {
         logger.info("\tAverage indegree: {}", graphFeatures.getAverageIndegree());
         logger.info("\tMax indegree: " + graphFeatures.getMaxIndegree());
         logger.info("\tMin indegree: " + graphFeatures.getMinIndegree());
+
+        logger.info("\tIndegree distribution: {}", graphFeatures.getDegreeDistribution());
 
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
         logger.info("\tAverage outdegree: {}", CollectionUtils.average(outdegrees));
@@ -607,6 +611,7 @@ public class GraphLOD {
         parser.addArgument("--debug").action(Arguments.storeTrue());
         parser.addArgument("--output").type(String.class).setDefault("");
         parser.addArgument("--exportJson").action(Arguments.storeTrue());
+        parser.addArgument("--exportGrami").action(Arguments.storeTrue());
         Namespace result = null;
         try {
             result = parser.parseArgs(args);
@@ -633,6 +638,7 @@ public class GraphLOD {
         boolean skipChromatic = result.getBoolean("skipChromatic");
         boolean skipGraphviz = result.getBoolean("skipGraphviz");
         boolean exportJson = result.getBoolean("exportJson");
+        boolean exportGrami = result.getBoolean("exportGrami");
         int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
         int importantDegreeCount = result.getInt("importantDegreeCount");
         int threadcount = result.getInt("threadcount");
@@ -661,7 +667,7 @@ public class GraphLOD {
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount);
     }
 
 }
