@@ -471,17 +471,18 @@ public class GraphFeatures {
         return true;
     }
 
-	public String getDegreeDistribution() {
+	public HashMap<Integer, Integer> getDegreeDistribution() {
 		HashMap<Integer, Integer> degreeCounts = new HashMap<>();
 		for (String vertex : this.graph.vertexSet()) {
 			Set<DefaultEdge> edges = this.graph.edgesOf(vertex);
 			if (degreeCounts.containsKey(edges.size())) {
-				degreeCounts.put(edges.size(), 1);
+				int oldDegreeCount = degreeCounts.get(edges.size());
+				degreeCounts.put(edges.size(), oldDegreeCount+1);
 			} else {
-				degreeCounts.put(edges.size(), degreeCounts.get(edges.size()+1));
+				degreeCounts.put(edges.size(), 1);
 			}
 		}
-		return degreeCounts.toString();
+		return degreeCounts;
 	}
 
 	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {

@@ -6,19 +6,22 @@ import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
-    private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private String namespace;
     private String ontologyNamespace;
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
@@ -43,7 +46,7 @@ public class Dataset {
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces, boolean exportJson, boolean exportGrami, String output) {
+    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(datasets, "datasets must not be null");
         Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
 
@@ -59,85 +62,7 @@ public class Dataset {
             logger.info("Finished reading " + dataset);
         }
         s.cleanup();
-
-        if (exportJson) {
-            s.exportJson(output);
-        }
-        if (exportGrami) {
-            s.exportGrami(output);
-        }
         return s;
-    }
-
-    private void exportGrami(String output) {
-        File file = new File(output + this.name + ".lg");
-        try {
-            Writer writer = new BufferedWriter(new FileWriter(file));
-            HashMap<String, Integer> vertexIds = new HashMap<>();
-            List<String> classIds = new ArrayList<>();
-            int id = 0;
-            writer.write("# t 1" + System.lineSeparator());
-            for (String vertex : g.vertexSet()) {
-                String classUri = getClass(vertex);
-                if (!classIds.contains(classUri)) {
-                    classIds.add(classUri);
-                }
-                vertexIds.put(vertex, id);
-                writer.write("v " + id++ + " " + classIds.indexOf(classUri));
-                writer.write(System.lineSeparator());
-            }
-
-            for (DefaultEdge edge : g.edgeSet()) {
-                writer.write("e " + new Integer(vertexIds.get(edge.getSource().toString())) + " "  + new Integer(vertexIds.get(edge.getTarget().toString())) + " 1");
-                writer.write(System.lineSeparator());
-            }
-            writer.close();
-            logger.debug("Successfully written Grami file");
-        } catch (IOException e) {
-            e.printStackTrace();
-
-        }
-
-    }
-
-    private void exportJson(String output) {
-        JSONObject obj = new JSONObject();
-
-        JSONArray jsonNodes = new JSONArray();
-        int id = 1;
-        HashMap<String, Integer> vertexIds = new HashMap<>();
-        JSONArray jsonLinks = new JSONArray();
-
-        for (String vertex : g.vertexSet()) {
-            vertexIds.put(vertex, id);
-            JSONObject vertexObject = new JSONObject();
-            vertexObject.put("id", id++);
-            vertexObject.put("uri", vertex);
-            vertexObject.put("class", getClass(vertex));
-            jsonNodes.add(vertexObject);
-        }
-
-        obj.put("nodes", jsonNodes);
-
-        for (DefaultEdge edge : g.edgeSet()) {
-            JSONObject vertexObject = new JSONObject();
-            vertexObject.put("uri", edge.toString());
-            vertexObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
-            vertexObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
-            jsonLinks.add(vertexObject);
-        }
-        obj.put("links", jsonLinks);
-
-        try {
-            FileWriter file = new FileWriter(output + this.name + ".json");
-            file.write(obj.toJSONString());
-            logger.debug("Successfully Copied JSON Object to File...");
-            // logger.debug("\nJSON Object: " + obj);
-            file.flush();
-            file.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private void readTriples(NxParser nxp) {
@@ -247,5 +172,9 @@ public class Dataset {
 
     public SimpleGraph<String, DefaultEdge> getSimpleGraph() {
         return this.simpleGraph;
+    }
+
+    public String getName() {
+        return this.name;
     }
 }

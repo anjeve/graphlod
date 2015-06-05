@@ -9,7 +9,9 @@ import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
+import graphlod.output.GramiOutput;
 import graphlod.output.GraphCsvOutput;
+import graphlod.output.JsonOutput;
 import graphlod.output.VertexCsvOutput;
 import graphlod.output.renderer.GraphRenderer;
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -19,6 +21,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.commons.lang3.StringUtils;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,9 +108,17 @@ public class GraphLOD {
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces, this.exportJson, this.exportGrami, this.output);
+        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces);
         if (graphRenderer != null) {
         	graphRenderer.setDataset(dataset);
+        }
+        if (this.exportGrami) {
+            GramiOutput grami = new GramiOutput(this.dataset);
+            grami.write(this.output);
+        }
+        if (this.exportJson) {
+            JsonOutput jsonOutput = new JsonOutput(this.dataset);
+            jsonOutput.write(this.output);
         }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
         logger.info("Loading the dataset took " + sw + " to execute.");
@@ -284,7 +295,7 @@ public class GraphLOD {
         logger.info("\tMax indegree: " + graphFeatures.getMaxIndegree());
         logger.info("\tMin indegree: " + graphFeatures.getMinIndegree());
 
-        logger.info("\tIndegree distribution: {}", graphFeatures.getDegreeDistribution());
+        logger.info("\tNode degree distribution: {}", new JSONObject(graphFeatures.getDegreeDistribution()));
 
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
         logger.info("\tAverage outdegree: {}", CollectionUtils.average(outdegrees));
@@ -536,6 +547,9 @@ public class GraphLOD {
                 GraphFeatures gf = this.connectedGraphs.get(graphNr);
                 isomorphicGraphs.add(gf);
             }
+            logger.info("Patterns");
+            logger.info(isomorphicGraphs.size() + " x ");
+            logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
             this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
         }
     }
