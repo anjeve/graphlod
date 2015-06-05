@@ -1,32 +1,22 @@
 package graphlod.output.renderer;
 
-import java.awt.Color;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
 import org.apache.commons.lang3.StringUtils;
 import org.jgraph.graph.DefaultEdge;
-
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.awt.*;
+import java.io.*;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GraphRenderer {
     private static final Logger logger = LoggerFactory.getLogger(GraphRenderer.class);
@@ -95,59 +85,40 @@ public class GraphRenderer {
     }
     
     public void writeDotFiles(String type, List<GraphFeatures> features, boolean colored) {
-    	/*this.colored = colored;
-        try {
-            int i = 0;
-            int lastI = 0;
-            int fileCounter = 0;
-            while (i < features.size()) {
-                String dotFileName = this.filePath + "dot/" + this.fileName + "_" + type + "_dotgraph" + (fileCounter++) + ".txt";
-                Writer writer = createDot(dotFileName);
-                int written = 0;
-                lastI = i;
-                while (i < features.size() && (written == 0 || written + features.get(i).getVertexCount() < MAX_VERTICES_PER_GROUP)) {
-                    GraphFeatures f = features.get(i);
-                    if (f.getVertexCount() >= MIN_VERTICES) {
-                        written += f.getVertexCount();
-                        writeDot(f, writer);
-                    } else {
-                        lastI++;
-                    }
-                    i++;
-                }
-                closeDot(writer);
-                files.add(new DotFile(dotFileName, written, i - lastI));
-            } 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        */
         this.colored = colored;
         try {
-            int i = 0;
             int c = 0;
             int lastVertexCount = 0;
-            int vertexCount = 0;
+            int vertexCount;
+            HashMap<Integer, Integer> written = new HashMap<>();
             Writer writer = null;
             for (GraphFeatures f : features) {
                 vertexCount = f.getVertexCount();
+                int alreadyWrittenForSizeGroup = 0;
+                if (written.containsKey(vertexCount)) {
+                    alreadyWrittenForSizeGroup = written.get(vertexCount);
+                }
                 String dotFileName = this.filePath + "dot/" + this.fileName + "_" + type + "_dotgraph" + (vertexCount) + ".txt";
-
                 if (lastVertexCount != vertexCount) {
-                    if (lastVertexCount > 0) {
+                    if (lastVertexCount == 0) {
+                        lastVertexCount = vertexCount;
+                    } else {
                         closeDot(writer);
                     }
                     writer = createDot(dotFileName);
                 }
-                int written = 0;
                 if (f.getVertexCount() >= MIN_VERTICES) {
-                    written += f.getVertexCount();
-                    writeDot(f, writer);
-                    i++;
+                    if ((alreadyWrittenForSizeGroup + f.getVertexCount() < MAX_VERTICES_PER_GROUP) /* || (!written.containsKey(vertexCount) && (f.getVertexCount() < MAX_VERTICES_PER_GROUP))*/ ) {
+                        alreadyWrittenForSizeGroup += f.getVertexCount();
+                        written.remove(vertexCount);
+                        written.put(vertexCount, alreadyWrittenForSizeGroup);
+                        writeDot(f, writer);
+                    }
                 }
                 c++;
-                if (((lastVertexCount != vertexCount) && (i > 0)) || ((c == features.size() && (i > 0)))) {
-                    files.add(new DotFile(dotFileName, written, i));
+                if (((lastVertexCount != vertexCount) && (written.containsKey(vertexCount))) || (c == features.size() && (written.containsKey(vertexCount)))) {
+                    logger.debug(c + " " + alreadyWrittenForSizeGroup + " " + dotFileName);
+                    files.add(new DotFile(dotFileName, alreadyWrittenForSizeGroup, written.size()));
                 }
                 lastVertexCount = vertexCount;
             }

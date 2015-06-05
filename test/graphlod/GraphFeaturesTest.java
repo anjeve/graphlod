@@ -1,20 +1,20 @@
 package graphlod;
 
-import static graphlod.TestUtils.createStatement;
-import static graphlod.TestUtils.url;
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertThat;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.GraphPath;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static graphlod.TestUtils.createStatement;
+import static graphlod.TestUtils.url;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertThat;
 
 public class GraphFeaturesTest {
 
@@ -31,7 +31,7 @@ public class GraphFeaturesTest {
                 createStatement("b", "p1", "c"),
                 createStatement("b", "p1", "d"),
                 createStatement("d", "p1", "b"),
-                createStatement("c", "p1", "e")), "", "", new ArrayList<String>());
+                createStatement("c", "p1", "e")), "", "", "", new ArrayList<String>());
         features = new GraphFeatures("" , ds.getGraph(), ds.getSimpleGraph());
 
     }

@@ -1,24 +1,19 @@
 package graphlod;
 
-import static graphlod.TestUtils.createStatement;
-import static graphlod.TestUtils.url;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import graphlod.algorithms.GraphFeatures;
-import graphlod.dataset.Dataset;
-import org.junit.Before;
-import org.junit.Test;
+import static graphlod.TestUtils.createStatement;
+import static graphlod.TestUtils.url;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.assertThat;
 
 public class GraphFeaturesTest2 {
 
@@ -34,7 +29,7 @@ public class GraphFeaturesTest2 {
                 createStatement("a", "p1", "b"),
                 createStatement("c", "p1", "d"),
                 createStatement("d", "p1", "e"),
-                createStatement("e", "p1", "c")), "", "", new ArrayList<String>());
+                createStatement("e", "p1", "c")), "", "", "", new ArrayList<String>());
         features = new GraphFeatures("", ds.getGraph(), ds.getSimpleGraph());
     }
 

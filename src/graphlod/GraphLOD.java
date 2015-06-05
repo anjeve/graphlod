@@ -1,41 +1,37 @@
 package graphlod;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.text.NumberFormat;
-import java.util.*;
-
-import ch.qos.logback.classic.BasicConfigurator;
-import graphlod.algorithms.GraphFeatures;
-import graphlod.dataset.Dataset;
-import graphlod.output.GraphCsvOutput;
-import graphlod.output.VertexCsvOutput;
-import graphlod.output.renderer.GraphRenderer;
-import org.apache.commons.lang3.StringUtils;
-
+import ch.qos.logback.classic.Level;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
-
+import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
+import graphlod.output.GramiOutput;
+import graphlod.output.GraphCsvOutput;
+import graphlod.output.JsonOutput;
+import graphlod.output.VertexCsvOutput;
+import graphlod.output.renderer.GraphRenderer;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.commons.lang3.StringUtils;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ch.qos.logback.classic.Level;
 
-import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.*;
+import java.io.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
+import java.util.*;
+
+import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.createIsomorphismInspector;
 
 public class GraphLOD {
     private static Logger logger = LoggerFactory.getLogger(GraphLOD.class);
@@ -48,6 +44,8 @@ public class GraphLOD {
     private final GraphRenderer graphRenderer;
     private String name;
     private Dataset dataset;
+    private boolean exportJson;
+    private boolean exportGrami;
     private List<GraphFeatures> connectedGraphs = new ArrayList<>();
     private List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     private List<GraphFeatures> pathGraphs = new ArrayList<>();
@@ -63,11 +61,11 @@ public class GraphLOD {
     private List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
     private List<String> htmlFiles = new ArrayList<>();
     private String output;
-    private HashMap<Integer, List<GraphFeatures>> groups = new HashMap<>();
-    private List<List<GraphFeatures>> isomorphicGraphs = new ArrayList<>();
+    private List<List<Integer>> isomorphicGraphs = new ArrayList<>();
+    private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
-                    String namespace, String ontns, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
+                    boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
                     int importantDegreeCount, String output, int threadCount) {
         this.output = output;
         if (!this.output.isEmpty()) {
@@ -80,35 +78,47 @@ public class GraphLOD {
             }
         }
         this.name = name;
+        this.exportJson = exportJson;
+        this.exportGrami = exportGrami;
         graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
         vertexCsvOutput = new VertexCsvOutput(name);
         
-        if (!skipGraphviz) {
-            graphRenderer = new GraphRenderer(name, this.output, threadCount);
-        } else {
+        if (skipGraphviz || exportJson || exportGrami) {
             graphRenderer = null;
+        } else {
+            graphRenderer = new GraphRenderer(name, this.output, threadCount);
         }
-        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontns, excludedNamespaces);
-        analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        if (!exportJson && !exportGrami) {
+            analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+
+            graphCsvOutput.close();
+            vertexCsvOutput.close();
+
+            if (graphRenderer != null) {
+                Stopwatch sw = Stopwatch.createStarted();
+                this.htmlFiles = graphRenderer.render();
+                logger.debug("visualization took " + sw);
+            }
+            createHtmlStructures();
+            createHtmlConnectedSets();
+        }
         graphFeatures = null;
-
-        graphCsvOutput.close();
-        vertexCsvOutput.close();
-
-        if (graphRenderer != null) {
-            Stopwatch sw = Stopwatch.createStarted();
-            htmlFiles = graphRenderer.render();
-            logger.debug("visualization took " + sw);
-        }
-        createHtmlStructures();
-        createHtmlConnectedSets();
     }
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
-        dataset = Dataset.fromFiles(datasetFiles, namespace, ontns, excludedNamespaces);
+        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces);
         if (graphRenderer != null) {
         	graphRenderer.setDataset(dataset);
+        }
+        if (this.exportGrami) {
+            GramiOutput grami = new GramiOutput(this.dataset);
+            grami.write(this.output);
+        }
+        if (this.exportJson) {
+            JsonOutput jsonOutput = new JsonOutput(this.dataset);
+            jsonOutput.write(this.output);
         }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
         logger.info("Loading the dataset took " + sw + " to execute.");
@@ -146,8 +156,11 @@ public class GraphLOD {
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
+
         logger.debug("Checking for isomorphisms.");
+        sw = Stopwatch.createStarted();
         groupIsomorphicGraphs();
+        logger.debug("Isomorphism check took " + sw);
 
         for (GraphFeatures subGraph : connectedGraphs) {
             if (subGraph.getVertexCount() < minImportantSubgraphSize) {
@@ -282,6 +295,8 @@ public class GraphLOD {
         logger.info("\tMax indegree: " + graphFeatures.getMaxIndegree());
         logger.info("\tMin indegree: " + graphFeatures.getMinIndegree());
 
+        logger.info("\tNode degree distribution: {}", new JSONObject(graphFeatures.getDegreeDistribution()));
+
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
         logger.info("\tAverage outdegree: {}", CollectionUtils.average(outdegrees));
         logger.info("\tMax outdegree: " + CollectionUtils.max(outdegrees));
@@ -361,7 +376,7 @@ public class GraphLOD {
         exportEntities(graphs, stringNormalized);
 
         out.write("<td>\n");
-        for (String file : htmlFiles) {
+        for (String file : this.htmlFiles) {
             String htmlFile = new File(file).getName();
             if (htmlFile.contains(stringNormalized)) {
                 out.write("<a href=dot/" + htmlFile + ">");
@@ -392,11 +407,11 @@ public class GraphLOD {
     }
 
     private void printGroups(BufferedWriter out) {
-        for (List<GraphFeatures> graphs : this.isomorphicGraphs) {
+        for (List<Integer> graphs : this.isomorphicGraphs) {
             try {
                 out.write("<p>" + graphs.size() + " x ");
                 int index = this.isomorphicGraphs.indexOf(graphs);
-                int vertices = this.isomorphicGraphs.get(index).get(0).getVertexCount();
+                int vertices = this.connectedGraphs.get(index).getVertexCount();
                 String imgName = "dot/" + this.graphRenderer.getFileName() + "_" + index + "_dotgraph"  + vertices + ".txt.png";
                 String imgDetailedName = "dot/" + this.graphRenderer.getFileName() + "_" + index + "_detailed_dotgraph"  + vertices + ".txt.html";
                 out.write("<a href=\"" + imgDetailedName + "\"><img src=\"" + imgName + "\"></a></p>");
@@ -454,30 +469,69 @@ public class GraphLOD {
             logger.debug("\tChecking graph {}/{}.", ++i, this.connectedGraphs.size());
             if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
             int putIntoBag = -1;
-            for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
-                GraphFeatures firstGraph = isomorphicGraphList.get(0);
+            int putIntoColorBag = -1;
+            for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
+                GraphFeatures firstGraph = this.connectedGraphs.get(isomorphicGraphList.get(0));
                 try {
                     if ((firstGraph.getVertexCount() != connectedSet.getVertexCount()) || (firstGraph.getEdgeCount() != connectedSet.getEdgeCount())) continue;
                     if (firstGraph.getAverageIndegree() != connectedSet.getAverageIndegree()) continue;
                     GraphIsomorphismInspector inspector = createIsomorphismInspector(connectedSet.getSimpleGraph(), firstGraph.getSimpleGraph());
                     if (inspector.isIsomorphic()) {
                         putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+                        break;
                     }
                 } catch (ArrayIndexOutOfBoundsException e) {
                     putIntoBag = -1;
                     logger.warn(e.getMessage());
                 }
             }
-            List<GraphFeatures> graphs = new ArrayList<>();
-            graphs.add(connectedSet);
+            List<Integer> graphs = new ArrayList<>();
+            graphs.add(this.connectedGraphs.indexOf(connectedSet));
+            List<GraphFeatures> coloredGraphs = new ArrayList<>();
+            coloredGraphs.add(connectedSet);
             if (putIntoBag >= 0) {
+                /*
+                List<List<GraphFeatures>> isomorphismGroup = this.colorPreservingIsomorphicGraphs.get(putIntoBag);
+                // TODO check only for one item in list! (for iterates over all)
+                for (List<GraphFeatures> coloredIsomorphicGraph : isomorphismGroup) {
+                    GraphIsomorphismInspector inspector = AdaptiveIsomorphismInspectorFactory.createClassIsomorphismInspector(connectedSet.getSimpleGraph(), coloredIsomorphicGraph.get(0).getSimpleGraph());
+                    if (inspector.isIsomorphic()) {
+                        //putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+                        break;
+                    }
+                }
+                   */
+
+                /*
+                List<List<GraphFeatures>> isomorphismGroup = this.colorPreservingIsomorphicGraphs.get(putIntoBag);
+                for (List<GraphFeatures> coloredIsomorphicGraphList : isomorphismGroup) {
+                    if (connectedSet.checkColorIsomorphism(coloredIsomorphicGraphList.get(0))) {
+                        putIntoColorBag = isomorphismGroup.indexOf(coloredIsomorphicGraphList);
+                        break;
+                    }
+                }
+                if (putIntoColorBag >= 0) {
+                    List<GraphFeatures> colorIsomorphismGroup = isomorphismGroup.get(putIntoBag);
+                    coloredGraphs.addAll(
+
+                    )
+                    this.colorPreservingIsomorphicGraphs.remove(putIntoBag);
+
+                } else {
+                    this.colorPreservingIsomorphicGraphs.put(coloredGraphs);
+                    logger.debug("\tCreating new isomorphism bag for graph of coloring.");
+                }
+                */
                 graphs.addAll(this.isomorphicGraphs.get(putIntoBag));
                 this.isomorphicGraphs.remove(putIntoBag);
                 this.isomorphicGraphs.add(putIntoBag, graphs);
                 logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), graphs.size()-1);
             } else {
                 this.isomorphicGraphs.add(graphs);
-                logger.debug("\tCreating a new isomorphism bag for graph of size {}.", connectedSet.getVertexCount());
+                List colorIsomorphicList = new ArrayList();
+                colorIsomorphicList.add(coloredGraphs);
+                this.colorPreservingIsomorphicGraphs.put(this.colorPreservingIsomorphicGraphs.size(), colorIsomorphicList);
+                logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
             }
         }
         Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>(){
@@ -485,10 +539,18 @@ public class GraphLOD {
                 return a2.size() - a1.size();
             }
         });
-        for (List<GraphFeatures> isomorphicGraphList : this.isomorphicGraphs) {
+        for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
             Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
-            this.graphRenderer.writeDotFile(index.toString(), isomorphicGraphList.get(0), false);
-            this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphList, true);
+            this.graphRenderer.writeDotFile(index.toString(), this.connectedGraphs.get(isomorphicGraphList.get(0)), false);
+            List<GraphFeatures> isomorphicGraphs = new ArrayList<>();
+            for (Integer graphNr : isomorphicGraphList) {
+                GraphFeatures gf = this.connectedGraphs.get(graphNr);
+                isomorphicGraphs.add(gf);
+            }
+            logger.info("Patterns");
+            logger.info(isomorphicGraphs.size() + " x ");
+            logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
+            this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
         }
     }
 
@@ -562,6 +624,8 @@ public class GraphLOD {
         parser.addArgument("--threadcount").type(Integer.class).action(Arguments.store()).setDefault(4);
         parser.addArgument("--debug").action(Arguments.storeTrue());
         parser.addArgument("--output").type(String.class).setDefault("");
+        parser.addArgument("--exportJson").action(Arguments.storeTrue());
+        parser.addArgument("--exportGrami").action(Arguments.storeTrue());
         Namespace result = null;
         try {
             result = parser.parseArgs(args);
@@ -587,6 +651,8 @@ public class GraphLOD {
         List<String> excludedNamespaces = result.getList("excludedNamespaces");
         boolean skipChromatic = result.getBoolean("skipChromatic");
         boolean skipGraphviz = result.getBoolean("skipGraphviz");
+        boolean exportJson = result.getBoolean("exportJson");
+        boolean exportGrami = result.getBoolean("exportGrami");
         int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
         int importantDegreeCount = result.getInt("importantDegreeCount");
         int threadcount = result.getInt("threadcount");
@@ -615,7 +681,7 @@ public class GraphLOD {
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount);
     }
 
 }

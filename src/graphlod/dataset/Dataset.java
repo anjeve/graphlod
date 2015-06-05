@@ -1,5 +1,14 @@
 package graphlod.dataset;
 
+import org.apache.commons.lang3.Validate;
+import org.apache.log4j.Logger;
+import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.DirectedGraph;
+import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.SimpleGraph;
+import org.semanticweb.yars.nx.Node;
+import org.semanticweb.yars.nx.parser.NxParser;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -10,43 +19,36 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.lang3.Validate;
-import org.apache.log4j.Logger;
-import org.jgraph.graph.DefaultEdge;
-import org.jgrapht.DirectedGraph;
-import org.jgrapht.graph.DefaultDirectedGraph;
-import org.jgrapht.graph.SimpleGraph;
-import org.semanticweb.yars.nx.Node;
-import org.semanticweb.yars.nx.parser.NxParser;
-
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
-    private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private String namespace;
     private String ontologyNamespace;
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
-    private HashMap<String, String> classes = new HashMap<>();
+    private static HashMap<String, String> classes = new HashMap<>();
+    private String name;
 
-    private Dataset(String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+    private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
         Validate.notNull(excludedNamespaces, "excludedNamespaces must not be null");
+        this.name = name;
         this.namespace = namespace;
         this.ontologyNamespace = ontologyNamespace;
         this.excludedNamespaces = excludedNamespaces;
     }
 
-    public static Dataset fromLines(Iterable<String> lines, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
-        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
+    public static Dataset fromLines(Iterable<String> lines, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+        Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
         s.readTriples(new NxParser(lines));
         s.cleanup();
         return s;
     }
 
-    public static Dataset fromFiles(Collection<String> datasets, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+    public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(datasets, "datasets must not be null");
-        Dataset s = new Dataset(namespace, ontologyNamespace, excludedNamespaces);
+        Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
 
         for (String dataset : datasets) {
             Validate.isTrue(new File(dataset).exists(), "dataset not found: %s", dataset);
@@ -64,6 +66,7 @@ public class Dataset {
     }
 
     private void readTriples(NxParser nxp) {
+
         while (nxp.hasNext()) {
             Node[] nodes = nxp.next();
             if (nodes.length != 3) {
@@ -128,7 +131,7 @@ public class Dataset {
                     simpleGraph.addVertex(objectUri);
                 }
                 if (g instanceof DirectedGraph) {
-                    DefaultEdge e = new DefaultEdge();
+                    DefaultEdge e = new DefaultEdge(propertyUri);
                     e.setSource(subjectUri);
                     e.setTarget(objectUri);
                     g.addEdge(subjectUri, objectUri, e);
@@ -142,7 +145,7 @@ public class Dataset {
         }
     }
     
-    public String getClass(String subjectUri) {
+    public static String getClass(String subjectUri) {
     	return classes.get(subjectUri);
     }
 
@@ -169,5 +172,9 @@ public class Dataset {
 
     public SimpleGraph<String, DefaultEdge> getSimpleGraph() {
         return this.simpleGraph;
+    }
+
+    public String getName() {
+        return this.name;
     }
 }

@@ -1,26 +1,14 @@
 package graphlod.algorithms;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
-
 import graphlod.CollectionUtils;
+import graphlod.dataset.Dataset;
 import graphlod.graph.Degree;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.jgrapht.UndirectedGraph;
-import org.jgrapht.alg.BiconnectivityInspector;
-import org.jgrapht.alg.ChromaticNumber;
-import org.jgrapht.alg.ConnectivityInspector;
-import org.jgrapht.alg.CycleDetector;
-import org.jgrapht.alg.DijkstraShortestPath;
-import org.jgrapht.alg.FloydWarshallShortestPaths;
-import org.jgrapht.alg.StrongConnectivityInspector;
+import org.jgrapht.alg.*;
 import org.jgrapht.event.EdgeTraversalEvent;
 import org.jgrapht.event.TraversalListenerAdapter;
 import org.jgrapht.event.VertexTraversalEvent;
@@ -31,7 +19,7 @@ import org.jgrapht.graph.SimpleGraph;
 import org.jgrapht.traverse.DepthFirstIterator;
 import org.jgrapht.traverse.GraphIterator;
 
-import com.google.common.base.MoreObjects;
+import java.util.*;
 
 public class GraphFeatures {
 	private DirectedGraph<String, DefaultEdge> graph;
@@ -452,7 +440,52 @@ public class GraphFeatures {
         return CollectionUtils.min(this.indegrees);
     }
 
-    class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
+    public boolean checkColorIsomorphism(GraphFeatures target) {
+        SimpleGraph<String, DefaultEdge> targetSimpleGraph = target.getSimpleGraph();
+        for (String vertex : this.simpleGraph.vertexSet()) {
+            String classUri = Dataset.getClass(vertex);
+            List<String> linkedVerticesClassUris = new ArrayList<>();
+            for (DefaultEdge edge : this.simpleGraph.edgesOf(vertex)) {
+                String linkedVertex = edge.getTarget().toString();
+                if (linkedVertex.equals(vertex)) {
+                    linkedVertex = edge.getSource().toString();
+                }
+                linkedVerticesClassUris.add(Dataset.getClass(linkedVertex));
+            }
+            boolean foundCurrentVertexEquivalent = false;
+            for (String targetVertex : targetSimpleGraph.vertexSet()) {
+                String targetClassUri = Dataset.getClass(vertex);
+                if (!classUri.equals(targetClassUri)) continue;
+                List<String> targetLinkedVerticesClassUris = new ArrayList<>();
+                for (DefaultEdge edge : targetSimpleGraph.edgesOf(targetVertex)) {
+                    String linkedVertex = edge.getTarget().toString();
+                    if (linkedVertex.equals(targetVertex)) {
+                        linkedVertex = edge.getSource().toString();
+                    }
+                    targetLinkedVerticesClassUris.add(Dataset.getClass(linkedVertex));
+                }
+                if (!linkedVerticesClassUris.equals(targetLinkedVerticesClassUris)) return false;
+            }
+            if (!foundCurrentVertexEquivalent) return false;
+        }
+        return true;
+    }
+
+	public HashMap<Integer, Integer> getDegreeDistribution() {
+		HashMap<Integer, Integer> degreeCounts = new HashMap<>();
+		for (String vertex : this.graph.vertexSet()) {
+			Set<DefaultEdge> edges = this.graph.edgesOf(vertex);
+			if (degreeCounts.containsKey(edges.size())) {
+				int oldDegreeCount = degreeCounts.get(edges.size());
+				degreeCounts.put(edges.size(), oldDegreeCount+1);
+			} else {
+				degreeCounts.put(edges.size(), 1);
+			}
+		}
+		return degreeCounts;
+	}
+
+	class CaterpillarListener extends TraversalListenerAdapter<String, DefaultEdge> {
 		private String lastSeenVertex;
 		private DefaultEdge lastSeenEdge;
 		private UndirectedGraph<String, DefaultEdge> g;
