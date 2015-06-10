@@ -36,8 +36,8 @@ import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorF
 public class GraphLOD {
     private static Logger logger = LoggerFactory.getLogger(GraphLOD.class);
 
-    public static final int MAX_SIZE_FOR_DIAMETER = 500;
-    public static final int MAX_SIZE_FOR_CS_PRINT = 50;
+    public static final int MAX_SIZE_FOR_DIAMETER = 50;
+    public static final int MAX_SIZE_FOR_CS_PRINT = 500000000;
 
     private final GraphCsvOutput graphCsvOutput;
     private final VertexCsvOutput vertexCsvOutput;

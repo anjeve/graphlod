@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class GraphRenderer {
     private static final Logger logger = LoggerFactory.getLogger(GraphRenderer.class);
 
-    private static final int MAX_VERTICES_PER_GROUP = 5000;
+    private static final int MAX_VERTICES_PER_GROUP = 500000000;
     public static final int MIN_VERTICES = 2;
     private String fileName;
 
@@ -259,7 +259,7 @@ public class GraphRenderer {
 
     private void callGraphViz(final String fileName) {
         try {
-            Process p = new ProcessBuilder("sfdp", "-Goverlap=prism", "-Tpng", "-Tcmapx", "-Gsize=120,90", "-O", fileName).start();
+            Process p = new ProcessBuilder("sfdp", "-Goverlap=prism", "-Tpng", "-Tcmapx", "-Gsize=300,300", "-O", fileName).start();
             p.waitFor();
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
