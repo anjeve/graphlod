@@ -24,13 +24,11 @@ import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.*;
-
 import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.createIsomorphismInspector;
 
 public class GraphLOD {
@@ -63,47 +61,57 @@ public class GraphLOD {
     private String output;
     private List<List<Integer>> isomorphicGraphs = new ArrayList<>();
     private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
+    public GraphFeatures graphFeatures;
+    public HashMap<String, Integer> patterns = new HashMap<>();
+    public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
-                    int importantDegreeCount, String output, int threadCount) {
+                    int importantDegreeCount, String output, int threadCount, boolean apiOnly) {
         this.output = output;
-        if (!this.output.isEmpty()) {
-            try {
-                File file = new File(this.output);
-                Files.createParentDirs(file);
-            } catch (IOException e) {
-                this.output = "";
-                e.printStackTrace();
-            }
-        }
         this.name = name;
         this.exportJson = exportJson;
         this.exportGrami = exportGrami;
-        graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
-        vertexCsvOutput = new VertexCsvOutput(name);
-        
-        if (skipGraphviz || exportJson || exportGrami) {
-            graphRenderer = null;
+        if (!skipGraphviz && !exportJson && !exportGrami) {
+            this.graphRenderer = new GraphRenderer(name, this.output, threadCount);
         } else {
-            graphRenderer = new GraphRenderer(name, this.output, threadCount);
+            this.graphRenderer = null;
         }
-        GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
-        if (!exportJson && !exportGrami) {
+        this.graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+        this.vertexCsvOutput = new VertexCsvOutput(name);
+
+        if (apiOnly) {
+            graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
             analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+        } else {
 
-            graphCsvOutput.close();
-            vertexCsvOutput.close();
-
-            if (graphRenderer != null) {
-                Stopwatch sw = Stopwatch.createStarted();
-                this.htmlFiles = graphRenderer.render();
-                logger.debug("visualization took " + sw);
+            if (!this.output.isEmpty()) {
+                try {
+                    File file = new File(this.output);
+                    Files.createParentDirs(file);
+                } catch (IOException e) {
+                    this.output = "";
+                    e.printStackTrace();
+                }
             }
-            createHtmlStructures();
-            createHtmlConnectedSets();
+
+            GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+            if (!exportJson && !exportGrami) {
+                analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+
+                graphCsvOutput.close();
+                vertexCsvOutput.close();
+
+                if (graphRenderer != null) {
+                    Stopwatch sw = Stopwatch.createStarted();
+                    this.htmlFiles = graphRenderer.render();
+                    logger.debug("visualization took " + sw);
+                }
+                createHtmlStructures();
+                createHtmlConnectedSets();
+            }
+            graphFeatures = null;
         }
-        graphFeatures = null;
     }
 
     private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
@@ -534,23 +542,34 @@ public class GraphLOD {
                 logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
             }
         }
-        Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>(){
+        Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>() {
             public int compare(List<?> a1, List<?> a2) {
                 return a2.size() - a1.size();
             }
         });
         for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
             Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
-            this.graphRenderer.writeDotFile(index.toString(), this.connectedGraphs.get(isomorphicGraphList.get(0)), false);
+            if (graphRenderer != null) {
+                this.graphRenderer.writeDotFile(index.toString(), this.connectedGraphs.get(isomorphicGraphList.get(0)), false);
+            }
             List<GraphFeatures> isomorphicGraphs = new ArrayList<>();
             for (Integer graphNr : isomorphicGraphList) {
                 GraphFeatures gf = this.connectedGraphs.get(graphNr);
                 isomorphicGraphs.add(gf);
+                List<String> colored = new ArrayList<String>();
+                if (coloredPatterns.containsKey(this.isomorphicGraphs.indexOf(isomorphicGraphList))) {
+                    colored = coloredPatterns.get(this.isomorphicGraphs.indexOf(isomorphicGraphList));
+                }
+                colored.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
+                coloredPatterns.put(this.isomorphicGraphs.indexOf(isomorphicGraphList), colored);
             }
             logger.info("Patterns");
             logger.info(isomorphicGraphs.size() + " x ");
             logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
-            this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
+            patterns.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphs.size());
+            if (graphRenderer != null) {
+                this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
+            }
         }
     }
 
@@ -607,6 +626,13 @@ public class GraphLOD {
 
     private String formatInt(int integer) {
         return NumberFormat.getNumberInstance(Locale.US).format(integer);
+    }
+
+    public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, "", 4, true);
+        /* GraphStatistics graphStats = new GraphStatistics();
+        return graphStats;
+        */
     }
 
     public static void main(final String[] args) {
@@ -681,7 +707,7 @@ public class GraphLOD {
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount, false);
     }
 
 }

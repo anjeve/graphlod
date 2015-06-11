@@ -50,7 +50,7 @@ public class JsonOutput {
             vertexObject.put("id", id++);
             if (addClass) {
                 vertexObject.put("uri", vertex);
-                vertexObject.put("class", dataset.getClass(vertex));
+                vertexObject.put("group", dataset.getClass(vertex));
             }
             jsonNodes.add(vertexObject);
         }
@@ -72,5 +72,9 @@ public class JsonOutput {
 
     public static JSONObject getJson(GraphFeatures graphFeatures) {
         return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), false, null);
+    }
+
+    public static JSONObject getJsonColored(GraphFeatures graphFeatures, Dataset dataset) {
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), true, dataset);
     }
 }
