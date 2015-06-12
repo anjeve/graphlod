@@ -66,6 +66,8 @@ public class GraphLOD {
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
     public JSONObject nodeDegreeDistribution;
     public double averageLinks;
+    public List<Integer> connectedGraphSizes = new ArrayList<>();
+    public List<Integer> stronglyconnectedGraphSizes = new ArrayList<>();
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
@@ -155,6 +157,9 @@ public class GraphLOD {
         logger.info("Strongly connected components: " + formatInt(sci_sets.size()));
         printComponentSizeAndCount(sci_sets);
         stronglyConnectedGraphs = graphFeatures.createSubGraphFeatures(sci_sets);
+        for (GraphFeatures subGraph : stronglyConnectedGraphs) {
+            this.stronglyconnectedGraphSizes.add(subGraph.getVertexCount());
+        }
         logger.debug("Getting the connectivity took " + sw + " to execute.");
 
         int i = 0;
@@ -173,6 +178,8 @@ public class GraphLOD {
         logger.debug("Isomorphism check took " + sw);
 
         for (GraphFeatures subGraph : connectedGraphs) {
+            this.connectedGraphSizes.add(subGraph.getVertexCount());
+
             if (subGraph.getVertexCount() < minImportantSubgraphSize) {
                 continue;
             }
@@ -579,7 +586,7 @@ public class GraphLOD {
         }
     }
 
-    private double calculateAverage(List<Integer> sizes) {
+    public double calculateAverage(List<Integer> sizes) {
         Integer sum = 0;
         if (!sizes.isEmpty()) {
             for (Integer size : sizes) {
