@@ -14,10 +14,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
@@ -28,6 +25,7 @@ public class Dataset {
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
     private static HashMap<String, String> classes = new HashMap<>();
+    public List<String> ontologyClasses = new ArrayList<>();
     private String name;
 
     private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
@@ -94,6 +92,9 @@ public class Dataset {
                 } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
                 	// TODO find top classes for each class hierarchy tree path and only save top one
                 	classes.put(subjectUri, objectUri);
+                    if (!this.ontologyClasses.contains(objectUri)) {
+                        this.ontologyClasses.add(objectUri);
+                    }
                 }
                 // owl:DatatypeProperty
                 // owl:ObjectProperty

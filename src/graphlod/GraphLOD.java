@@ -41,11 +41,11 @@ public class GraphLOD {
     private final VertexCsvOutput vertexCsvOutput;
     private final GraphRenderer graphRenderer;
     private String name;
-    private Dataset dataset;
+    public Dataset dataset;
     private boolean exportJson;
     private boolean exportGrami;
-    private List<GraphFeatures> connectedGraphs = new ArrayList<>();
-    private List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
+    public List<GraphFeatures> connectedGraphs = new ArrayList<>();
+    public List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     private List<GraphFeatures> pathGraphs = new ArrayList<>();
     private List<GraphFeatures> directedPathGraphs = new ArrayList<>();
     private List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
@@ -62,8 +62,10 @@ public class GraphLOD {
     private List<List<Integer>> isomorphicGraphs = new ArrayList<>();
     private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
     public GraphFeatures graphFeatures;
-    public HashMap<String, Integer> patterns = new HashMap<>();
+    public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
+    public JSONObject nodeDegreeDistribution;
+    public double averageLinks;
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
@@ -303,7 +305,8 @@ public class GraphLOD {
         logger.info("\tMax indegree: " + graphFeatures.getMaxIndegree());
         logger.info("\tMin indegree: " + graphFeatures.getMinIndegree());
 
-        logger.info("\tNode degree distribution: {}", new JSONObject(graphFeatures.getDegreeDistribution()));
+        this.nodeDegreeDistribution = new JSONObject(graphFeatures.getDegreeDistribution());
+        logger.info("\tNode degree distribution: {}", this.nodeDegreeDistribution);
 
         List<Integer> outdegrees = graphFeatures.getOutdegrees();
         logger.info("\tAverage outdegree: {}", CollectionUtils.average(outdegrees));
@@ -311,7 +314,8 @@ public class GraphLOD {
         logger.info("\tMin outdegree: " + CollectionUtils.min(outdegrees));
 
         ArrayList<Integer> edgeCounts = graphFeatures.getEdgeCounts();
-        logger.info("\tAverage links: {}", CollectionUtils.average(edgeCounts));
+        this.averageLinks = CollectionUtils.average(edgeCounts);
+        logger.info("\tAverage links: {}", averageLinks);
 
         if (!skipChromaticNumber) {
             sw = Stopwatch.createStarted();
@@ -566,7 +570,9 @@ public class GraphLOD {
             logger.info("Patterns");
             logger.info(isomorphicGraphs.size() + " x ");
             logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
-            patterns.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphs.size());
+            HashMap patternTemp =  new HashMap<String, Integer>();
+            patternTemp.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphs.size());
+            patterns.put(this.isomorphicGraphs.indexOf(isomorphicGraphList), patternTemp);
             if (graphRenderer != null) {
                 this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
             }
