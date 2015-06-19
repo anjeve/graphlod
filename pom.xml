@@ -54,11 +54,6 @@
             <version>${slf4jVersion}</version>
             <scope>runtime</scope>
         </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.0.13</version>
-        </dependency>
         <!-- <dependency>
              <groupId>org.tinyjee.jgraphx</groupId>
              <artifactId>jgraphx</artifactId>
