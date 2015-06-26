@@ -20,12 +20,13 @@ public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
     private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private String namespace;
-    private String ontologyNamespace;
+    public String ontologyNamespace;
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
     private static HashMap<String, String> classes = new HashMap<>();
     public List<String> ontologyClasses = new ArrayList<>();
+    private static HashMap<String, String> labels = new HashMap<>();
     private String name;
 
     private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
@@ -73,6 +74,10 @@ public class Dataset {
             String subjectUri = nodes[0].toString();
             String propertyUri = nodes[1].toString();
             String objectUri = nodes[2].toString();
+
+            if (propertyUri.equals("http://www.w3.org/2000/01/rdf-schema#label")) {
+                labels.put(subjectUri, objectUri);
+            }
 
             if (!isValid(subjectUri) || !isValid(propertyUri) || !isValid(objectUri)) {
                 continue;
@@ -177,5 +182,9 @@ public class Dataset {
 
     public String getName() {
         return this.name;
+    }
+
+    public String getLabel(String uri) {
+        return (labels.get(uri));
     }
 }

@@ -51,6 +51,7 @@ public class JsonOutput {
             if (addClass) {
                 vertexObject.put("uri", vertex);
                 vertexObject.put("group", dataset.getClass(vertex));
+                vertexObject.put("label", dataset.getLabel(vertex));
             }
             jsonNodes.add(vertexObject);
         }
@@ -58,13 +59,14 @@ public class JsonOutput {
         obj.put("nodes", jsonNodes);
 
         for (DefaultEdge edge : edges) {
-            JSONObject vertexObject = new JSONObject();
+            JSONObject edgeObject = new JSONObject();
             if (addClass) {
-                vertexObject.put("uri", edge.toString());
+                edgeObject.put("uri", edge.toString());
+                edgeObject.put("label", dataset.getLabel(edge.toString()));
             }
-            vertexObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
-            vertexObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
-            jsonLinks.add(vertexObject);
+            edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
+            edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
+            jsonLinks.add(edgeObject);
         }
         obj.put("links", jsonLinks);
         return obj;

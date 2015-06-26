@@ -9,6 +9,7 @@ import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
+import graphlod.graph.Degree;
 import graphlod.output.GramiOutput;
 import graphlod.output.GraphCsvOutput;
 import graphlod.output.JsonOutput;
@@ -36,14 +37,16 @@ public class GraphLOD {
 
     public static final int MAX_SIZE_FOR_DIAMETER = 50;
     public static final int MAX_SIZE_FOR_CS_PRINT = 500000000;
+    public static final int MAX_SIZE_FOR_PROLOD = 3000;
 
-    private final GraphCsvOutput graphCsvOutput;
-    private final VertexCsvOutput vertexCsvOutput;
+    private GraphCsvOutput graphCsvOutput = null;
+    private VertexCsvOutput vertexCsvOutput = null;
     private final GraphRenderer graphRenderer;
     private String name;
     public Dataset dataset;
     private boolean exportJson;
     private boolean exportGrami;
+    private boolean apiOnly;
     public List<GraphFeatures> connectedGraphs = new ArrayList<>();
     public List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
     private List<GraphFeatures> pathGraphs = new ArrayList<>();
@@ -63,8 +66,11 @@ public class GraphLOD {
     private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
     public GraphFeatures graphFeatures;
     public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
+    public HashMap<Integer, Double> patternDiameter = new HashMap<>();
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
     public JSONObject nodeDegreeDistribution;
+    public JSONObject highestIndegrees;
+    public JSONObject highestOutdegrees;
     public double averageLinks;
     public List<Integer> connectedGraphSizes = new ArrayList<>();
     public List<Integer> stronglyconnectedGraphSizes = new ArrayList<>();
@@ -76,18 +82,20 @@ public class GraphLOD {
         this.name = name;
         this.exportJson = exportJson;
         this.exportGrami = exportGrami;
+        this.apiOnly = apiOnly;
         if (!skipGraphviz && !exportJson && !exportGrami) {
             this.graphRenderer = new GraphRenderer(name, this.output, threadCount);
         } else {
             this.graphRenderer = null;
         }
-        this.graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
-        this.vertexCsvOutput = new VertexCsvOutput(name);
+
 
         if (apiOnly) {
             graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
             analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
         } else {
+            this.graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+            this.vertexCsvOutput = new VertexCsvOutput(name);
 
             if (!this.output.isEmpty()) {
                 try {
@@ -170,6 +178,21 @@ public class GraphLOD {
             connectedGraphs.add(graphFeatures);
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
+        }
+
+        if (apiOnly) {
+            List<Degree> maxInDegrees = graphFeatures.maxInDegrees(importantDegreeCount);
+            List<Degree> maxOutDegrees = graphFeatures.maxOutDegrees(importantDegreeCount);
+            HashMap<String, Integer> highestIndegreeMap = new HashMap<>();
+            HashMap<String, Integer> highestOutdegreeMap = new HashMap<>();
+            for (Degree degree : maxInDegrees) {
+                highestIndegreeMap.put(degree.vertex, degree.degree);
+            }
+            highestIndegrees = new JSONObject(highestIndegreeMap);
+            for (Degree degree : maxOutDegrees) {
+                highestOutdegreeMap.put(degree.vertex, degree.degree);
+            }
+            highestOutdegrees = new JSONObject(highestOutdegreeMap);
         }
 
         logger.debug("Checking for isomorphisms.");
@@ -286,7 +309,6 @@ public class GraphLOD {
             if (!isTree && !isBipartiteGraph && !isCaterpillar && !isLobster && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
                 unrecognizedStructure.add(subGraph);
             }
-
         }
 
         if (graphRenderer != null) {
@@ -485,8 +507,8 @@ public class GraphLOD {
     private void groupIsomorphicGraphs() {
         int i = 0;
         for (GraphFeatures connectedSet : this.connectedGraphs) {
-            logger.debug("\tChecking graph {}/{}.", ++i, this.connectedGraphs.size());
-            if (connectedSet.getVertexCount() > MAX_SIZE_FOR_CS_PRINT) continue;
+            if (connectedSet.getVertexCount() > MAX_SIZE_FOR_PROLOD) continue;
+            logger.debug("\tChecking graph {}/{} {}.", ++i, this.connectedGraphs.size(), connectedSet.getVertexCount());
             int putIntoBag = -1;
             int putIntoColorBag = -1;
             for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
@@ -506,8 +528,10 @@ public class GraphLOD {
             }
             List<Integer> graphs = new ArrayList<>();
             graphs.add(this.connectedGraphs.indexOf(connectedSet));
+            /* TODO color isomorphism
             List<GraphFeatures> coloredGraphs = new ArrayList<>();
             coloredGraphs.add(connectedSet);
+            */
             if (putIntoBag >= 0) {
                 /*
                 List<List<GraphFeatures>> isomorphismGroup = this.colorPreservingIsomorphicGraphs.get(putIntoBag);
@@ -547,17 +571,22 @@ public class GraphLOD {
                 logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), graphs.size()-1);
             } else {
                 this.isomorphicGraphs.add(graphs);
+                /* TODO color isomorphism
                 List colorIsomorphicList = new ArrayList();
                 colorIsomorphicList.add(coloredGraphs);
                 this.colorPreservingIsomorphicGraphs.put(this.colorPreservingIsomorphicGraphs.size(), colorIsomorphicList);
                 logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
+                */
             }
         }
+        /*
         Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>() {
             public int compare(List<?> a1, List<?> a2) {
                 return a2.size() - a1.size();
             }
         });
+        */
+        Collections.sort(this.isomorphicGraphs, new GraphLODComparator());
         for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
             Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
             if (graphRenderer != null) {
@@ -575,13 +604,17 @@ public class GraphLOD {
                 coloredPatterns.put(this.isomorphicGraphs.indexOf(isomorphicGraphList), colored);
             }
             logger.info("Patterns");
-            logger.info(isomorphicGraphs.size() + " x ");
-            logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
-            HashMap patternTemp =  new HashMap<String, Integer>();
-            patternTemp.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphs.size());
-            patterns.put(this.isomorphicGraphs.indexOf(isomorphicGraphList), patternTemp);
-            if (graphRenderer != null) {
-                this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
+            if (isomorphicGraphs.get(0).getEdgeCount() <= MAX_SIZE_FOR_PROLOD) {
+                logger.info(isomorphicGraphs.size() + " x ");
+                logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
+                HashMap patternTemp = new HashMap<String, Integer>();
+                patternTemp.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphs.size());
+                patterns.put(index, patternTemp);
+                patternDiameter.put(index, this.connectedGraphs.get(isomorphicGraphList.get(0)).getDiameter());
+
+                if (graphRenderer != null) {
+                    this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
+                }
             }
         }
     }
@@ -622,9 +655,10 @@ public class GraphLOD {
         } else {
             logger.warn("\tGraph too big to show diameter");
         }
-        graphCsvOutput.writeGraph(graph);
-        vertexCsvOutput.writeGraph(graph);
-
+        if (!apiOnly) {
+            graphCsvOutput.writeGraph(graph);
+            vertexCsvOutput.writeGraph(graph);
+        }
         logger.info("\thighest indegrees:");
         logger.info("\t\t" + StringUtils.join(graph.maxInDegrees(importantDegreeCount), "\n\t\t"));
         logger.info("\thighest outdegrees:");
@@ -723,4 +757,15 @@ public class GraphLOD {
         new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount, false);
     }
 
+    public class GraphLODComparator implements Comparator<List<?>>{
+        public GraphLODComparator() {
+
+        }
+
+        public int compare(List<?>a1,List<?>a2) {
+            return a2.size()-a1.size();
+        }
+    }
+
 }
+
