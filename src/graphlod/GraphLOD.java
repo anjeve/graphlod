@@ -195,11 +195,6 @@ public class GraphLOD {
             highestOutdegrees = new JSONObject(highestOutdegreeMap);
         }
 
-        logger.debug("Checking for isomorphisms.");
-        sw = Stopwatch.createStarted();
-        groupIsomorphicGraphs();
-        logger.debug("Isomorphism check took " + sw);
-
         for (GraphFeatures subGraph : connectedGraphs) {
             this.connectedGraphSizes.add(subGraph.getVertexCount());
 
@@ -310,6 +305,11 @@ public class GraphLOD {
                 unrecognizedStructure.add(subGraph);
             }
         }
+
+        logger.debug("Checking for isomorphisms.");
+        sw = Stopwatch.createStarted();
+        groupIsomorphicGraphs();
+        logger.debug("Isomorphism check took " + sw);
 
         if (graphRenderer != null) {
             graphRenderer.writeDotFiles("connected", connectedGraphs, true);

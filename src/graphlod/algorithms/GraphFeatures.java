@@ -32,6 +32,7 @@ public class GraphFeatures {
 	private final Set<DefaultEdge> edges;
 	private AsUndirectedGraph<String, DefaultEdge> undirectedG;
 	private String id;
+	private String type;
 	private List<DefaultEdge> edgesDeletedTemp = new ArrayList<>();
 	private List<String> verticesDeletedTemp = new ArrayList<>();
 	private Boolean isPathGraph;
@@ -139,6 +140,10 @@ public class GraphFeatures {
 		return sci.stronglyConnectedSets();
 	}
 
+	public String getType() {
+		return this.type;
+	}
+
 	public Set<Set<String>> getBiConnectedSets() {
 		if (!isConnected()) {
 			return null;
@@ -161,6 +166,7 @@ public class GraphFeatures {
 		if (this.isPathGraph == null) {
 			double diameter = getDiameterUndirected();
 			if (this.getVertexCount() == diameter + 1) {
+				this.type = "Path";
 				this.isPathGraph = true;
 			} else {
 				this.isPathGraph = false;
@@ -172,6 +178,7 @@ public class GraphFeatures {
 	public boolean isPath(Graph<String, DefaultEdge> graph) {
 		double diameter = getDiameterUndirected(graph);
 		if (graph.vertexSet().size() == diameter + 1) {
+			this.type = "Path";
 			return true;
 		}
 		return false;
@@ -193,6 +200,7 @@ public class GraphFeatures {
 	public boolean isOutboundStarGraph() {
 		for (String v : this.vertices) {
 			if ((this.graph.inDegreeOf(v) == 0) && (this.graph.outDegreeOf(v) == this.getEdgeCount())) {
+				this.type = "Outbound Star";
 				return true;
 			}
 		}
@@ -202,6 +210,7 @@ public class GraphFeatures {
 	public boolean isInboundStarGraph() {
 		for (String v : this.vertices) {
 			if ((this.graph.inDegreeOf(v) == this.getEdgeCount()) && (this.graph.outDegreeOf(v) == 0)) {
+				this.type = "Inbound Star";
 				return true;
 			}
 		}
@@ -211,6 +220,7 @@ public class GraphFeatures {
 	public boolean isMixedDirectedStarGraph() {
 		for (String v : this.simpleGraph.vertexSet()) {
 			if (this.simpleGraph.degreeOf(v) == this.getEdgeCount()) {
+				this.type = "Star";
 				return true;
 			}
 		}
@@ -219,6 +229,7 @@ public class GraphFeatures {
 
 	public boolean isCompleteGraph() {
 		if (GraphTests.isComplete(this.undirectedG)) {
+			this.type = "Complete";
 			return true;
 		}
 		return false;
@@ -271,6 +282,9 @@ public class GraphFeatures {
 		if (!isPath(tempG)) {
 			return false;
 		}
+		if (!this.type.equals("Path")) {
+			this.type = "Caterpillar";
+		}
         return true;
 	}
 
@@ -297,6 +311,9 @@ public class GraphFeatures {
 		}
 		if (!isPath(tempG)) {
 			return false;
+		}
+		if (!this.type.equals("Path")) {
+			this.type = "Caterpillar";
 		}
         return true;
 	}
@@ -328,6 +345,7 @@ public class GraphFeatures {
 		if (!isCaterpillar(tempG)) {
 			return false;
 		}
+		this.type = "Lobster";
         return true;
 	}
 

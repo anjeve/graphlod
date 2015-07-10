@@ -22,7 +22,7 @@ public class JsonOutput {
     }
 
     public void write(String output) {
-        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), true, this.dataset);
+        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), true, this.dataset, null);
 
         try {
             FileWriter file = new FileWriter(output + this.dataset.getName() + ".json");
@@ -36,7 +36,7 @@ public class JsonOutput {
         }
     }
 
-    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, boolean addClass, Dataset dataset) {
+    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, boolean addClass, Dataset dataset, String type) {
         JSONObject obj = new JSONObject();
 
         JSONArray jsonNodes = new JSONArray();
@@ -44,6 +44,9 @@ public class JsonOutput {
         HashMap<String, Integer> vertexIds = new HashMap<>();
         JSONArray jsonLinks = new JSONArray();
 
+        if (type != null) {
+            obj.put("name", type);
+        }
         for (String vertex : vertices) {
             vertexIds.put(vertex, id);
             JSONObject vertexObject = new JSONObject();
@@ -73,10 +76,10 @@ public class JsonOutput {
     }
 
     public static JSONObject getJson(GraphFeatures graphFeatures) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), false, null);
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), false, null, graphFeatures.getType());
     }
 
     public static JSONObject getJsonColored(GraphFeatures graphFeatures, Dataset dataset) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), true, dataset);
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), true, dataset, null);
     }
 }

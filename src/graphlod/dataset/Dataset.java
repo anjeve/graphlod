@@ -155,6 +155,10 @@ public class Dataset {
     	return classes.get(subjectUri);
     }
 
+    public String getClassForSubject(String subjectUri) {
+        return classes.get(subjectUri);
+    }
+
     private void cleanup() {
         for (String vertex : removeVertices) {
             if (g.containsVertex(vertex)) {
