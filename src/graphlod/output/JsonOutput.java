@@ -4,12 +4,14 @@ import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
 import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.DirectedGraph;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 public class JsonOutput {
@@ -22,7 +24,7 @@ public class JsonOutput {
     }
 
     public void write(String output) {
-        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), true, this.dataset, null);
+        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, this.dataset, null);
 
         try {
             FileWriter file = new FileWriter(output + this.dataset.getName() + ".json");
@@ -36,7 +38,7 @@ public class JsonOutput {
         }
     }
 
-    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, boolean addClass, Dataset dataset, String type) {
+    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, Set<String> surroundingVertices, Set<DefaultEdge> surroundingEdges, boolean addClass, Dataset dataset, String type) {
         JSONObject obj = new JSONObject();
 
         JSONArray jsonNodes = new JSONArray();
@@ -58,28 +60,69 @@ public class JsonOutput {
             }
             jsonNodes.add(vertexObject);
         }
+        for (String vertex : surroundingVertices) {
+            if (vertices.contains(vertex)) continue;
+            vertexIds.put(vertex, id);
+            JSONObject vertexObject = new JSONObject();
+            vertexObject.put("id", id++);
+            if (addClass) {
+                vertexObject.put("uri", vertex);
+                vertexObject.put("group", dataset.getClass(vertex));
+                vertexObject.put("label", dataset.getLabel(vertex));
+                vertexObject.put("surrounding", true);
+            }
+            jsonNodes.add(vertexObject);
+        }
 
         obj.put("nodes", jsonNodes);
 
         for (DefaultEdge edge : edges) {
-            JSONObject edgeObject = new JSONObject();
-            if (addClass) {
-                edgeObject.put("uri", edge.toString());
-                edgeObject.put("label", dataset.getLabel(edge.toString()));
+            try {
+                JSONObject edgeObject = new JSONObject();
+                if (addClass) {
+                    edgeObject.put("uri", edge.toString());
+                    edgeObject.put("label", dataset.getLabel(edge.toString()));
+                }
+                edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
+                edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
+                jsonLinks.add(edgeObject);
+            } catch (NullPointerException e) {
+                logger.debug("Error: " + edge.toString());
             }
-            edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
-            edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
-            jsonLinks.add(edgeObject);
         }
+        for (DefaultEdge edge : surroundingEdges) {
+            try {
+                JSONObject edgeObject = new JSONObject();
+                if (addClass) {
+                    edgeObject.put("uri", edge.toString());
+                    edgeObject.put("label", dataset.getLabel(edge.toString()));
+                }
+                edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
+                edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
+                edgeObject.put("surrounding", true);
+                jsonLinks.add(edgeObject);
+            } catch (NullPointerException e) {
+                logger.debug("Error: " + edge.toString());
+            }
+        }
+
         obj.put("links", jsonLinks);
         return obj;
     }
 
     public static JSONObject getJson(GraphFeatures graphFeatures) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), false, null, graphFeatures.getType());
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, null, graphFeatures.getType());
+    }
+
+    public static JSONObject getJson(DirectedGraph graph, String type, Dataset dataset) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, dataset, type);
+    }
+
+    public static JSONObject getJson(DirectedGraph graph, DirectedGraph surroundingGraph, String type, Dataset dataset) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), surroundingGraph.vertexSet(), surroundingGraph.edgeSet(), true, dataset, type);
     }
 
     public static JSONObject getJsonColored(GraphFeatures graphFeatures, Dataset dataset) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), true, dataset, null);
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, dataset, null);
     }
 }

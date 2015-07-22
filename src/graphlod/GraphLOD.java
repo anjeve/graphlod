@@ -21,15 +21,20 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.commons.lang3.StringUtils;
+import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+import org.jgrapht.graph.DefaultDirectedGraph;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.*;
+
 import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.createIsomorphismInspector;
 
 public class GraphLOD {
@@ -68,6 +73,9 @@ public class GraphLOD {
     public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
+    public List<String> outboundStars = new ArrayList<>();
+    public List<String> inboundStars = new ArrayList<>();
+    public List<String> mixedStars = new ArrayList<>();
     public JSONObject nodeDegreeDistribution;
     public JSONObject highestIndegrees;
     public JSONObject highestOutdegrees;
@@ -170,6 +178,7 @@ public class GraphLOD {
         }
         logger.debug("Getting the connectivity took " + sw + " to execute.");
 
+
         int i = 0;
 
         sw = Stopwatch.createStarted();
@@ -181,6 +190,8 @@ public class GraphLOD {
         }
 
         if (apiOnly) {
+            searchBigComponent();
+
             List<Degree> maxInDegrees = graphFeatures.maxInDegrees(importantDegreeCount);
             List<Degree> maxOutDegrees = graphFeatures.maxOutDegrees(importantDegreeCount);
             HashMap<String, Integer> highestIndegreeMap = new HashMap<>();
@@ -311,6 +322,7 @@ public class GraphLOD {
         groupIsomorphicGraphs();
         logger.debug("Isomorphism check took " + sw);
 
+
         if (graphRenderer != null) {
             graphRenderer.writeDotFiles("connected", connectedGraphs, true);
             graphRenderer.writeDotFiles("strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets), true);
@@ -352,6 +364,248 @@ public class GraphLOD {
             logger.info("Chromatic Number: {}", cN);
             logger.debug("Getting the Chromatic Number took " + sw + " to execute.");
         }
+    }
+
+    private void searchBigComponent() {
+        for (GraphFeatures connectedSet : this.connectedGraphs) {
+            if (connectedSet.getVertexCount() < MAX_SIZE_FOR_PROLOD) continue;
+
+            getOutboundStarsFromBC(connectedSet);
+            getInboundStarsFromBC(connectedSet);
+            getMixedStarsFromBC(connectedSet);
+        }
+    }
+
+    private void getMixedStarsFromBC(GraphFeatures connectedSet) {
+        // mixed stars
+        logger.debug("Mixed stars (");
+        for (String v : connectedSet.getVertices()) {
+            checkVertexAsCentreOfMixedStar(connectedSet, v);
+        }
+        logger.debug("nr: "+mixedStars.size());
+    }
+
+    private void checkVertexAsCentreOfMixedStar(GraphFeatures connectedSet, String v_center) {
+        Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
+        Set<DefaultEdge> sei = connectedSet.incomingEdgesOf(v_center);
+        if (((surroundingEdges.size() +sei.size()) >= 6) && (surroundingEdges.size() >= 1) && (sei.size() >= 1)) {
+            Set<String> surroundingVertices = new HashSet<>();
+            Set<String> vertices = new HashSet<>();
+            int numberOfEdgesForSurrounding = 0;
+            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
+            outgoingStar.addVertex(v_center);
+            for (DefaultEdge sE : surroundingEdges) {
+                String v_level1 = sE.getSource().toString();
+                Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
+                Set<DefaultEdge> outgoingEdges2 = connectedSet.outgoingEdgesOf(v_level1);
+                numberOfEdgesForSurrounding += incomingEdges2.size();
+                numberOfEdgesForSurrounding += outgoingEdges2.size();
+                outgoingStar.addVertex(v_level1);
+                addEdge(outgoingStar, sE.toString(), v_center, v_level1);
+                vertices.add(v_level1);
+                for (DefaultEdge se2 : incomingEdges2) {
+                    String v_level2 = se2.getSource().toString();
+                    if (v_level2.equals(v_center)) continue;
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level2, v_level1);
+                }
+                for (DefaultEdge se2 : outgoingEdges2) {
+                    String v_level2 = se2.getTarget().toString();
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
+                }
+            }
+            for (DefaultEdge sE : sei) {
+                String v_level1 = sE.getSource().toString();
+                Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
+                Set<DefaultEdge> outgoingEdges2 = connectedSet.outgoingEdgesOf(v_level1);
+                numberOfEdgesForSurrounding += incomingEdges2.size();
+                numberOfEdgesForSurrounding += outgoingEdges2.size();
+                outgoingStar.addVertex(v_level1);
+                addEdge(outgoingStar, sE.toString(), v_level1, v_center);
+                vertices.add(v_level1);
+                for (DefaultEdge se2 : incomingEdges2) {
+                    String v_level2 = se2.getSource().toString();
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level2, v_level1);
+                }
+                for (DefaultEdge se2 : outgoingEdges2) {
+                    String v_level2 = se2.getTarget().toString();
+                    if (v_level2.equals(v_center)) continue;
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
+                }
+            }
+            if (numberOfEdgesForSurrounding <= surroundingEdges.size()) {
+                mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+            } else {
+                if (surroundingVertices.size() <= (vertices.size() + 1)) {
+                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + (surroundingEdges.size() +sei.size()) + "(" + vertices.size() + ")");
+                    mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+                }
+            }
+        }
+    }
+
+    private void getInboundStarsFromBC(GraphFeatures connectedSet) {
+        // inbound stars
+        logger.debug("Inbound stars (");
+        for (String v : connectedSet.getVertices()) {
+            if  (connectedSet.outgoingEdgesOf(v).size() > 0) continue;
+            checkVertexAsCentreOfInboundStar(connectedSet, v);
+        }
+        logger.debug("nr: "+inboundStars.size());
+    }
+
+    private void checkVertexAsCentreOfInboundStar(GraphFeatures connectedSet, String v_center) {
+        Set<String> vertices = new HashSet<>();
+        Set<String> surroundingVertices = new HashSet<>();
+        Set<DefaultEdge> surroundingIEdges = connectedSet.incomingEdgesOf(v_center);
+        if (surroundingIEdges.size() >= 3) {
+            int numberOfEdgesForSurrounding = 0;
+            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
+            outgoingStar.addVertex(v_center);
+            for (DefaultEdge surroundingEdge : surroundingIEdges) {
+                String v_level1 = surroundingEdge.getSource().toString();
+                Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
+                Set<DefaultEdge> outgoingEdges2 = connectedSet.outgoingEdgesOf(v_level1);
+                numberOfEdgesForSurrounding += incomingEdges2.size();
+                numberOfEdgesForSurrounding += outgoingEdges2.size();
+                outgoingStar.addVertex(v_level1);
+                addEdge(outgoingStar, surroundingEdge.toString(), v_level1, v_center);
+                vertices.add(v_level1);
+                for (DefaultEdge se2 : incomingEdges2) {
+                    String v_level2 = se2.getSource().toString();
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level2, v_level1);
+                }
+                for (DefaultEdge se2 : outgoingEdges2) {
+                    String v_level2 = se2.getTarget().toString();
+                    if (v_level2.equals(v_center)) continue;
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
+                }
+            }
+            if (numberOfEdgesForSurrounding <= surroundingIEdges.size()) {
+                inboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Inbound Star", dataset).toString());
+            } else {
+                if (surroundingVertices.size() <= (surroundingIEdges.size() + 1)) {
+                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingIEdges.size() + "(" + vertices.size() + ")");
+                    inboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Inbound Star", dataset).toString());
+                }
+            }
+        }
+    }
+
+    private void getOutboundStarsFromBC(GraphFeatures connectedSet) {
+        // outbound stars
+        logger.debug("Outbound stars");
+        for (String v : connectedSet.getVertices()) {
+            if  (connectedSet.incomingEdgesOf(v).size() > 0) continue;
+            checkVertexAsCentreOfOutboundStar(connectedSet, v);
+        }
+        logger.debug("nr: "+outboundStars.size());
+    }
+
+    private void checkVertexAsCentreOfOutboundStar(GraphFeatures connectedSet, String v_center) {
+        Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
+        Set<String> surroundingVertices = new HashSet<>();
+        Set<String> vertices = new HashSet<>();
+        if (surroundingEdges.size() >= 3) {
+            int numberOfEdgesForSurrounding = 0;
+            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
+            outgoingStar.addVertex(v_center);
+            for (DefaultEdge surroundingEdge : surroundingEdges) {
+                String v_level1 = surroundingEdge.getTarget().toString();
+                Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
+                Set<DefaultEdge> outgoingEdges2 = connectedSet.outgoingEdgesOf(v_level1);
+                numberOfEdgesForSurrounding += incomingEdges2.size();
+                numberOfEdgesForSurrounding += outgoingEdges2.size();
+                outgoingStar.addVertex(v_level1);
+                addEdge(outgoingStar, surroundingEdge.toString(), v_center, v_level1);
+                vertices.add(v_level1);
+                for (DefaultEdge se2 : incomingEdges2) {
+                    String v_level2 = se2.getSource().toString();
+                    if (v_level2.equals(v_center)) continue;
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level2, v_level1);
+                }
+                for (DefaultEdge se2 : outgoingEdges2) {
+                    String v_level2 = se2.getTarget().toString();
+                    if (neighbourVertices.contains(v_level2)) {
+                        // TODO count connectivity and allow some
+                        return;
+                    }
+                    surroundingVertices.add(v_level2);
+                    outgoingStarLevel2.addVertex(v_level1);
+                    outgoingStarLevel2.addVertex(v_level2);
+                    addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
+                }
+            }
+            if (numberOfEdgesForSurrounding <= surroundingEdges.size()) {
+                outboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Outbound Star", dataset).toString());
+            } else {
+                if (surroundingVertices.size() <= (surroundingEdges.size() + 1)) {
+                    outboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Outbound Star", dataset).toString());
+                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingEdges.size() + "(" + vertices.size() + ")");
+                }
+            }
+        }
+    }
+
+    private void addEdge(DirectedGraph<String, DefaultEdge> outgoingStar, String name, String source, String target) {
+        DefaultEdge e = new DefaultEdge(name);
+        e.setSource(source);
+        e.setTarget(target);
+        outgoingStar.addEdge(source, target, e);
     }
 
     private void exportEntities(List<GraphFeatures> graphs, String string) {
@@ -691,6 +945,7 @@ public class GraphLOD {
         parser.addArgument("--ontns").type(String.class).setDefault("");
         parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
         parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
+        parser.addArgument("--apiOnly").action(Arguments.storeFalse());
         parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
         parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(1);
         parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
@@ -724,6 +979,7 @@ public class GraphLOD {
         List<String> excludedNamespaces = result.getList("excludedNamespaces");
         boolean skipChromatic = result.getBoolean("skipChromatic");
         boolean skipGraphviz = result.getBoolean("skipGraphviz");
+        boolean apiOnly = result.getBoolean("apiOnly");
         boolean exportJson = result.getBoolean("exportJson");
         boolean exportGrami = result.getBoolean("exportGrami");
         int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
@@ -754,7 +1010,7 @@ public class GraphLOD {
 
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount, false);
+        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount, true);
     }
 
     public class GraphLODComparator implements Comparator<List<?>>{

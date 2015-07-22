@@ -57,6 +57,19 @@ public class GraphFeatures {
 	public Integer getHashCode() {
 		return this.simpleGraph.hashCode();
 	}
+
+	public Set<String> getNeighbourVertices(String v) {
+		Set<DefaultEdge> incomingEdges = incomingEdgesOf(v);
+		Set<DefaultEdge> outgoingEdges = outgoingEdgesOf(v);
+		Set<String> vertices = new HashSet<>();
+		for (DefaultEdge incomingEdge : incomingEdges) {
+			vertices.add(incomingEdge.getSource().toString());
+		}
+		for (DefaultEdge outgoingEdge : outgoingEdges) {
+			vertices.add(outgoingEdge.getTarget().toString());
+		}
+		return vertices;
+	}
 	
 	public boolean isConnected() {
 		return this.connectivity.isGraphConnected();
@@ -156,6 +169,10 @@ public class GraphFeatures {
 		CycleDetector<String, DefaultEdge> cycleDetector = new CycleDetector<>(this.graph);
 		this.containsCycle = cycleDetector.detectCycles();
 		return this.containsCycle;
+	}
+
+	public Set<DefaultEdge> incomingEdgesOf(String v) {
+		return this.graph.incomingEdgesOf(v);
 	}
 
 	public boolean isBipartite() {
@@ -559,4 +576,9 @@ public class GraphFeatures {
 	public void containsCycle() {
 		this.containsCycle = true;
 	}
+
+	public Set<DefaultEdge> outgoingEdgesOf(String v) {
+		return this.graph.outgoingEdgesOf(v);
+	}
+
 }
