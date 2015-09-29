@@ -156,6 +156,7 @@ public class Dataset {
     }
 
     public String getClassForSubject(String subjectUri) {
+        if (!classes.containsKey(subjectUri)) return "null";
         return classes.get(subjectUri);
     }
 

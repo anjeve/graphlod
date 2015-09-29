@@ -43,6 +43,9 @@ public class GraphFeatures {
 	public SimpleGraph<String, DefaultEdge> getSimpleGraph() {
 		return simpleGraph;
 	}
+	public DirectedGraph<String, DefaultEdge> getGraph() {
+		return this.graph;
+	}
 
 	public GraphFeatures(String id, DirectedGraph<String, DefaultEdge> graph, SimpleGraph<String, DefaultEdge> simpleGraph) {
 		this.id = id;

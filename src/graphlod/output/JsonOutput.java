@@ -5,6 +5,7 @@ import graphlod.dataset.Dataset;
 import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.graph.SimpleGraph;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -112,6 +113,10 @@ public class JsonOutput {
 
     public static JSONObject getJson(GraphFeatures graphFeatures) {
         return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, null, graphFeatures.getType());
+    }
+
+    public static JSONObject getJson(SimpleGraph graph, String type) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, null, type);
     }
 
     public static JSONObject getJson(DirectedGraph graph, String type, Dataset dataset) {

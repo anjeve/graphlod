@@ -1,6 +1,5 @@
 package graphlod;
 
-import ch.qos.logback.classic.Level;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -8,6 +7,7 @@ import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
+import graphlod.algorithms.PermutationClassIsomorphismInspector;
 import graphlod.dataset.Dataset;
 import graphlod.graph.Degree;
 import graphlod.output.GramiOutput;
@@ -15,16 +15,14 @@ import graphlod.output.GraphCsvOutput;
 import graphlod.output.JsonOutput;
 import graphlod.output.VertexCsvOutput;
 import graphlod.output.renderer.GraphRenderer;
-import net.sourceforge.argparse4j.ArgumentParsers;
-import net.sourceforge.argparse4j.impl.Arguments;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.ArgumentParserException;
-import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.commons.lang3.StringUtils;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+import org.jgrapht.experimental.isomorphism.IsomorphismRelation;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.SimpleGraph;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +34,8 @@ import java.text.NumberFormat;
 import java.util.*;
 
 import static org.jgrapht.experimental.isomorphism.AdaptiveIsomorphismInspectorFactory.createIsomorphismInspector;
+
+//import org.jgrapht.experimental.equivalence.
 
 public class GraphLOD {
     private static Logger logger = LoggerFactory.getLogger(GraphLOD.class);
@@ -68,24 +68,46 @@ public class GraphLOD {
     private List<String> htmlFiles = new ArrayList<>();
     private String output;
     private List<List<Integer>> isomorphicGraphs = new ArrayList<>();
-    private HashMap<Integer, List<List<GraphFeatures>>> colorPreservingIsomorphicGraphs = new HashMap<>();
+    private HashMap<Integer, List<List<Integer>>> colorPreservingIsomorphicGraphs = new HashMap<>();
     public GraphFeatures graphFeatures;
     public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
+    public HashMap<Integer, List<String>> colorIsomorphicPatterns = new HashMap<>();
     public List<String> outboundStars = new ArrayList<>();
     public List<String> inboundStars = new ArrayList<>();
     public List<String> mixedStars = new ArrayList<>();
+    private List<SimpleGraph> outboundStarSimpleGraphs = new ArrayList<>();
+    private List<SimpleGraph> inboundStarSimpleGraphs = new ArrayList<>();
+    private List<SimpleGraph> mixedStarSimpleGraphs = new ArrayList<>();
+    public HashMap<Integer, List<Integer>> isomorphicOutboundStars = new HashMap<>();
+    public HashMap<Integer, List<Integer>> isomorphicInboundStars = new HashMap<>();
+    public HashMap<Integer, List<Integer>> isomorphicMixedStars = new HashMap<>();
+    public HashMap<Integer, HashMap<String, Integer>> outboundStarsPattern =  new HashMap<>();
+    public HashMap<Integer, HashMap<String, Integer>> inboundStarsPattern = new HashMap<>();
+    public HashMap<Integer, HashMap<String, Integer>> mixedStarsPattern = new HashMap<>();
     public JSONObject nodeDegreeDistribution;
     public JSONObject highestIndegrees;
     public JSONObject highestOutdegrees;
     public double averageLinks;
     public List<Integer> connectedGraphSizes = new ArrayList<>();
     public List<Integer> stronglyconnectedGraphSizes = new ArrayList<>();
+    private HashMap<String, HashMap<String, Integer>> stats = new HashMap<>();
+    private BufferedWriter outStatsCsv;
+    private BufferedWriter outStatsInboundCsv;
+    private BufferedWriter outStatsOutboundCsv;
+    private Integer bigComponentSize;
+
+    public GraphLOD(ArgumentParser arguments) {
+        this.graphRenderer = null;
+        new GraphLOD(arguments.getName(), arguments.getDataset(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(),
+                arguments.isExportGrami(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces(), arguments.getMinImportantSubgraphSize(),
+                arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly());
+    }
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
-                    int importantDegreeCount, String output, int threadCount, boolean apiOnly) {
+                    int importantDegreeCount, int bigComponentSize, String output, int threadCount, boolean apiOnly) {
         this.output = output;
         this.name = name;
         this.exportJson = exportJson;
@@ -95,6 +117,12 @@ public class GraphLOD {
             this.graphRenderer = new GraphRenderer(name, this.output, threadCount);
         } else {
             this.graphRenderer = null;
+        }
+
+        if (bigComponentSize > 0) {
+            this.bigComponentSize = bigComponentSize;
+        } else {
+            this.bigComponentSize = MAX_SIZE_FOR_PROLOD;
         }
 
 
@@ -177,7 +205,6 @@ public class GraphLOD {
             this.stronglyconnectedGraphSizes.add(subGraph.getVertexCount());
         }
         logger.debug("Getting the connectivity took " + sw + " to execute.");
-
 
         int i = 0;
 
@@ -366,14 +393,45 @@ public class GraphLOD {
         }
     }
 
+    private void createStatsCsv() {
+        try {
+            File file = new File(this.output + this.name + "_mixedstar_correlations.csv");
+            Files.createParentDirs(file);
+            outStatsCsv = Files.newWriter(file, Charsets.UTF_8);
+            file = new File(this.output + this.name + "_inboundstar_correlations.csv");
+            outStatsInboundCsv = Files.newWriter(file, Charsets.UTF_8);
+            file = new File(this.output + this.name + "_outboundstar_correlations.csv");
+            outStatsOutboundCsv = Files.newWriter(file, Charsets.UTF_8);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void closeStatsCsv() {
+        try {
+            outStatsCsv.close();
+            outStatsInboundCsv.close();
+            outStatsOutboundCsv.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void searchBigComponent() {
+        createStatsCsv();
         for (GraphFeatures connectedSet : this.connectedGraphs) {
-            if (connectedSet.getVertexCount() < MAX_SIZE_FOR_PROLOD) continue;
+            if (connectedSet.getVertexCount() < this.bigComponentSize) continue;
 
             getOutboundStarsFromBC(connectedSet);
             getInboundStarsFromBC(connectedSet);
             getMixedStarsFromBC(connectedSet);
+            getCirclesFromBC(connectedSet);
         }
+        closeStatsCsv();
+
+        groupIsomorphicBCGraphs(this.inboundStarSimpleGraphs, this.isomorphicInboundStars, this.inboundStarsPattern);
+        groupIsomorphicBCGraphs(this.outboundStarSimpleGraphs, this.isomorphicOutboundStars, this.outboundStarsPattern);
+        groupIsomorphicBCGraphs(this.mixedStarSimpleGraphs, this.isomorphicMixedStars, this.mixedStarsPattern);
     }
 
     private void getMixedStarsFromBC(GraphFeatures connectedSet) {
@@ -382,7 +440,21 @@ public class GraphLOD {
         for (String v : connectedSet.getVertices()) {
             checkVertexAsCentreOfMixedStar(connectedSet, v);
         }
-        logger.debug("nr: "+mixedStars.size());
+        logger.debug("nr: " + mixedStars.size());
+    }
+
+    private void getCirclesFromBC(GraphFeatures connectedSet) {
+        logger.debug("Circles");
+        for (String v : connectedSet.getVertices()) {
+            checkVertexAsPartOfCircle(connectedSet, v);
+        }
+        logger.debug("nr: " + mixedStars.size());
+    }
+
+    private void checkVertexAsPartOfCircle(GraphFeatures connectedSet, String v) {
+        Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v);
+        Set<DefaultEdge> sei = connectedSet.incomingEdgesOf(v);
+
     }
 
     private void checkVertexAsCentreOfMixedStar(GraphFeatures connectedSet, String v_center) {
@@ -394,16 +466,20 @@ public class GraphLOD {
             int numberOfEdgesForSurrounding = 0;
             Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
             outgoingStar.addVertex(v_center);
+            simpleStar.addVertex(v_center);
             for (DefaultEdge sE : surroundingEdges) {
-                String v_level1 = sE.getSource().toString();
+                String v_level1 = sE.getTarget().toString();
                 Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
                 Set<DefaultEdge> outgoingEdges2 = connectedSet.outgoingEdgesOf(v_level1);
                 numberOfEdgesForSurrounding += incomingEdges2.size();
                 numberOfEdgesForSurrounding += outgoingEdges2.size();
                 outgoingStar.addVertex(v_level1);
+                simpleStar.addVertex(v_level1);
                 addEdge(outgoingStar, sE.toString(), v_center, v_level1);
+                addEdge(simpleStar, sE.toString(), v_center, v_level1);
                 vertices.add(v_level1);
                 for (DefaultEdge se2 : incomingEdges2) {
                     String v_level2 = se2.getSource().toString();
@@ -436,7 +512,9 @@ public class GraphLOD {
                 numberOfEdgesForSurrounding += incomingEdges2.size();
                 numberOfEdgesForSurrounding += outgoingEdges2.size();
                 outgoingStar.addVertex(v_level1);
+                simpleStar.addVertex(v_level1);
                 addEdge(outgoingStar, sE.toString(), v_level1, v_center);
+                addEdge(simpleStar, sE.toString(), v_level1, v_center);
                 vertices.add(v_level1);
                 for (DefaultEdge se2 : incomingEdges2) {
                     String v_level2 = se2.getSource().toString();
@@ -462,15 +540,44 @@ public class GraphLOD {
                     addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
                 }
             }
+            addEdgesOnLevel2Vertices(connectedSet, outgoingStarLevel2, surroundingVertices);
             if (numberOfEdgesForSurrounding <= surroundingEdges.size()) {
                 mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+                mixedStarSimpleGraphs.add(simpleStar);
+                addStats(v_center, neighbourVertices, outStatsCsv);
             } else {
                 if (surroundingVertices.size() <= (vertices.size() + 1)) {
                     logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + (surroundingEdges.size() +sei.size()) + "(" + vertices.size() + ")");
                     mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+                    mixedStarSimpleGraphs.add(simpleStar);
+                    addStats(v_center, neighbourVertices, outStatsCsv);
                 }
             }
         }
+    }
+
+    private void addStats(String v_center, Set<String> surroundingVertices, BufferedWriter writer) {
+        String centerNodeClass = dataset.getClassForSubject(v_center);
+        HashMap<String, Integer> classesSurrounding = new HashMap<String, Integer>();
+        for (String v : surroundingVertices) {
+            String nodeClass = dataset.getClassForSubject(v);
+            Integer subjectsPerClass = 1;
+            if (classesSurrounding.containsKey(nodeClass)) subjectsPerClass += classesSurrounding.get(nodeClass);
+            classesSurrounding.put(nodeClass, subjectsPerClass);
+        }
+        Map<String, Integer> sortedMap = new TreeMap<String, Integer>(classesSurrounding);
+        try {
+            writer.write(centerNodeClass);
+            for (Map.Entry<String, Integer> entry : sortedMap.entrySet()) {
+                String key = entry.getKey();
+                Integer value = entry.getValue();
+                writer.write(";" + key + ";" + value);
+            }
+            writer.write(System.lineSeparator());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //stats.put(centerNodeClass, classesSurrounding);
     }
 
     private void getInboundStarsFromBC(GraphFeatures connectedSet) {
@@ -491,8 +598,10 @@ public class GraphLOD {
             int numberOfEdgesForSurrounding = 0;
             Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
             outgoingStar.addVertex(v_center);
+            simpleStar.addVertex(v_center);
             for (DefaultEdge surroundingEdge : surroundingIEdges) {
                 String v_level1 = surroundingEdge.getSource().toString();
                 Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
@@ -500,7 +609,9 @@ public class GraphLOD {
                 numberOfEdgesForSurrounding += incomingEdges2.size();
                 numberOfEdgesForSurrounding += outgoingEdges2.size();
                 outgoingStar.addVertex(v_level1);
+                simpleStar.addVertex(v_level1);
                 addEdge(outgoingStar, surroundingEdge.toString(), v_level1, v_center);
+                addEdge(simpleStar, surroundingEdge.toString(), v_level1, v_center);
                 vertices.add(v_level1);
                 for (DefaultEdge se2 : incomingEdges2) {
                     String v_level2 = se2.getSource().toString();
@@ -526,15 +637,41 @@ public class GraphLOD {
                     addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
                 }
             }
+            addEdgesOnLevel2Vertices(connectedSet, outgoingStarLevel2, surroundingVertices);
             if (numberOfEdgesForSurrounding <= surroundingIEdges.size()) {
                 inboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Inbound Star", dataset).toString());
+                inboundStarSimpleGraphs.add(simpleStar);
+                addStats(v_center, neighbourVertices, outStatsInboundCsv);
             } else {
                 if (surroundingVertices.size() <= (surroundingIEdges.size() + 1)) {
                     logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingIEdges.size() + "(" + vertices.size() + ")");
                     inboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Inbound Star", dataset).toString());
+                    inboundStarSimpleGraphs.add(simpleStar);
+                    addStats(v_center, neighbourVertices, outStatsInboundCsv);
                 }
             }
         }
+    }
+
+    private void addEdgesOnLevel2Vertices(GraphFeatures graphFeatures, DirectedGraph<String, DefaultEdge> graph, Set<String> verticesLevel2) {
+        for (String v : verticesLevel2) {
+            Set<DefaultEdge> incomingEdges = graphFeatures.incomingEdgesOf(v);
+            Set<DefaultEdge> outgoingEdges = graphFeatures.outgoingEdgesOf(v);
+            // TODO don't add in- & outcoming links twice
+            for (DefaultEdge edge : incomingEdges) {
+                String linkedVertice = edge.getSource().toString();
+                if (verticesLevel2.contains(linkedVertice)) {
+                    addEdge(graph, edge.toString(), linkedVertice, v);
+                }
+            }
+            for (DefaultEdge edge : outgoingEdges) {
+                String linkedVertice = edge.getTarget().toString();
+                if (verticesLevel2.contains(linkedVertice)) {
+                    addEdge(graph, edge.toString(), v, linkedVertice);
+                }
+            }
+        }
+
     }
 
     private void getOutboundStarsFromBC(GraphFeatures connectedSet) {
@@ -555,8 +692,10 @@ public class GraphLOD {
             int numberOfEdgesForSurrounding = 0;
             Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
+            SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
             outgoingStar.addVertex(v_center);
+            simpleStar.addVertex(v_center);
             for (DefaultEdge surroundingEdge : surroundingEdges) {
                 String v_level1 = surroundingEdge.getTarget().toString();
                 Set<DefaultEdge> incomingEdges2 = connectedSet.incomingEdgesOf(v_level1);
@@ -564,7 +703,9 @@ public class GraphLOD {
                 numberOfEdgesForSurrounding += incomingEdges2.size();
                 numberOfEdgesForSurrounding += outgoingEdges2.size();
                 outgoingStar.addVertex(v_level1);
+                simpleStar.addVertex(v_level1);
                 addEdge(outgoingStar, surroundingEdge.toString(), v_center, v_level1);
+                addEdge(simpleStar, surroundingEdge.toString(), v_center, v_level1);
                 vertices.add(v_level1);
                 for (DefaultEdge se2 : incomingEdges2) {
                     String v_level2 = se2.getSource().toString();
@@ -590,18 +731,23 @@ public class GraphLOD {
                     addEdge(outgoingStarLevel2, se2.toString(), v_level1, v_level2);
                 }
             }
+            addEdgesOnLevel2Vertices(connectedSet, outgoingStarLevel2, surroundingVertices);
             if (numberOfEdgesForSurrounding <= surroundingEdges.size()) {
                 outboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Outbound Star", dataset).toString());
+                outboundStarSimpleGraphs.add(simpleStar);
+                addStats(v_center, neighbourVertices, outStatsOutboundCsv);
             } else {
                 if (surroundingVertices.size() <= (surroundingEdges.size() + 1)) {
                     outboundStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Outbound Star", dataset).toString());
+                    outboundStarSimpleGraphs.add(simpleStar);
+                    addStats(v_center, neighbourVertices, outStatsOutboundCsv);
                     logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingEdges.size() + "(" + vertices.size() + ")");
                 }
             }
         }
     }
 
-    private void addEdge(DirectedGraph<String, DefaultEdge> outgoingStar, String name, String source, String target) {
+    private void addEdge(Graph<String, DefaultEdge> outgoingStar, String name, String source, String target) {
         DefaultEdge e = new DefaultEdge(name);
         e.setSource(source);
         e.setTarget(target);
@@ -764,7 +910,7 @@ public class GraphLOD {
             if (connectedSet.getVertexCount() > MAX_SIZE_FOR_PROLOD) continue;
             logger.debug("\tChecking graph {}/{} {}.", ++i, this.connectedGraphs.size(), connectedSet.getVertexCount());
             int putIntoBag = -1;
-            int putIntoColorBag = -1;
+
             for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
                 GraphFeatures firstGraph = this.connectedGraphs.get(isomorphicGraphList.get(0));
                 try {
@@ -780,12 +926,18 @@ public class GraphLOD {
                     logger.warn(e.getMessage());
                 }
             }
-            List<Integer> graphs = new ArrayList<>();
-            graphs.add(this.connectedGraphs.indexOf(connectedSet));
-            /* TODO color isomorphism
+            List<Integer> isomorphicGraphList = new ArrayList<>();
+            int graphIndex = this.connectedGraphs.indexOf(connectedSet);
+            isomorphicGraphList.add(graphIndex);
+
+            List colorIsomorphGraphList = new ArrayList();
+
+            /*
             List<GraphFeatures> coloredGraphs = new ArrayList<>();
             coloredGraphs.add(connectedSet);
             */
+
+            // if there is already a isomorphism group
             if (putIntoBag >= 0) {
                 /*
                 List<List<GraphFeatures>> isomorphismGroup = this.colorPreservingIsomorphicGraphs.get(putIntoBag);
@@ -819,30 +971,54 @@ public class GraphLOD {
                     logger.debug("\tCreating new isomorphism bag for graph of coloring.");
                 }
                 */
-                graphs.addAll(this.isomorphicGraphs.get(putIntoBag));
+
+                // check color isomorphism
+                int putIntoColorBag = -1;
+                for (List<Integer> colorIsomorphicList : this.colorPreservingIsomorphicGraphs.get(putIntoBag)) {
+                    Integer representantIndex = (Integer) colorIsomorphicList.get(0);
+                    GraphFeatures gf = this.connectedGraphs.get(representantIndex);
+                    // check all permutations that are still isomorph
+                    PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(gf.getGraph(), connectedSet.getGraph()); // , new VertexDegreeEquivalenceComparator(), null
+                    while (inspector.hasNext()) {
+                        boolean colorIsomorph = true;
+                        IsomorphismRelation graphMapping = inspector.nextIsoRelation();
+                        for (String v : connectedSet.getVertices()) {
+                            String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
+                            String vClass = dataset.getClassForSubject(v);
+                            if (!dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
+                                colorIsomorph = false;
+                            }
+                        }
+                        if (colorIsomorph) {
+                            putIntoColorBag = representantIndex;
+                            colorIsomorphGraphList.addAll(this.colorPreservingIsomorphicGraphs.get(putIntoBag).get(representantIndex));
+                            colorIsomorphGraphList.add(graphIndex);
+                            this.colorPreservingIsomorphicGraphs.put(putIntoBag, colorIsomorphGraphList);
+                            break;
+                        }
+                    }
+                    if (putIntoColorBag >= 0) {
+                        break;
+                    }
+
+                }
+
+                isomorphicGraphList.addAll(this.isomorphicGraphs.get(putIntoBag));
                 this.isomorphicGraphs.remove(putIntoBag);
-                this.isomorphicGraphs.add(putIntoBag, graphs);
-                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), graphs.size()-1);
+                this.isomorphicGraphs.add(putIntoBag, isomorphicGraphList);
+                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), isomorphicGraphList.size()-1);
+
             } else {
-                this.isomorphicGraphs.add(graphs);
-                /* TODO color isomorphism
-                List colorIsomorphicList = new ArrayList();
-                colorIsomorphicList.add(coloredGraphs);
-                this.colorPreservingIsomorphicGraphs.put(this.colorPreservingIsomorphicGraphs.size(), colorIsomorphicList);
+                this.isomorphicGraphs.add(isomorphicGraphList);
+                Integer index = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+                colorIsomorphGraphList.add(isomorphicGraphList);
+                this.colorPreservingIsomorphicGraphs.put(index, colorIsomorphGraphList);
                 logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
-                */
             }
         }
-        /*
-        Collections.sort(this.isomorphicGraphs, new Comparator<List<?>>() {
-            public int compare(List<?> a1, List<?> a2) {
-                return a2.size() - a1.size();
-            }
-        });
-        */
         Collections.sort(this.isomorphicGraphs, new GraphLODComparator());
         for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
-            Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
+            Integer index = this.isomorphicGraphs.indexOf(isomorphicGraphList);
             if (graphRenderer != null) {
                 this.graphRenderer.writeDotFile(index.toString(), this.connectedGraphs.get(isomorphicGraphList.get(0)), false);
             }
@@ -855,7 +1031,17 @@ public class GraphLOD {
                     colored = coloredPatterns.get(this.isomorphicGraphs.indexOf(isomorphicGraphList));
                 }
                 colored.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
-                coloredPatterns.put(this.isomorphicGraphs.indexOf(isomorphicGraphList), colored);
+                Integer isoIndex = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+                coloredPatterns.put(isoIndex, colored);
+                for (Integer colorIsomorphicIndex : this.colorPreservingIsomorphicGraphs.get(graphNr).get(isoIndex)) {
+                    GraphFeatures gfColorIsoGroup = this.connectedGraphs.get(colorIsomorphicIndex);
+                    List<String> coloredIsoGroup = new ArrayList<String>();
+                    if (colorIsomorphicPatterns.containsKey(isoIndex)) {
+                        coloredIsoGroup = colorIsomorphicPatterns.get(isoIndex);
+                    }
+                    coloredIsoGroup.add(JsonOutput.getJsonColored(gfColorIsoGroup, this.dataset).toString());
+                    this.colorIsomorphicPatterns.put(isoIndex, coloredIsoGroup);
+                }
             }
             logger.info("Patterns");
             if (isomorphicGraphs.get(0).getEdgeCount() <= MAX_SIZE_FOR_PROLOD) {
@@ -869,6 +1055,67 @@ public class GraphLOD {
                 if (graphRenderer != null) {
                     this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphs, true);
                 }
+            }
+        }
+    }
+
+    private void groupIsomorphicBCGraphs(List<SimpleGraph> graphList, HashMap<Integer, List<Integer>> patternPerGroup, HashMap<Integer, HashMap<String, Integer>> patterns) {
+        int i = 0;
+        List<List<Integer>> isomorphicGraphs = new ArrayList<>();
+        for (SimpleGraph graph : graphList) {
+            int vertices = graph.vertexSet().size();
+            if (vertices > MAX_SIZE_FOR_PROLOD) continue;
+            logger.debug("\tChecking graph {}/{} {}.", ++i, graphList.size(), vertices);
+            int putIntoBag = -1;
+            for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
+                SimpleGraph firstGraph = graphList.get(isomorphicGraphList.get(0));
+                try {
+                    if ((firstGraph.vertexSet().size() != vertices) || (firstGraph.edgeSet().size() != graph.edgeSet().size())) continue;
+                    GraphIsomorphismInspector inspector = createIsomorphismInspector(firstGraph, graph);
+                    if (inspector.isIsomorphic()) {
+                        putIntoBag = isomorphicGraphs.indexOf(isomorphicGraphList);
+                        break;
+                    }
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    putIntoBag = -1;
+                    logger.warn(e.getMessage());
+                }
+            }
+            List<Integer> graphs = new ArrayList<>();
+            graphs.add(graphList.indexOf(graph));
+            if (putIntoBag >= 0) {
+                graphs.addAll(isomorphicGraphs.get(putIntoBag));
+                isomorphicGraphs.remove(putIntoBag);
+                isomorphicGraphs.add(putIntoBag, graphs);
+                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", vertices, graphs.size()-1);
+            } else {
+                isomorphicGraphs.add(graphs);
+            }
+        }
+        Collections.sort(isomorphicGraphs, new GraphLODComparator());
+        for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
+            Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
+            // TODO render
+            List<SimpleGraph> iIsomorphicGraphs = new ArrayList<>();
+            for (Integer graphNr : isomorphicGraphList) {
+                SimpleGraph gf = graphList.get(graphNr);
+                iIsomorphicGraphs.add(gf);
+                List<Integer> colored = new ArrayList<>();
+                if (patternPerGroup.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
+                    colored = patternPerGroup.get(isomorphicGraphs.indexOf(isomorphicGraphList));
+                }
+                // JsonOutput.getJsonColored(gf, this.dataset).toString()
+                colored.add(graphList.indexOf(gf));
+                patternPerGroup.put(isomorphicGraphs.indexOf(isomorphicGraphList), colored);
+            }
+            logger.info("Patterns");
+            if (iIsomorphicGraphs.get(0).edgeSet().size() <= MAX_SIZE_FOR_PROLOD) {
+                logger.info(iIsomorphicGraphs.size() + " x ");
+                HashMap<String, Integer> patternTemp = new HashMap<>();
+                //
+                patternTemp.put(JsonOutput.getJson(graphList.get(isomorphicGraphList.get(0)), "Star").toString(), isomorphicGraphs.size());
+                patterns.put(index, patternTemp);
+                // TODO render
             }
         }
     }
@@ -930,87 +1177,28 @@ public class GraphLOD {
     }
 
     public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, "", 4, true);
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true);
         /* GraphStatistics graphStats = new GraphStatistics();
         return graphStats;
         */
     }
 
     public static void main(final String[] args) {
-        ArgumentParser parser = ArgumentParsers.newArgumentParser("GraphLOD")
-                .defaultHelp(true).description("calculates graph features.");
-        parser.addArgument("dataset").nargs("+").setDefault(Collections.emptyList());
-        parser.addArgument("--name").type(String.class).setDefault("");
-        parser.addArgument("--namespace").type(String.class).setDefault("");
-        parser.addArgument("--ontns").type(String.class).setDefault("");
-        parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
-        parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
-        parser.addArgument("--apiOnly").action(Arguments.storeFalse());
-        parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
-        parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(1);
-        parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
-        parser.addArgument("--threadcount").type(Integer.class).action(Arguments.store()).setDefault(4);
-        parser.addArgument("--debug").action(Arguments.storeTrue());
-        parser.addArgument("--output").type(String.class).setDefault("");
-        parser.addArgument("--exportJson").action(Arguments.storeTrue());
-        parser.addArgument("--exportGrami").action(Arguments.storeTrue());
-        Namespace result = null;
-        try {
-            result = parser.parseArgs(args);
-        } catch (ArgumentParserException e) {
-            parser.handleError(e);
-            System.exit(1);
-        }
+        ArgumentParser arguments = new ArgumentParser(args, MAX_SIZE_FOR_PROLOD);
 
-        List<String> dataset = result.getList("dataset");
-        String name = result.getString("name");
-        if (name.isEmpty()) {
-            name = dataset.get(0);
-            File file = new File(name);
-            name = file.getName().replaceAll("\\..*", "");
-        }
-
-
-        String namespace = result.getString("namespace");
-        String ontns = result.getString("ontns");
-        if (ontns.isEmpty() && !namespace.isEmpty()) {
-        	ontns = namespace;
-        }
-        List<String> excludedNamespaces = result.getList("excludedNamespaces");
-        boolean skipChromatic = result.getBoolean("skipChromatic");
-        boolean skipGraphviz = result.getBoolean("skipGraphviz");
-        boolean apiOnly = result.getBoolean("apiOnly");
-        boolean exportJson = result.getBoolean("exportJson");
-        boolean exportGrami = result.getBoolean("exportGrami");
-        int minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
-        int importantDegreeCount = result.getInt("importantDegreeCount");
-        int threadcount = result.getInt("threadcount");
-        boolean debugMode = result.getBoolean("debug");
-        String output = result.getString("output");
-
+        /*
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         if (debugMode) {
             root.setLevel(Level.DEBUG);
         } else {
             root.setLevel(Level.INFO);
         }
+        */
 
         //BasicConfigurator.configure();
-        logger.info("reading: " + dataset);
-        logger.info("name: " + name);
-        logger.info("namespace: " + namespace);
-        logger.info("ontology namespace: " + ontns);
-        logger.info("skip chromatic: " + skipChromatic);
-        logger.info("skip graphviz: " + skipGraphviz);
-        logger.info("excluded namespaces: " + excludedNamespaces);
-        logger.info("min important subgraph size: " + minImportantSubgraphSize);
-        logger.info("number of important degrees: " + importantDegreeCount);
-        logger.info("threadcount: " + threadcount);
-        logger.info("output: " + output);
-
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(name, dataset, skipChromatic, skipGraphviz, exportJson, exportGrami, namespace, ontns, excludedNamespaces, minImportantSubgraphSize, importantDegreeCount, output, threadcount, true);
+        new GraphLOD(arguments);
     }
 
     public class GraphLODComparator implements Comparator<List<?>>{

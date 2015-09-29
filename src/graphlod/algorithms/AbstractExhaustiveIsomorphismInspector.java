@@ -1,14 +1,18 @@
 package graphlod.algorithms;
 
-                import java.util.*;
+import org.jgrapht.Graph;
+import org.jgrapht.experimental.equivalence.EquivalenceComparator;
+import org.jgrapht.experimental.equivalence.UniformEquivalenceComparator;
+import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
+import org.jgrapht.experimental.isomorphism.GraphOrdering;
+import org.jgrapht.experimental.isomorphism.IsomorphismRelation;
+import org.jgrapht.experimental.permutation.CollectionPermutationIter;
+import org.jgrapht.util.PrefetchIterator;
 
-                import org.jgrapht.*;
-                import org.jgrapht.experimental.equivalence.*;
-                import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
-                import org.jgrapht.experimental.isomorphism.GraphOrdering;
-                import org.jgrapht.experimental.isomorphism.IsomorphismRelation;
-                import org.jgrapht.experimental.permutation.*;
-                import org.jgrapht.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
     /* ==========================================
  * JGraphT : a free Java graph-theory library
