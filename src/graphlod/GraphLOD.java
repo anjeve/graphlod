@@ -1012,9 +1012,9 @@ public class GraphLOD {
                     colorIsoGroupIndex = coloredIso.size();
                     colorIsoGF.add(gf);
                 } else {
+                    boolean add = true;
                     for (GraphFeatures coloredGF: colorIsoGF) {
                         PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getGraph(), gf.getGraph()); // , new VertexDegreeEquivalenceComparator(), null
-                        boolean add = true;
                         while (inspector.hasNext()) {
                             boolean colorIsomorph = true;
                             IsomorphismRelation graphMapping = inspector.nextIsoRelation();
@@ -1031,15 +1031,15 @@ public class GraphLOD {
                                 break;
                             }
                         }
-                        if (add) {
-                            List<String> coloredIso = new ArrayList<>();
-                            if (colorIsomorphicPatterns.containsKey(this.isomorphicGraphs.indexOf(isomorphicGraphList))) {
-                                coloredIso = colorIsomorphicPatterns.get(this.isomorphicGraphs.indexOf(isomorphicGraphList));
-                            }
-                            coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
-                            this.colorIsomorphicPatterns.put(isoIndex, coloredIso);
-                            colorIsoGF.add(gf);
+                    }
+                    if (add) {
+                        List<String> coloredIso = new ArrayList<>();
+                        if (colorIsomorphicPatterns.containsKey(this.isomorphicGraphs.indexOf(isomorphicGraphList))) {
+                            coloredIso = colorIsomorphicPatterns.get(this.isomorphicGraphs.indexOf(isomorphicGraphList));
                         }
+                        coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
+                        this.colorIsomorphicPatterns.put(isoIndex, coloredIso);
+                        colorIsoGF.add(gf);
                     }
                 }
                 // try
@@ -1053,6 +1053,7 @@ public class GraphLOD {
                 this.coloredPatterns.put(isoIndex, colored);
 
                 // mapping
+                /*
                 HashMap<Integer, List<Integer>> mappingMap = new HashMap<>();
                 List<Integer> mappingList = new ArrayList<>();
                 if (this.coloredPatternMappings.containsKey(isoIndex)) {
@@ -1066,6 +1067,9 @@ public class GraphLOD {
                 mappingList.add(coloredPatternKey);
                 mappingMap.put(colorIsoGroupIndex, mappingList);
                 this.coloredPatternMappings.put(isoIndex, mappingMap);
+                */
+
+
 
                 /*
                 List<List<Integer>> graphList1 = this.colorPreservingIsomorphicGraphs.get(graphNr);
