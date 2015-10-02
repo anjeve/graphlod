@@ -984,6 +984,8 @@ public class GraphLOD {
             }
         }
 
+        Integer colorIsoGroupIndex = -1;
+
         Collections.sort(this.isomorphicGraphs, new GraphLODComparator());
         for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
             Integer index = this.isomorphicGraphs.indexOf(isomorphicGraphList);
@@ -998,8 +1000,6 @@ public class GraphLOD {
                 isomorphicGraphsTemp.add(gf);
                 Integer isoIndex = this.isomorphicGraphs.indexOf(isomorphicGraphList);
 
-                Integer colorIsoGroupIndex = -1;
-
                 // try color iso
                 // TODO counter for patterns
                 if (colorIsoGF.size() == 0) {
@@ -1009,7 +1009,7 @@ public class GraphLOD {
                     }
                     coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
                     this.colorIsomorphicPatterns.put(isoIndex, coloredIso);
-                    colorIsoGroupIndex = coloredIso.size();
+                    colorIsoGroupIndex += 1;
                     colorIsoGF.add(gf);
                 } else {
                     boolean add = true;
@@ -1027,7 +1027,7 @@ public class GraphLOD {
                             }
                             if (colorIsomorph) {
                                 add = false;
-                                colorIsoGroupIndex = colorIsoGF.indexOf(coloredGF);
+                                //colorIsoGroupIndex = colorIsoGF.indexOf(coloredGF);
                                 break;
                             }
                         }
@@ -1039,6 +1039,8 @@ public class GraphLOD {
                         }
                         coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
                         this.colorIsomorphicPatterns.put(isoIndex, coloredIso);
+                        colorIsoGroupIndex += 1;
+                        //colorIsoGroupIndex = colorIsoGF.size();
                         colorIsoGF.add(gf);
                     }
                 }
@@ -1046,11 +1048,11 @@ public class GraphLOD {
 
                 List<String> colored = new ArrayList<>();
                 Integer coloredPatternKey = this.isomorphicGraphs.indexOf(isomorphicGraphList);
-                if (coloredPatterns.containsKey(coloredPatternKey)) {
-                    colored = coloredPatterns.get(coloredPatternKey);
+                if (coloredPatterns.containsKey(colorIsoGroupIndex)) {
+                    colored = coloredPatterns.get(colorIsoGroupIndex);
                 }
                 colored.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
-                this.coloredPatterns.put(isoIndex, colored);
+                this.coloredPatterns.put(colorIsoGroupIndex, colored);
 
                 // mapping
                 /*
