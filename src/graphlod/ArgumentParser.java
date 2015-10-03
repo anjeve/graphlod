@@ -26,7 +26,7 @@ public class ArgumentParser {
     private final int threadcount;
     private final boolean debugMode;
     private final String output;
-    private final Integer bigComponentSize;
+    private final int bigComponentSize;
     private String name;
     private final List<String> dataset;
 
@@ -39,7 +39,7 @@ public class ArgumentParser {
         parser.addArgument("--ontns").type(String.class).setDefault("");
         parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
         parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
-        parser.addArgument("--apiOnly").action(Arguments.storeFalse());
+        parser.addArgument("--apiOnly").action(Arguments.storeTrue());
         parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
         parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(1);
         parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
