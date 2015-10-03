@@ -74,7 +74,6 @@ public class GraphLOD {
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
     public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
     public HashMap<Integer, List<String>> colorIsomorphicPatterns = new HashMap<>();
-    public HashMap<Integer, HashMap<Integer, List<Integer>>> coloredPatternMappings = new HashMap<>();
     public List<String> outboundStars = new ArrayList<>();
     public List<String> inboundStars = new ArrayList<>();
     public List<String> mixedStars = new ArrayList<>();
@@ -543,14 +542,14 @@ public class GraphLOD {
             }
             addEdgesOnLevel2Vertices(connectedSet, outgoingStarLevel2, surroundingVertices);
             if (numberOfEdgesForSurrounding <= surroundingEdges.size()) {
-                mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
-                mixedStarSimpleGraphs.add(simpleStar);
+                this.mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+                this.mixedStarSimpleGraphs.add(simpleStar);
                 addStats(v_center, neighbourVertices, outStatsCsv);
             } else {
                 if (surroundingVertices.size() <= (vertices.size() + 1)) {
                     logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + (surroundingEdges.size() +sei.size()) + "(" + vertices.size() + ")");
-                    mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
-                    mixedStarSimpleGraphs.add(simpleStar);
+                    this.mixedStars.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, "Mixed Star", dataset).toString());
+                    this.mixedStarSimpleGraphs.add(simpleStar);
                     addStats(v_center, neighbourVertices, outStatsCsv);
                 }
             }
@@ -1104,6 +1103,7 @@ public class GraphLOD {
     }
 
     private void groupIsomorphicBCGraphs(List<SimpleGraph> graphList, HashMap<Integer, List<Integer>> patternPerGroup, HashMap<Integer, HashMap<String, Integer>> patterns) {
+        if (graphList.size() == 0) return;
         int i = 0;
         List<List<Integer>> isomorphicGraphs = new ArrayList<>();
         for (SimpleGraph graph : graphList) {
@@ -1153,14 +1153,16 @@ public class GraphLOD {
                 patternPerGroup.put(isomorphicGraphs.indexOf(isomorphicGraphList), colored);
             }
             logger.info("Patterns");
-            if (iIsomorphicGraphs.get(0).edgeSet().size() <= MAX_SIZE_FOR_PROLOD) {
-                logger.info(iIsomorphicGraphs.size() + " x ");
-                HashMap<String, Integer> patternTemp = new HashMap<>();
-                //
-                patternTemp.put(JsonOutput.getJson(graphList.get(isomorphicGraphList.get(0)), "Star").toString(), isomorphicGraphs.size());
-                patterns.put(index, patternTemp);
-                // TODO render
+            //if (iIsomorphicGraphs.get(0).edgeSet().size() <= bigComponentSize) {
+            logger.info(iIsomorphicGraphs.size() + " x ");
+            HashMap<String, Integer> patternTemp = new HashMap<>();
+            if (patterns.containsKey(index)) {
+                patternTemp = patterns.get(index);
             }
+            patternTemp.put(JsonOutput.getJson(graphList.get(isomorphicGraphList.get(0)), "Star").toString(), isomorphicGraphs.size());
+            patterns.put(index, patternTemp);
+                // TODO render
+            //}
         }
     }
 
@@ -1221,7 +1223,7 @@ public class GraphLOD {
     }
 
     public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true);
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 1, "", 4, true);
         /* GraphStatistics graphStats = new GraphStatistics();
         return graphStats;
         */
