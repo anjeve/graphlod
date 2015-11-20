@@ -70,7 +70,7 @@ public class JsonOutput {
             vertexObject.put("id", id++);
             if (addClass) {
                 vertexObject.put("uri", vertex);
-                vertexObject.put("group", dataset.getClass(vertex));
+                //vertexObject.put("group", dataset.getClass(vertex));
                 vertexObject.put("label", dataset.getLabel(vertex));
                 vertexObject.put("surrounding", true);
             }
@@ -133,7 +133,15 @@ public class JsonOutput {
         return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null);
     }
 
+    public static JSONObject getJsonColored(SimpleGraph graph, Dataset dataset) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null);
+    }
+
     public static JSONObject getJsonColoredGroup(GraphFeatures graphFeatures, Dataset dataset) {
         return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null);
+    }
+
+    public static JSONObject getJsonColoredGroup(SimpleGraph graph, Dataset dataset) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null);
     }
 }
