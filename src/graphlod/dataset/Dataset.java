@@ -95,12 +95,17 @@ public class Dataset {
                 if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Property")) {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
-                } else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class")) {
+                } else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class") ||
+                           objectUri.equals("http://www.w3.org/2002/07/owl#Class")) {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
                 } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
                     // TODO find top classes for each class hierarchy tree path and only save top one
                     classes.put(subjectUri, objectUri);
+                    if (!g.containsVertex(subjectUri)) {
+                        g.addVertex(subjectUri);
+                        simpleGraph.addVertex(subjectUri);
+                    }
                     if (!this.ontologyClasses.contains(objectUri)) {
                         this.ontologyClasses.add(objectUri);
                     }

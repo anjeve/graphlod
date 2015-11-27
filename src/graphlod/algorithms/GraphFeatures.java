@@ -461,6 +461,9 @@ public class GraphFeatures {
 		if (indegrees2 == null) {
 			getIndegrees();
 		}
+		if(this.indegrees2.isEmpty()) {
+			return Collections.emptyList();
+		}
 		return CollectionUtils.maxValues(indegrees2, count);
 	}
 
@@ -468,6 +471,9 @@ public class GraphFeatures {
         if (this.indegrees == null) {
             getIndegrees();
         }
+	    if(this.indegrees.isEmpty()) {
+		    return 0;
+	    }
         return CollectionUtils.max(this.indegrees);
     }
 
@@ -475,6 +481,9 @@ public class GraphFeatures {
         if (this.indegrees == null) {
             getIndegrees();
         }
+	    if(this.indegrees.isEmpty()) {
+		    return 0;
+	    }
         return CollectionUtils.min(this.indegrees);
     }
 
