@@ -11,6 +11,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import com.google.common.collect.ImmutableMultimap;
+
 import static graphlod.TestUtils.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
@@ -63,10 +65,23 @@ public class DatasetTest {
         lines.add(createStatement("a", "p1", "classes/Thing"));
         lines.add(createStatement("a", "p1", "b"));
 
-        Dataset dataset = Dataset.fromLines(lines, "", ", ", "", Arrays.asList("http://classes/"));
+        Dataset dataset = Dataset.fromLines(lines, "", "http://", "", Arrays.asList("http://classes/"));
         assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a"),url("b")));
         assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
 
         assertThat(dataset.getGraph().getEdge(url("a"), url("b")), notNullValue());
+    }
+
+    @Test
+    public void testSubclasses() {
+        lines.add(createStatement("c1", "www.w3.org/2000/01/rdf-schema#subClassOf", "c0"));
+        lines.add(createStatement("c2", "www.w3.org/2000/01/rdf-schema#subClassOf", "c0"));
+        lines.add(createStatement("c11", "www.w3.org/2000/01/rdf-schema#subClassOf", "c1"));
+
+        Dataset dataset = Dataset.fromLines(lines, "", "http://", "", excluded);
+
+        assertThat(dataset.ontologySubclasses.keySet(), containsInAnyOrder(url("c0"), url("c1")));
+        assertThat(dataset.ontologySubclasses.get(url("c0")), containsInAnyOrder(url("c1"), url("c2")));
+        assertThat(dataset.ontologySubclasses.get(url("c1")), containsInAnyOrder(url("c11")));
     }
 }

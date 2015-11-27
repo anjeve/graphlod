@@ -16,6 +16,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
     private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -24,8 +27,9 @@ public class Dataset {
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private Set<String> removeVertices = new HashSet<>();
-    private static HashMap<String, String> classes = new HashMap<>();
-    public List<String> ontologyClasses = new ArrayList<>();
+    private static HashMap<String, String> classes = new HashMap<>(); // mapping from entities to their class
+    public List<String> ontologyClasses = new ArrayList<>(); // list of all classes
+    public Multimap<String, String> ontologySubclasses = ArrayListMultimap.create(); // classes and their subclasses
     private static HashMap<String, String> labels = new HashMap<>();
     private String name;
 
@@ -95,8 +99,8 @@ public class Dataset {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
                 } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
-                	// TODO find top classes for each class hierarchy tree path and only save top one
-                	classes.put(subjectUri, objectUri);
+                    // TODO find top classes for each class hierarchy tree path and only save top one
+                    classes.put(subjectUri, objectUri);
                     if (!this.ontologyClasses.contains(objectUri)) {
                         this.ontologyClasses.add(objectUri);
                     }
@@ -106,6 +110,8 @@ public class Dataset {
             } else if (propertyUri.equals("http://www.w3.org/2002/07/owl#equivalentClass")) {
                 removeVertices.add(subjectUri);
                 removeVertices.add(objectUri);
+            } else if (propertyUri.equals("http://www.w3.org/2000/01/rdf-schema#subClassOf")) {
+                ontologySubclasses.put(objectUri, subjectUri);
             } else if (!subjectUri.startsWith(namespace)) {
                 removeVertices.add(subjectUri);
             } else if (!objectUri.startsWith(namespace)) {
