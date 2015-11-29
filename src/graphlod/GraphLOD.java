@@ -112,12 +112,12 @@ public class GraphLOD {
         this.graphRenderer = null;
         new GraphLOD(arguments.getName(), arguments.getDataset(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(),
                 arguments.isExportGrami(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces(), arguments.getMinImportantSubgraphSize(),
-                arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly());
+                arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly(), true);
     }
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
-                    int importantDegreeCount, int bigComponentSize, String output, int threadCount, boolean apiOnly) {
+                    int importantDegreeCount, int bigComponentSize, String output, int threadCount, boolean apiOnly, boolean analyzeAlso) {
         this.output = output;
         this.name = name;
         this.exportJson = exportJson;
@@ -138,37 +138,41 @@ public class GraphLOD {
 
         if (apiOnly) {
             graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
-            analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
-        } else {
-            this.graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
-            this.vertexCsvOutput = new VertexCsvOutput(name);
-
-            if (!this.output.isEmpty()) {
-                try {
-                    File file = new File(this.output);
-                    Files.createParentDirs(file);
-                } catch (IOException e) {
-                    this.output = "";
-                    e.printStackTrace();
-                }
-            }
-
-            GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
-            if (!exportJson && !exportGrami) {
+            if (analyzeAlso) {
                 analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
-
-                graphCsvOutput.close();
-                vertexCsvOutput.close();
-
-                if (graphRenderer != null) {
-                    Stopwatch sw = Stopwatch.createStarted();
-                    this.htmlFiles = graphRenderer.render();
-                    logger.debug("visualization took " + sw);
-                }
-                createHtmlStructures();
-                createHtmlConnectedSets();
             }
-            graphFeatures = null;
+        } else {
+            if (analyzeAlso) {
+                this.graphCsvOutput = new GraphCsvOutput(name, MAX_SIZE_FOR_DIAMETER);
+                this.vertexCsvOutput = new VertexCsvOutput(name);
+
+                if (!this.output.isEmpty()) {
+                    try {
+                        File file = new File(this.output);
+                        Files.createParentDirs(file);
+                    } catch (IOException e) {
+                        this.output = "";
+                        e.printStackTrace();
+                    }
+                }
+
+                GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+                if (!exportJson && !exportGrami) {
+                    analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
+
+                    graphCsvOutput.close();
+                    vertexCsvOutput.close();
+
+                    if (graphRenderer != null) {
+                        Stopwatch sw = Stopwatch.createStarted();
+                        this.htmlFiles = graphRenderer.render();
+                        logger.debug("visualization took " + sw);
+                    }
+                    createHtmlStructures();
+                    createHtmlConnectedSets();
+                }
+                graphFeatures = null;
+            }
         }
     }
 
@@ -248,7 +252,7 @@ public class GraphLOD {
         }
 
         for (GraphFeatures subGraph : connectedGraphs) {
-            // getWalks(subGraph.getSimpleGraph());
+            getWalks(subGraph.getSimpleGraph());
 
             this.connectedGraphSizes.add(subGraph.getVertexCount());
 
@@ -1339,7 +1343,14 @@ public class GraphLOD {
     }
 
     public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true);
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, true);
+        /* GraphStatistics graphStats = new GraphStatistics();
+        return graphStats;
+        */
+    }
+
+    public static GraphLOD loadGraph(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, false);
         /* GraphStatistics graphStats = new GraphStatistics();
         return graphStats;
         */

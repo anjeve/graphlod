@@ -13,10 +13,6 @@
             <id>nxparser-snapshots</id>
             <url>http://nxparser.googlecode.com/svn/snapshots</url>
         </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
     </repositories>
     <properties>
         <slf4jVersion>1.7.7</slf4jVersion>
@@ -128,11 +124,6 @@
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
             <version>1.1.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.timtadh</groupId>
-            <artifactId>parsemis</artifactId>
-            <version>e0893eebc8e34604aceaa5ab4eead635d7620b14</version>
         </dependency>
     </dependencies>
     <build>
