@@ -2,17 +2,23 @@ package graphlod;
 
 import graphlod.algorithms.GraphFeatures;
 import graphlod.graph.Edge;
+import graphlod.output.JsonOutput;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 
 import java.util.*;
 
 public class EdgeSimilarity {
-    public List<List<GraphFeatures>> similarityBags = new ArrayList<>();
+    private List<List<GraphFeatures>> similarityBags = new ArrayList<>();
+    public List<List<String>> similarityLists = new ArrayList<>();
     public HashMap<Integer, HashMap<Edge, Integer>> differenceToFirstElement = new HashMap<>();
 
     public EdgeSimilarity(ArgumentParser arguments) {
-        GraphLOD graphLod = GraphLOD.loadGraph(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        new EdgeSimilarity(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+    }
+
+    public EdgeSimilarity(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        GraphLOD graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces);
         GraphFeatures graphFeatures = graphLod.graphFeatures;
         List<GraphFeatures> connectedGraphs = new ArrayList<>();
         if (graphFeatures.isConnected()) {
@@ -73,6 +79,7 @@ public class EdgeSimilarity {
                             Integer count1 = entry.getValue();
                             Integer count2 = edges2.get(edge);
                             if (count1 != count2) {
+                                // TODO index
                                 int indexOfBag = 0;
                                 HashMap<Edge, Integer> map = new HashMap<>();
                                 if (differenceToFirstElement.containsKey(indexOfBag)) {
@@ -139,21 +146,16 @@ public class EdgeSimilarity {
             }
             System.out.println(edges.toString() + " " + similarityBag.size());
         }
+        for (List<GraphFeatures> similarityBag : similarityBags) {
+            List<String> jsonList = new ArrayList<>();
+            for (GraphFeatures graph: similarityBag) {
+                jsonList.add(JsonOutput.getJsonColored(graph, graphLod.dataset).toString().replaceAll("\\\\", ""));
+            }
+            this.similarityLists.add(jsonList);
+        }
     }
 
-    public boolean same(Set<Edge> set1, Set<Edge> set2){
-        if (set1.size() != set2.size())
-            return false;
-        Set<Edge> symmetricDiff = new HashSet<>(set1);
-        symmetricDiff.addAll(set2);
-        Set<Edge> tmp = new HashSet<Edge>(set1);
-        tmp.retainAll(set2);
-        symmetricDiff.removeAll(tmp);
-        if (symmetricDiff.size() > 0 ) return false;
-        return true;
-    }
-
-    public boolean sameEdges(List<Edge> set1, List<Edge> set2){
+    private boolean sameEdges(List<Edge> set1, List<Edge> set2){
         if (set1.size() != set2.size())
             return false;
         List<Edge> symmetricDiff = new ArrayList<>(set1);
@@ -165,7 +167,7 @@ public class EdgeSimilarity {
         return true;
     }
 
-    public boolean same(List<Integer> set1, List<Integer> set2){
+    private boolean same(List<Integer> set1, List<Integer> set2){
         if (set1.size() != set2.size())
             return false;
         List<Integer> symmetricDiff = new ArrayList<>(set1);

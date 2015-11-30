@@ -252,7 +252,7 @@ public class GraphLOD {
         }
 
         for (GraphFeatures subGraph : connectedGraphs) {
-            getWalks(subGraph.getSimpleGraph());
+            // getWalks(subGraph.getSimpleGraph());
 
             this.connectedGraphSizes.add(subGraph.getVertexCount());
 
