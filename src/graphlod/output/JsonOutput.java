@@ -25,7 +25,7 @@ public class JsonOutput {
     }
 
     public void write(String output) {
-        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, this.dataset, null);
+        JSONObject obj = getJsonObject(this.dataset.getGraph().vertexSet(), this.dataset.getGraph().edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, this.dataset, null, null);
 
         try {
             FileWriter file = new FileWriter(output + this.dataset.getName() + ".json");
@@ -39,7 +39,7 @@ public class JsonOutput {
         }
     }
 
-    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, Set<String> surroundingVertices, Set<DefaultEdge> surroundingEdges, boolean addClass, boolean addUris, Dataset dataset, String type) {
+    private static JSONObject getJsonObject(Set<String> vertices, Set<DefaultEdge> edges, Set<String> surroundingVertices, Set<DefaultEdge> surroundingEdges, boolean addClass, boolean addUris, Dataset dataset, String type, HashMap<String, String> classes) {
         JSONObject obj = new JSONObject();
 
         JSONArray jsonNodes = new JSONArray();
@@ -59,7 +59,11 @@ public class JsonOutput {
                     vertexObject.put("uri", vertex);
                     vertexObject.put("label", dataset.getLabel(vertex));
                 }
-                vertexObject.put("group", dataset.getClass(vertex));
+                if (classes != null) {
+                    vertexObject.put("group", classes.get(vertex));
+                } else {
+                    vertexObject.put("group", dataset.getClass(vertex));
+                }
             }
             jsonNodes.add(vertexObject);
         }
@@ -110,38 +114,42 @@ public class JsonOutput {
         }
 
         obj.put("links", jsonLinks);
-        return obj;
+            return obj;
     }
 
     public static JSONObject getJson(GraphFeatures graphFeatures) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, false, null, graphFeatures.getType());
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, false, null, graphFeatures.getType(), null);
     }
 
     public static JSONObject getJson(SimpleGraph graph, String type) {
-        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, false, null, type);
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), false, false, null, type, null);
     }
 
     public static JSONObject getJson(DirectedGraph graph, String type, Dataset dataset) {
-        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, type);
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, type, null);
     }
 
     public static JSONObject getJson(DirectedGraph graph, DirectedGraph surroundingGraph, String type, Dataset dataset) {
-        return getJsonObject(graph.vertexSet(), graph.edgeSet(), surroundingGraph.vertexSet(), surroundingGraph.edgeSet(), true, true, dataset, type);
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), surroundingGraph.vertexSet(), surroundingGraph.edgeSet(), true, true, dataset, type, null);
     }
 
     public static JSONObject getJsonColored(GraphFeatures graphFeatures, Dataset dataset) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null);
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null, null);
     }
 
     public static JSONObject getJsonColored(SimpleGraph graph, Dataset dataset) {
-        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null);
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null, null);
+    }
+
+    public static JSONObject getJsonColored(SimpleGraph graph, Dataset dataset, HashMap<String, String> classes) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, true, dataset, null, classes);
     }
 
     public static JSONObject getJsonColoredGroup(GraphFeatures graphFeatures, Dataset dataset) {
-        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null);
+        return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null, null);
     }
 
     public static JSONObject getJsonColoredGroup(SimpleGraph graph, Dataset dataset) {
-        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null);
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null, null);
     }
 }

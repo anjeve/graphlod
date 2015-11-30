@@ -11,6 +11,7 @@ import java.util.*;
 public class EdgeSimilarity {
     private List<List<GraphFeatures>> similarityBags = new ArrayList<>();
     public List<List<String>> similarityLists = new ArrayList<>();
+    public List<String> similarityPaths = new ArrayList<>();
     public HashMap<Integer, HashMap<Edge, Integer>> differenceToFirstElement = new HashMap<>();
 
     public EdgeSimilarity(ArgumentParser arguments) {
@@ -29,6 +30,7 @@ public class EdgeSimilarity {
 
         for (GraphFeatures connectedComponent : connectedGraphs) {
             if (connectedComponent.getVertexCount() > 200) continue;
+            if (connectedComponent.getVertexCount() == 1) continue;
             if (similarityBags.isEmpty()) {
                 List<GraphFeatures> list = new ArrayList<>();
                 list.add(connectedComponent);
@@ -152,6 +154,36 @@ public class EdgeSimilarity {
                 jsonList.add(JsonOutput.getJsonColored(graph, graphLod.dataset).toString().replaceAll("\\\\", ""));
             }
             this.similarityLists.add(jsonList);
+
+            SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
+            Set<Edge> edges1 = new HashSet<>();
+            Integer vertexCount = 0;
+            Integer vertexCount1 = 1;
+            HashMap<String, String> classes = new HashMap();
+            for (DefaultEdge edge : similarityBag.get(0).getSimpleGraph().edgeSet()) {
+                Edge edgeClasses = new Edge(graphLod.dataset.getClassForSubject(edge.getSource().toString()), graphLod.dataset.getClassForSubject(edge.getTarget().toString()));
+                if (!edges1.contains(edgeClasses)) {
+                    edges1.add(edgeClasses);
+                    simpleGraph.addVertex(vertexCount.toString());
+                    simpleGraph.addVertex(vertexCount1.toString());
+                    DefaultEdge e = new DefaultEdge("");
+                    e.setSource(vertexCount.toString());
+                    e.setTarget(vertexCount1.toString());
+                    simpleGraph.addEdge(vertexCount.toString(), vertexCount1.toString().toString(), e);
+                    classes.put(vertexCount.toString(), edgeClasses.sourceClass);
+                    classes.put(vertexCount1.toString(), edgeClasses.targetClass);
+                    vertexCount += 2;
+                    vertexCount1 += 2;
+                }
+            }
+            if (similarityBag.get(0).getSimpleGraph().edgeSet().size() == 0) {
+                Set<String> vertexSet = similarityBag.get(0).getSimpleGraph().vertexSet();
+                String vertex = vertexSet.iterator().next().toString();
+                simpleGraph.addVertex(vertex);
+                classes.put(vertex, graphLod.dataset.getClassForSubject(vertex));
+            }
+            this.similarityPaths.add(JsonOutput.getJsonColored(simpleGraph, graphLod.dataset, classes).toString().replaceAll("\\\\", ""));
+
         }
     }
 
