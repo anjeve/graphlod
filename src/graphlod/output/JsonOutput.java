@@ -56,8 +56,12 @@ public class JsonOutput {
             vertexObject.put("id", id++);
             if (addClass) {
                 if (addUris) {
-                    vertexObject.put("uri", vertex);
-                    vertexObject.put("label", dataset.getLabel(vertex));
+                    if (classes != null) {
+                        vertexObject.put("uri", classes.get(vertex));
+                    } else {
+                        vertexObject.put("uri", vertex);
+                        vertexObject.put("label", dataset.getLabel(vertex));
+                    }
                 }
                 if (classes != null) {
                     vertexObject.put("group", classes.get(vertex));

@@ -21,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
+import org.jgrapht.Graphs;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
 import org.jgrapht.experimental.isomorphism.IsomorphismRelation;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -446,6 +447,7 @@ public class GraphLOD {
             getInboundStarsFromBC(connectedSet);
             getMixedStarsFromBC(connectedSet);
             getCirclesFromBC(connectedSet);
+            getDoubleLinkedListFromBC(connectedSet);
         }
         closeStatsCsv();
 
@@ -470,6 +472,31 @@ public class GraphLOD {
             checkVertexAsPartOfCircle(connectedSet, v);
         }
         logger.debug("nr: " + circleGraphs.size());
+    }
+
+    private void getDoubleLinkedListFromBC(GraphFeatures connectedSet) {
+        logger.debug("Double Linked Lists");
+        for (String v : connectedSet.getVertices()) {
+            checkVertexAsBeginningOfLinkedList(connectedSet, v);
+        }
+        logger.debug("nr: " + circleGraphs.size());
+    }
+
+    private void checkVertexAsBeginningOfLinkedList(GraphFeatures connectedSet, String v) {
+        DirectedGraph graph = connectedSet.getGraph();
+        Set<DefaultEdge> outgoing = connectedSet.outgoingEdgesOf(v);
+        Set<DefaultEdge> incoming = connectedSet.incomingEdgesOf(v);
+
+        for (DefaultEdge outgoingEdge : outgoing) {
+            String oppositeVertex1 = Graphs.getOppositeVertex(graph, v, outgoingEdge).toString();
+            for (DefaultEdge incomingEdge : incoming) {
+                String oppositeVertex2 = Graphs.getOppositeVertex(graph, v, incomingEdge).toString();
+                if (oppositeVertex1.equals(oppositeVertex2)) {
+                    break;
+                }
+            }
+
+        }
     }
 
     private void checkVertexAsPartOfCircle(GraphFeatures connectedSet, String v) {

@@ -4,6 +4,7 @@ import graphlod.algorithms.GraphFeatures;
 import graphlod.graph.Edge;
 import graphlod.output.JsonOutput;
 import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
 
 import java.util.*;
@@ -46,13 +47,13 @@ public class EdgeSimilarity {
                 // repeat for all ?
                 // TODO find "centroid" element
 
-                SimpleGraph<String, DefaultEdge> simpleGraph = connectedComponent.getSimpleGraph();
-                SimpleGraph<String, DefaultEdge> simpleGraphFromBag = similarityBag.get(0).getSimpleGraph();
+                DirectedGraph<String, DefaultEdge> graph = connectedComponent.getGraph();
+                DirectedGraph<String, DefaultEdge> graphFromBag = similarityBag.get(0).getGraph();
 
                 // 2. check for vertices
                 HashMap<Edge, Integer> edges1 = new HashMap<>();
                 HashMap<Edge, Integer> edges2 = new HashMap<>();
-                for (DefaultEdge edge : simpleGraph.edgeSet()) {
+                for (DefaultEdge edge : graph.edgeSet()) {
                     Edge edgeClasses = new Edge(graphLod.dataset.getClassForSubject(edge.getSource().toString()), graphLod.dataset.getClassForSubject(edge.getTarget().toString()));
                     Integer count = 1;
                     if (edges1.containsKey(edgeClasses)) {
@@ -60,7 +61,7 @@ public class EdgeSimilarity {
                     }
                     edges1.put(edgeClasses, count);
                 }
-                for (DefaultEdge edge : simpleGraphFromBag.edgeSet()) {
+                for (DefaultEdge edge : graphFromBag.edgeSet()) {
                     Edge edgeClasses = new Edge(graphLod.dataset.getClassForSubject(edge.getSource().toString()), graphLod.dataset.getClassForSubject(edge.getTarget().toString()));
                     Integer count = 1;
                     if (edges2.containsKey(edgeClasses)) {
@@ -92,35 +93,8 @@ public class EdgeSimilarity {
                             }
                         }
                     }
-                    /*
-                    if (edgeSetCountNotEqual > 0) {
-
-                    }
-                    */
                     continue;
-                } else {
-                    /*
-                    int edgeSetsSimilar = 0;
-                    int edgeSetsDissimilar = 0;
-                    int edgeSetCountsSimilar = 0;
-                    int edgeSetCountsDissimilar = 0;
-                    for(Map.Entry<Edge, Integer> entry : edges1.entrySet()) {
-                        Edge edge = entry.getKey();
-                        Integer count = entry.getValue();
-                        if (edges2.containsKey(edge)) {
-                            edgeSetsSimilar += 1;
-                            if (count == edges2.get(edge)) {
-                                edgeSetCountsSimilar += 1;
-                            } else {
-                                edgeSetCountsDissimilar += 1;
-                            }
-                        } else {
-                            edgeSetsDissimilar += 1;
-                        }
-                    }
-                    */
                 }
-
                 // TODO make this configurable
 
                 /*
@@ -140,6 +114,7 @@ public class EdgeSimilarity {
                 similarityBags.add(list);
             }
         }
+
         System.out.println(similarityBags.size());
         for (List<GraphFeatures> similarityBag : similarityBags) {
             Set<Edge> edges = new HashSet<>();
@@ -151,7 +126,7 @@ public class EdgeSimilarity {
         for (List<GraphFeatures> similarityBag : similarityBags) {
             List<String> jsonList = new ArrayList<>();
             for (GraphFeatures graph: similarityBag) {
-                jsonList.add(JsonOutput.getJsonColored(graph, graphLod.dataset).toString().replaceAll("\\\\", ""));
+                jsonList.add(JsonOutput.getJsonColored(graph, graphLod.dataset).toString().replaceAll("\\\\/", "/"));
             }
             this.similarityLists.add(jsonList);
 
@@ -182,7 +157,7 @@ public class EdgeSimilarity {
                 simpleGraph.addVertex(vertex);
                 classes.put(vertex, graphLod.dataset.getClassForSubject(vertex));
             }
-            this.similarityPaths.add(JsonOutput.getJsonColored(simpleGraph, graphLod.dataset, classes).toString().replaceAll("\\\\", ""));
+            this.similarityPaths.add(JsonOutput.getJsonColored(simpleGraph, graphLod.dataset, classes).toString().replaceAll("\\\\/", "/"));
 
         }
     }
@@ -192,7 +167,7 @@ public class EdgeSimilarity {
             return false;
         List<Edge> symmetricDiff = new ArrayList<>(set1);
         symmetricDiff.addAll(set2);
-        List<Edge> tmp = new ArrayList<Edge>(set1);
+        List<Edge> tmp = new ArrayList<>(set1);
         tmp.retainAll(set2);
         symmetricDiff.removeAll(tmp);
         if (symmetricDiff.size() > 0 ) return false;
@@ -204,7 +179,7 @@ public class EdgeSimilarity {
             return false;
         List<Integer> symmetricDiff = new ArrayList<>(set1);
         symmetricDiff.addAll(set2);
-        List<Integer> tmp = new ArrayList<Integer>(set1);
+        List<Integer> tmp = new ArrayList<>(set1);
         tmp.retainAll(set2);
         symmetricDiff.removeAll(tmp);
         if (symmetricDiff.size() > 0 ) return false;
