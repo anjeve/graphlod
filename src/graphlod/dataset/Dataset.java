@@ -18,6 +18,7 @@ import java.util.*;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
@@ -32,6 +33,9 @@ public class Dataset {
     public Multimap<String, String> ontologySubclasses = ArrayListMultimap.create(); // classes and their subclasses
     private static HashMap<String, String> labels = new HashMap<>();
     private String name;
+
+    public static String OWL_THING = "http://www.w3.org/2002/07/owl#Thing";
+
 
     private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
@@ -160,8 +164,23 @@ public class Dataset {
                 }
             }
         }
+
+        postProcessClassHierarchy();
     }
-    
+
+    /**
+     * Sets all classes that don't have a superclass as subclass of OWL-Thing
+     * SubclassOfOwlThing = (Classes + SuperClasses) - SubClasses
+     */
+    private void postProcessClassHierarchy() {
+        Set<String> classesWithoutSuperClass = Sets.newHashSet();
+        classesWithoutSuperClass.addAll(ontologyClasses);
+        classesWithoutSuperClass.addAll(ontologySubclasses.keys());
+        classesWithoutSuperClass.removeAll(ontologySubclasses.values());
+        classesWithoutSuperClass.remove(OWL_THING);
+        ontologySubclasses.get(OWL_THING).addAll(classesWithoutSuperClass);
+    }
+
     public static String getClass(String subjectUri) {
     	return classes.get(subjectUri);
     }
