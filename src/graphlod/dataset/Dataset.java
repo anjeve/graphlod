@@ -22,17 +22,19 @@ import com.google.common.collect.Sets;
 
 public class Dataset {
     private static final Logger logger = Logger.getLogger(Dataset.class);
-    private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
-    private String namespace;
-    public String ontologyNamespace;
+
+    private static final Map<String, String> classes = new HashMap<>(); // mapping from entities to their class
+
+    private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private final String namespace;
+    private final String ontologyNamespace;
     private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
-    private Set<String> removeVertices = new HashSet<>();
-    private static HashMap<String, String> classes = new HashMap<>(); // mapping from entities to their class
-    public List<String> ontologyClasses = new ArrayList<>(); // list of all classes
-    public Multimap<String, String> ontologySubclasses = ArrayListMultimap.create(); // classes and their subclasses
-    private static HashMap<String, String> labels = new HashMap<>();
-    private String name;
+    private final Set<String> removeVertices = new HashSet<>();
+    private final Set<String> ontologyClasses = new HashSet<>(); // list of all classes
+    private final Multimap<String, String> ontologySubclasses = ArrayListMultimap.create(); // classes and their subclasses
+    private final Map<String, String> labels = new HashMap<>();
+    private final String name;
 
     public static String OWL_THING = "http://www.w3.org/2002/07/owl#Thing";
 
@@ -121,6 +123,12 @@ public class Dataset {
                 removeVertices.add(objectUri);
             } else if (propertyUri.equals("http://www.w3.org/2000/01/rdf-schema#subClassOf")) {
                 ontologySubclasses.put(objectUri, subjectUri);
+                if (!this.ontologyClasses.contains(objectUri)) {
+                    this.ontologyClasses.add(objectUri);
+                }
+                if (!this.ontologyClasses.contains(subjectUri)) {
+                    this.ontologyClasses.add(subjectUri);
+                }
             } else if (!subjectUri.startsWith(namespace)) {
                 removeVertices.add(subjectUri);
             } else if (!objectUri.startsWith(namespace)) {
@@ -221,5 +229,17 @@ public class Dataset {
 
     public String getLabel(String uri) {
         return (labels.get(uri));
+    }
+
+    public String getOntologyNamespace() {
+        return ontologyNamespace;
+    }
+
+    public Set<String> getOntologyClasses() {
+        return ontologyClasses;
+    }
+
+    public Multimap<String, String> getOntologySubclasses() {
+        return ontologySubclasses;
     }
 }
