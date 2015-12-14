@@ -12,16 +12,14 @@ import org.jgrapht.traverse.AbstractGraphIterator;
 
 import java.util.*;
 
-public abstract class BFSCrossComponentIterator<V, E, D>
+public abstract class BFSMinimizingCrossComponentIterator<V, E, D>
         extends AbstractGraphIterator<V, E>
 {
-
 
     private static final int CCS_BEFORE_COMPONENT = 1;
     private static final int CCS_WITHIN_COMPONENT = 2;
     private static final int CCS_AFTER_COMPONENT = 3;
     private Dataset dataset;
-
 
     /**
      * Standard vertex visit state enumeration.
@@ -46,6 +44,8 @@ public abstract class BFSCrossComponentIterator<V, E, D>
         BLACK
     }
 
+
+
     //
     private final ConnectedComponentTraversalEvent ccFinishedEvent =
             new ConnectedComponentTraversalEvent(
@@ -67,11 +67,11 @@ public abstract class BFSCrossComponentIterator<V, E, D>
      * some additional traversal info regarding each vertex.
      */
     private Map<V, D> seen = new HashMap<V, D>();
-    private Map<V, D> seenAgain = new HashMap<V, D>();
     private V startVertex;
     private Specifics<V, E> specifics;
 
-    private final Graph<V, E> graph;
+    public final Graph<V, E> graph;
+
 
     /**
      * The connected component state
@@ -91,7 +91,7 @@ public abstract class BFSCrossComponentIterator<V, E, D>
      * @throws IllegalArgumentException if <code>g==null</code> or does not
      * contain <code>startVertex</code>
      */
-    public BFSCrossComponentIterator(Graph<V, E> g, V startVertex, Dataset dataset)
+    public BFSMinimizingCrossComponentIterator(Graph<V, E> g, V startVertex, Dataset dataset)
     {
         super();
 
@@ -118,7 +118,8 @@ public abstract class BFSCrossComponentIterator<V, E, D>
         } else if (g.containsVertex(startVertex)) {
             this.startVertex = startVertex;
         } else {
-            throw new IllegalArgumentException("graph must contain the start vertex");
+            throw new IllegalArgumentException(
+                    "graph must contain the start vertex");
         }
     }
 
@@ -262,8 +263,6 @@ public abstract class BFSCrossComponentIterator<V, E, D>
      */
     protected abstract void encounterVertexAgain(V vertex, E edge);
 
-    protected abstract void encounterVertexAgain2(V vertex, E edge);
-
     /**
      * Stores iterator-dependent data for a vertex that has been seen.
      *
@@ -278,11 +277,6 @@ public abstract class BFSCrossComponentIterator<V, E, D>
     protected D putSeenData(V vertex, D data)
     {
         return seen.put(vertex, data);
-    }
-
-    protected D putSeenAgainData(V vertex, D data)
-    {
-        return seenAgain.put(vertex, data);
     }
 
     /**
@@ -323,22 +317,34 @@ public abstract class BFSCrossComponentIterator<V, E, D>
             classes.put(edge, dataset.getClassForSubject(oppositeV.toString()));
         }
 
+        HashMap<String, Boolean> vertexHasNoOtherLinks = new HashMap<>();
+        String lastClassName = "";
         for (Map.Entry<E, String> entry :  MapUtil.sortByValue(classes).entrySet()) {
             E edge = entry.getKey();
+            String className = entry.getValue();
             if (nListeners != 0) {
                 fireEdgeTraversed(createEdgeTraversalEvent(edge));
             }
 
             V oppositeV = Graphs.getOppositeVertex(graph, edge, vertex);
 
+            // do not add paths to vertices with 1 edge of a class we have already seen
+            if (lastClassName.equals(className) && (graph.edgesOf(oppositeV).size() == 1)
+                    && vertexHasNoOtherLinks.containsKey(className)) {
+                continue;
+            }
+            lastClassName = className;
+            if (graph.edgesOf(oppositeV).size() == 1) {
+                vertexHasNoOtherLinks.put(className, true);
+            }
+
+
+
             if (isSeenVertex(oppositeV)) {
                 encounterVertexAgain(oppositeV, edge);
             } else {
                 encounterVertex(oppositeV, edge);
-                //encounterVertexAgain2(vertex, edge);
             }
-            // TODO add center node again unless it's the last ?
-            encounterVertexAgain2(vertex, edge);
         }
     }
 
@@ -369,6 +375,8 @@ public abstract class BFSCrossComponentIterator<V, E, D>
         encounterVertex(startVertex, null);
         startVertex = null;
     }
+
+
 
     static interface SimpleContainer<T>
     {
@@ -427,9 +435,6 @@ public abstract class BFSCrossComponentIterator<V, E, D>
     {
         private static final long serialVersionUID = 4051327833765000755L;
 
-        /**
-         * //@see EdgeTraversalEvent#EdgeTraversalEvent(Object, Edge)
-         */
         public FlyweightEdgeEvent(Object eventSource, localE edge)
         {
             super(eventSource, edge);
@@ -495,7 +500,7 @@ public abstract class BFSCrossComponentIterator<V, E, D>
         }
 
         /**
-         * @see BFSCrossComponentIterator.Specifics#edgesOf(Object)
+         * @see BFSMinimizingCrossComponentIterator.Specifics#edgesOf(Object)
          */
         @Override public Set<? extends EE> edgesOf(VV vertex)
         {
@@ -523,7 +528,7 @@ public abstract class BFSCrossComponentIterator<V, E, D>
         }
 
         /**
-         * @see BFSCrossComponentIterator.Specifics#edgesOf(Object)
+         * @see BFSMinimizingCrossComponentIterator.Specifics#edgesOf(Object)
          */
         @Override public Set<EE> edgesOf(VV vertex)
         {

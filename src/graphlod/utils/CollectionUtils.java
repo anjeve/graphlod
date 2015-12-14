@@ -1,4 +1,4 @@
-package graphlod;
+package graphlod.utils;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -1,6 +1,6 @@
 package graphlod.algorithms;
 
-import graphlod.CollectionUtils;
+import graphlod.utils.CollectionUtils;
 import graphlod.dataset.Dataset;
 import graphlod.graph.Degree;
 import org.jgraph.graph.DefaultEdge;

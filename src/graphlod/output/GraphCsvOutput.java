@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import graphlod.CollectionUtils;
+import graphlod.utils.CollectionUtils;
 import graphlod.algorithms.GraphFeatures;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;

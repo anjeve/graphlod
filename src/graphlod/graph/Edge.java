@@ -18,6 +18,11 @@ public class Edge {
     }
 
     @Override
+    public String toString() {
+        return "(" + this.sourceClass + ", " + this.targetClass + ")";
+    }
+
+    @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31).
                 append(this.sourceClass).

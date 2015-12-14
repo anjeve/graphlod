@@ -153,6 +153,10 @@ public class JsonOutput {
         return getJsonObject(graphFeatures.getVertices(), graphFeatures.getEdges(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null, null);
     }
 
+    public static JSONObject getJsonColoredGroup(SimpleGraph graph, Dataset dataset, String type) {
+        return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, type, null);
+    }
+
     public static JSONObject getJsonColoredGroup(SimpleGraph graph, Dataset dataset) {
         return getJsonObject(graph.vertexSet(), graph.edgeSet(), new HashSet<String>(), new HashSet<DefaultEdge>(), true, false, dataset, null, null);
     }

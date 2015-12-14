@@ -1,6 +1,7 @@
 package graphlod;
 
 import java.util.Arrays;
+
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
@@ -13,19 +14,19 @@ public class CollectionUtilsTest {
 
 	@Test
 	public void testMaxValues() throws Exception {
-		assertThat(CollectionUtils.maxValues(Lists.newArrayList(5,2,9,2), 2), contains(5,9));
+		assertThat(graphlod.utils.CollectionUtils.maxValues(Lists.newArrayList(5, 2, 9, 2), 2), contains(5,9));
 	}
 
 	@Test
 	public void testMax() {
-		assertThat(CollectionUtils.max(Arrays.asList(1, 5, 3)), is(5));
+		assertThat(graphlod.utils.CollectionUtils.max(Arrays.asList(1, 5, 3)), is(5));
 	}
 	@Test
 	public void testMin() {
-		assertThat(CollectionUtils.min(Arrays.asList(1, 5, 3)), is(1));
+		assertThat(graphlod.utils.CollectionUtils.min(Arrays.asList(1, 5, 3)), is(1));
 	}
 	@Test
 	public void testAvg() {
-		assertThat(CollectionUtils.average(Arrays.asList(1, 5, 3)), is(3.0));
+		assertThat(graphlod.utils.CollectionUtils.average(Arrays.asList(1, 5, 3)), is(3.0));
 	}
 }
