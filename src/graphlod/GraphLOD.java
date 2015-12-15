@@ -46,7 +46,7 @@ public class GraphLOD {
 
     public static final int MAX_SIZE_FOR_DIAMETER = 50;
     public static final int MAX_SIZE_FOR_CS_PRINT = 500000000;
-    public static final int MAX_SIZE_FOR_PROLOD = 5;
+    public static final int MAX_SIZE_FOR_PROLOD = 5000;
     public static final int MAX_SIZE_FOR_ISO = 1000;
 
     private GraphCsvOutput graphCsvOutput = null;
@@ -259,6 +259,7 @@ public class GraphLOD {
         }
 
         for (GraphFeatures subGraph : connectedGraphs) {
+            if (subGraph.getVertices().size() > MAX_SIZE_FOR_PROLOD) continue;
             // getWalks(subGraph.getSimpleGraph());
 
             String pattern = getMinimizedPatterns(subGraph.getSimpleGraph());
@@ -512,11 +513,11 @@ public class GraphLOD {
 
     private void getMixedStarsFromGC(GraphFeatures connectedSet) {
         // mixed stars
-        logger.debug("Mixed stars (");
+        logger.info("Mixed stars (");
         for (String v : connectedSet.getVertices()) {
             checkVertexAsCentreOfMixedStar(connectedSet, v);
         }
-        logger.debug("nr: " + mixedStars.size());
+        logger.info("nr: " + mixedStars.size());
     }
 
     private void getCirclesFromBC(GraphFeatures connectedSet) {
@@ -528,7 +529,7 @@ public class GraphLOD {
     }
 
     private void getDoublyLinkedPathsFromGC(GraphFeatures connectedSet) {
-        logger.debug("Double Linked Lists");
+        logger.info("Double Linked Lists");
         List<String> verticesInDoublyLinkedLists = new ArrayList<>();
         for (String v : connectedSet.getVertices()) {
             if (verticesInDoublyLinkedLists.contains(v)) continue;
@@ -556,7 +557,7 @@ public class GraphLOD {
                 verticesInDoublyLinkedLists.addAll(doublyLinkedList);
             }
         }
-        logger.debug("nr: " + this.doublyLinkedPaths.size());
+        logger.info("nr: " + this.doublyLinkedPaths.size());
     }
 
     /*
@@ -628,7 +629,7 @@ public class GraphLOD {
     private void checkVertexAsCentreOfMixedStar(GraphFeatures connectedSet, String v_center) {
         Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
         Set<DefaultEdge> sei = connectedSet.incomingEdgesOf(v_center);
-        if (((surroundingEdges.size() +sei.size()) >= 6) && (surroundingEdges.size() >= 1) && (sei.size() >= 1)) {
+        if (((surroundingEdges.size() +sei.size()) >= 4) && (surroundingEdges.size() >= 1) && (sei.size() >= 1)) {
             Set<String> surroundingVertices = new HashSet<>();
             Set<String> vertices = new HashSet<>();
             int numberOfEdgesForSurrounding = 0;
@@ -764,7 +765,7 @@ public class GraphLOD {
         Set<String> vertices = new HashSet<>();
         Set<String> surroundingVertices = new HashSet<>();
         Set<DefaultEdge> surroundingIEdges = connectedSet.incomingEdgesOf(v_center);
-        if (surroundingIEdges.size() >= 3) {
+        if (surroundingIEdges.size() >= 4) {
             int numberOfEdgesForSurrounding = 0;
             Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -897,7 +898,7 @@ public class GraphLOD {
         Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
         Set<String> surroundingVertices = new HashSet<>();
         Set<String> vertices = new HashSet<>();
-        if (surroundingEdges.size() >= 3) {
+        if (surroundingEdges.size() >= 4) {
             int numberOfEdgesForSurrounding = 0;
             Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
