@@ -507,10 +507,7 @@ public class GraphLOD {
         }
         closeStatsCsv();
 
-        //groupIsomorphicBCGraphs(this.inboundStarSimpleGraphs, this.isomorphicInboundStars, this.inboundStarsPattern);
-        //groupIsomorphicBCGraphs(this.outboundStarSimpleGraphs, this.isomorphicOutboundStars, this.outboundStarsPattern);
-        // types before that
-        groupIsomorphicGCGraphs(/*this.connectedGraphsGC, this.isomorphicGraphsGC, this.colorIsomorphicPatternsGC, this.coloredPatternsGC, this.patternsGC, this.patternDiameterGC*/);
+        groupIsomorphicGCGraphs();
     }
 
     private void getMixedStarsFromGC(GraphFeatures connectedSet) {
@@ -1021,7 +1018,6 @@ public class GraphLOD {
                 this.isomorphicGraphsGC.remove(putIntoBag);
                 this.isomorphicGraphsGC.add(putIntoBag, isomorphicGraphList);
                 logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSetVertexSetSize, isomorphicGraphList.size()-1);
-
             } else {
                 this.isomorphicGraphsGC.add(isomorphicGraphList);
                 this.isomorphicGraphsGCTypes.add(type);
