@@ -48,5 +48,4 @@ public class GraphCsvOutput {
 			throw new RuntimeException(e);
 		}
 	}
-
 }

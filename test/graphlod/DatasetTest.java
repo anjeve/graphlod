@@ -80,9 +80,9 @@ public class DatasetTest {
 
         Dataset dataset = Dataset.fromLines(lines, "", "http://", "", excluded);
 
-        assertThat(dataset.ontologySubclasses.keySet(), containsInAnyOrder(Dataset.OWL_THING, url("c0"), url("c1")));
-        assertThat(dataset.ontologySubclasses.get(Dataset.OWL_THING), containsInAnyOrder(url("c0")));
-        assertThat(dataset.ontologySubclasses.get(url("c0")), containsInAnyOrder(url("c1"), url("c2")));
-        assertThat(dataset.ontologySubclasses.get(url("c1")), containsInAnyOrder(url("c11")));
+        assertThat(dataset.getOntologySubclasses().keySet(), containsInAnyOrder(Dataset.OWL_THING, url("c0"), url("c1")));
+        assertThat(dataset.getOntologySubclasses().get(Dataset.OWL_THING), containsInAnyOrder(url("c0")));
+        assertThat(dataset.getOntologySubclasses().get(url("c0")), containsInAnyOrder(url("c1"), url("c2")));
+        assertThat(dataset.getOntologySubclasses().get(url("c1")), containsInAnyOrder(url("c11")));
     }
 }

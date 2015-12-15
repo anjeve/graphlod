@@ -479,7 +479,7 @@ public class GraphLOD {
             BFSMinimizingOrderedIterator bfs = new BFSMinimizingOrderedIterator<>(g, vertex, dataset);
             while (bfs.hasNext()) {
                 String currentVertex = bfs.next().toString();
-                System.out.println(currentVertex + " " + replaceNamespace(this.dataset.getClassForSubject(currentVertex), this.dataset.ontologyNamespace) + " ");
+                System.out.println(currentVertex + " " + replaceNamespace(this.dataset.getClassForSubject(currentVertex), this.dataset.getOntologyNamespace()) + " ");
             }
 
             SimpleGraph minimizedGraph = bfs.getMinimizedGraph();
@@ -886,7 +886,7 @@ public class GraphLOD {
             BFSOrderedIterator bfs = new BFSOrderedIterator<>(g, vertex, dataset);
             while (bfs.hasNext()) {
                 String currentVertex = bfs.next().toString();
-                System.out.println(currentVertex + " " + replaceNamespace(this.dataset.getClassForSubject(currentVertex), this.dataset.ontologyNamespace) + " ");
+                System.out.println(currentVertex + " " + replaceNamespace(this.dataset.getClassForSubject(currentVertex), this.dataset.getOntologyNamespace()) + " ");
             }
             lowestClass = className;
         }
