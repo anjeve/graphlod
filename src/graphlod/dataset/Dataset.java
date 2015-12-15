@@ -1,13 +1,17 @@
 package graphlod.dataset;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import org.apache.commons.lang3.Validate;
-import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,12 +20,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
-
 public class Dataset {
-    private static final Logger logger = Logger.getLogger(Dataset.class);
+    private static Logger logger = LoggerFactory.getLogger(Dataset.class);
 
     private static final Map<String, String> classes = new HashMap<>(); // mapping from entities to their class
 

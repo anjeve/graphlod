@@ -1,8 +1,9 @@
 package graphlod.output;
 
 import graphlod.dataset.Dataset;
-import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -10,7 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 
 public class GramiOutput {
-    private static final Logger logger = Logger.getLogger(GramiOutput.class);
+    private static Logger logger = LoggerFactory.getLogger(GramiOutput.class);
+
     private final Dataset dataset;
 
     public GramiOutput(Dataset dataset) {

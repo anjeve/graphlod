@@ -2,12 +2,13 @@ package graphlod.output;
 
 import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
-import org.apache.log4j.Logger;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -16,7 +17,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class JsonOutput {
-    private static final Logger logger = Logger.getLogger(JsonOutput.class);
+    private static Logger logger = LoggerFactory.getLogger(JsonOutput.class);
 
     private final Dataset dataset;
 
