@@ -14,11 +14,12 @@ import graphlod.graph.BFSOrderedIterator;
 import graphlod.graph.Degree;
 import graphlod.output.*;
 import graphlod.output.renderer.GraphRenderer;
-import graphlod.utils.*;
+import graphlod.utils.MapUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
+import org.jgrapht.Graphs;
 import org.jgrapht.experimental.isomorphism.GraphIsomorphismInspector;
 import org.jgrapht.experimental.isomorphism.IsomorphismRelation;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -41,6 +42,7 @@ public class GraphLOD {
     public static final String INBOUND_STAR = "Inbound Star";
     public static final String OUTBOUND_STAR = "Outbound Star";
     public static final String DOUBLY_LINKED_PATH = "Doubly Linked Path";
+    public static final String PATH = "Path";
 
     private static Logger logger = LoggerFactory.getLogger(GraphLOD.class);
 
@@ -144,6 +146,10 @@ public class GraphLOD {
 
         if (apiOnly) {
             graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+            int vertexCount = dataset.getGraph().vertexSet().size();
+            if (vertexCount < this.bigComponentSize) {
+                this.bigComponentSize = vertexCount;
+            }
             if (analyzeAlso) {
                 analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
             }
@@ -240,6 +246,8 @@ public class GraphLOD {
         } else {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
+
+
 
         if (apiOnly) {
             searchGiantComponent();
@@ -497,35 +505,37 @@ public class GraphLOD {
 
     private void searchGiantComponent() {
         createStatsCsv();
-        for (GraphFeatures connectedSet : this.connectedGraphs) {
-            if (connectedSet.getVertexCount() < this.bigComponentSize) continue;
 
-            getOutboundStarsFromGC(connectedSet);
-            getInboundStarsFromGC(connectedSet);
-            getMixedStarsFromGC(connectedSet);
-            // getCirclesFromBC(connectedSet);
+        for (GraphFeatures connectedSet : this.connectedGraphs) {
+            List<String> verticesInPaths = new ArrayList<>();
+            if (connectedSet.getVertexCount() < this.bigComponentSize) {
+                if (this.connectedGraphs.size() > 1) continue;
+            }
+
+            int i = 1;
+            for (String v : connectedSet.getVertices()) {
+                if (i % 1000 == 0) logger.info(i++ + "/" + connectedSet.getVertices().size());
+                boolean vPartOfStar = false;
+                if  ((connectedSet.incomingEdgesOf(v).size() == 0) && (connectedSet.outgoingEdgesOf(v).size() >= 4)) {
+                    vPartOfStar = checkVertexAsCentreOfOutboundStar(connectedSet, v);
+                } else if  ((connectedSet.outgoingEdgesOf(v).size() == 0) && (connectedSet.incomingEdgesOf(v).size() >= 4)) {
+                    vPartOfStar = checkVertexAsCentreOfInboundStar(connectedSet, v);
+                } else  if  ((connectedSet.incomingEdgesOf(v).size() > 0) && (connectedSet.outgoingEdgesOf(v).size() > 0)) {
+                    vPartOfStar = checkVertexAsCentreOfMixedStar(connectedSet, v);
+                }
+                if (!vPartOfStar) {
+                    if (!verticesInPaths.contains(v)) {
+                        checkVertexAsStartOfPath(connectedSet, v, verticesInPaths);
+                    }
+                }
+
+            }
+
             getDoublyLinkedPathsFromGC(connectedSet);
         }
         closeStatsCsv();
 
         groupIsomorphicGCGraphs();
-    }
-
-    private void getMixedStarsFromGC(GraphFeatures connectedSet) {
-        // mixed stars
-        logger.info("Mixed stars (");
-        for (String v : connectedSet.getVertices()) {
-            checkVertexAsCentreOfMixedStar(connectedSet, v);
-        }
-        logger.info("nr: " + mixedStars.size());
-    }
-
-    private void getCirclesFromBC(GraphFeatures connectedSet) {
-        logger.debug("Circles");
-        for (String v : connectedSet.getVertices()) {
-            checkVertexAsPartOfCircle(connectedSet, v);
-        }
-        logger.debug("nr: " + circleGraphs.size());
     }
 
     private void getDoublyLinkedPathsFromGC(GraphFeatures connectedSet) {
@@ -555,32 +565,12 @@ public class GraphLOD {
                 this.connectedGraphsGC.add(simpleDoublyLinkedPath);
                 this.connectedGraphsGCTypes.add(DOUBLY_LINKED_PATH);
                 verticesInDoublyLinkedLists.addAll(doublyLinkedList);
+            } else {
+                logger.info("Doubly linked path of length {} found", doublyLinkedList.size());
             }
         }
         logger.info("nr: " + this.doublyLinkedPaths.size());
     }
-
-    /*
-    private void checkVertexAsBeginningOfLinkedList(GraphFeatures connectedSet, String v) {
-        DirectedGraph graph = connectedSet.getGraph();
-        Set<DefaultEdge> outgoing = connectedSet.outgoingEdgesOf(v);
-        Set<DefaultEdge> incoming = connectedSet.incomingEdgesOf(v);
-
-        for (DefaultEdge outgoingEdge : outgoing) {
-            String oppositeVertex1 = Graphs.getOppositeVertex(graph, v, outgoingEdge).toString();
-            for (DefaultEdge incomingEdge : incoming) {
-                String oppositeVertex2 = Graphs.getOppositeVertex(graph, v, incomingEdge).toString();
-                if (oppositeVertex1.equals(oppositeVertex2)) {
-                    List<String> visited = new ArrayList<String>();
-                    visited.add(v);
-                    checkVertexInLinkedList(graph, oppositeVertex1, visited);
-                    break;
-                }
-            }
-
-        }
-    }
-    */
 
     private List<String> checkVertexInLinkedList(DirectedGraph graph, String v, List<String> visited) {
         visited.add(v);
@@ -626,7 +616,7 @@ public class GraphLOD {
 
     }
 
-    private void checkVertexAsCentreOfMixedStar(GraphFeatures connectedSet, String v_center) {
+    private boolean checkVertexAsCentreOfMixedStar(GraphFeatures connectedSet, String v_center) {
         Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
         Set<DefaultEdge> sei = connectedSet.incomingEdgesOf(v_center);
         if (((surroundingEdges.size() +sei.size()) >= 4) && (surroundingEdges.size() >= 1) && (sei.size() >= 1)) {
@@ -655,7 +645,7 @@ public class GraphLOD {
                     if (v_level2.equals(v_center)) continue;
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -666,7 +656,7 @@ public class GraphLOD {
                     String v_level2 = se2.getTarget().toString();
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -689,7 +679,7 @@ public class GraphLOD {
                     String v_level2 = se2.getSource().toString();
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -701,7 +691,7 @@ public class GraphLOD {
                     if (v_level2.equals(v_center)) continue;
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -715,16 +705,19 @@ public class GraphLOD {
                 this.connectedGraphsGC.add(simpleStar);
                 this.connectedGraphsGCTypes.add(STAR);
                 addStats(v_center, neighbourVertices, outStatsCsv);
+                return true;
             } else {
                 if (surroundingVertices.size() <= (vertices.size() + 1)) {
-                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + (surroundingEdges.size() +sei.size()) + "(" + vertices.size() + ")");
+                    // logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + (surroundingEdges.size() +sei.size()) + "(" + vertices.size() + ")");
                     this.patternsWithSurroundingGC.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, MIXED_STAR, dataset).toString());
                     this.connectedGraphsGC.add(simpleStar);
                     this.connectedGraphsGCTypes.add(STAR);
                     addStats(v_center, neighbourVertices, outStatsCsv);
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     private void addStats(String v_center, Set<String> surroundingVertices, BufferedWriter writer) {
@@ -751,17 +744,67 @@ public class GraphLOD {
         //stats.put(centerNodeClass, classesSurrounding);
     }
 
-    private void getInboundStarsFromGC(GraphFeatures connectedSet) {
-        // inbound stars
-        logger.debug("Inbound stars (");
-        for (String v : connectedSet.getVertices()) {
-            if  (connectedSet.outgoingEdgesOf(v).size() > 0) continue;
-            checkVertexAsCentreOfInboundStar(connectedSet, v);
+    private void checkVertexAsStartOfPath(GraphFeatures gf, String v, List<String> verticesInPaths) {
+        List<String> path = checkVertexAsPartOfPath(gf.getGraph(), v, new ArrayList<String>());
+        if (path.size() >= 5) {
+            DirectedGraph graph = gf.getGraph();
+            DirectedGraph<String, DefaultEdge> doublyLinkedPath = new DefaultDirectedGraph<>(DefaultEdge.class);
+            SimpleGraph<String, DefaultEdge> simpleDoublyLinkedPath = new SimpleGraph<>(DefaultEdge.class);
+            DirectedGraph<String, DefaultEdge> doublyLinkedPath2 = new DefaultDirectedGraph<>(DefaultEdge.class);
+            String lastVertex = null;
+            for (String vertex : path) {
+                doublyLinkedPath.addVertex(vertex);
+                simpleDoublyLinkedPath.addVertex(vertex);
+                // TODO why on second run only?
+                if (lastVertex != null) {
+                    // TODO don't add edges we have added before!
+                    addEdge(doublyLinkedPath, graph.getAllEdges(vertex, lastVertex).toString(), vertex, lastVertex);
+                    addEdge(doublyLinkedPath, graph.getAllEdges(lastVertex, vertex).toString(), lastVertex, vertex);
+                    addEdge(simpleDoublyLinkedPath, graph.getAllEdges(vertex, lastVertex).toString(), vertex, lastVertex);
+                }
+                lastVertex = vertex;
+            }
+            this.patternsWithSurroundingGC.add(JsonOutput.getJson(doublyLinkedPath, doublyLinkedPath2, PATH, this.dataset).toString());
+            this.connectedGraphsGC.add(simpleDoublyLinkedPath);
+            this.connectedGraphsGCTypes.add(PATH);
+            verticesInPaths.addAll(path);
+        } else {
+            logger.info("Path of length {} found", path.size());
         }
-        logger.debug("nr: "+inboundStars.size());
     }
 
-    private void checkVertexAsCentreOfInboundStar(GraphFeatures connectedSet, String v_center) {
+    private List<String> checkVertexAsPartOfPath(DirectedGraph graph, String v, List<String> visited) {
+        visited.add(v);
+
+        String nextVertex = null;
+        boolean lastVertex = false;
+        List<String> neighbourV = Graphs.neighborListOf(graph, v);
+        neighbourV.removeAll(visited);
+        if (visited.size() == 1) {
+            for (String oppositeVertex : neighbourV) {
+                if (graph.edgesOf(oppositeVertex).size() > 2) {
+                    continue;
+                }
+                nextVertex = oppositeVertex;
+                break;
+            }
+        } else {
+            if (neighbourV.size() > 1) {
+                lastVertex = true;
+            }
+            for (String oppositeVertex : neighbourV) {
+                nextVertex = oppositeVertex;
+            }
+        }
+        List<String> path = new ArrayList<>();
+        if ((nextVertex != null) && !lastVertex) {
+            path = checkVertexAsPartOfPath(graph, nextVertex, visited);
+        }
+        path.add(v);
+        return path;
+    }
+
+    private boolean checkVertexAsCentreOfInboundStar(GraphFeatures connectedSet, String v_center) {
         Set<String> vertices = new HashSet<>();
         Set<String> surroundingVertices = new HashSet<>();
         Set<DefaultEdge> surroundingIEdges = connectedSet.incomingEdgesOf(v_center);
@@ -788,7 +831,7 @@ public class GraphLOD {
                     String v_level2 = se2.getSource().toString();
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -800,7 +843,7 @@ public class GraphLOD {
                     if (v_level2.equals(v_center)) continue;
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -814,16 +857,19 @@ public class GraphLOD {
                 this.connectedGraphsGC.add(simpleStar);
                 this.connectedGraphsGCTypes.add(STAR);
                 addStats(v_center, neighbourVertices, this.outStatsInboundCsv);
+                return true;
             } else {
                 if (surroundingVertices.size() <= (surroundingIEdges.size() + 1)) {
-                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingIEdges.size() + "(" + vertices.size() + ")");
+                    //logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingIEdges.size() + "(" + vertices.size() + ")");
                     this.patternsWithSurroundingGC.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, INBOUND_STAR, this.dataset).toString());
                     this.connectedGraphsGC.add(simpleStar);
                     this.connectedGraphsGCTypes.add(STAR);
                     addStats(v_center, neighbourVertices, this.outStatsInboundCsv);
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     private void addEdgesOnLevel2Vertices(GraphFeatures graphFeatures, DirectedGraph<String, DefaultEdge> graph, Set<String> verticesLevel2) {
@@ -850,8 +896,11 @@ public class GraphLOD {
     private void getOutboundStarsFromGC(GraphFeatures connectedSet) {
         // outbound stars
         logger.debug("Outbound stars");
+        int i = 0;
         for (String v : connectedSet.getVertices()) {
-            if  (connectedSet.incomingEdgesOf(v).size() > 0) continue;
+            i++;
+            if  ((connectedSet.incomingEdgesOf(v).size() > 0) || (connectedSet.outgoingEdgesOf(v).size() < 4)) continue;
+            if (i % 1000 == 0) logger.info(i + "/" + connectedSet.getVertices().size());
             checkVertexAsCentreOfOutboundStar(connectedSet, v);
         }
         logger.debug("nr: " + outboundStars.size());
@@ -894,7 +943,7 @@ public class GraphLOD {
 
     }
 
-    private void checkVertexAsCentreOfOutboundStar(GraphFeatures connectedSet, String v_center) {
+    private boolean checkVertexAsCentreOfOutboundStar(GraphFeatures connectedSet, String v_center) {
         Set<DefaultEdge> surroundingEdges = connectedSet.outgoingEdgesOf(v_center);
         Set<String> surroundingVertices = new HashSet<>();
         Set<String> vertices = new HashSet<>();
@@ -922,7 +971,7 @@ public class GraphLOD {
                     if (v_level2.equals(v_center)) continue;
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -933,7 +982,7 @@ public class GraphLOD {
                     String v_level2 = se2.getTarget().toString();
                     if (neighbourVertices.contains(v_level2)) {
                         // TODO count connectivity and allow some
-                        return;
+                        return false;
                     }
                     surroundingVertices.add(v_level2);
                     outgoingStarLevel2.addVertex(v_level1);
@@ -947,16 +996,19 @@ public class GraphLOD {
                 this.connectedGraphsGC.add(simpleStar);
                 this.connectedGraphsGCTypes.add(STAR);
                 addStats(v_center, neighbourVertices, this.outStatsOutboundCsv);
+                return true;
             } else {
                 if (surroundingVertices.size() <= (surroundingEdges.size() + 1)) {
                     this.patternsWithSurroundingGC.add(JsonOutput.getJson(outgoingStar, outgoingStarLevel2, OUTBOUND_STAR, this.dataset).toString());
                     this.connectedGraphsGC.add(simpleStar);
                     this.connectedGraphsGCTypes.add(STAR);
                     addStats(v_center, neighbourVertices, this.outStatsOutboundCsv);
-                    logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingEdges.size() + "(" + vertices.size() + ")");
+                    return true;
+                    // logger.debug(numberOfEdgesForSurrounding + "(" + surroundingVertices.size() + ") vs " + surroundingEdges.size() + "(" + vertices.size() + ")");
                 }
             }
         }
+        return false;
     }
 
     private void addEdge(Graph<String, DefaultEdge> graph, String name, String source, String target) {
@@ -1026,7 +1078,7 @@ public class GraphLOD {
             }
         }
 
-        groupIsomorphicGCGraphsByColor(/*graphs, isomorphicGraphs, colorIsomorphicPatterns, coloredPatterns, patterns, patternDiameter*/);
+        groupIsomorphicGCGraphsByColor();
     }
 
     private void groupIsomorphicGCGraphsByColor() {
@@ -1045,22 +1097,30 @@ public class GraphLOD {
 
             List<SimpleGraph> colorIsoGF = new ArrayList();
             for (Integer graphNr : isomorphicGraphList) {
+                logger.debug("Checking color isomorphism for graph {}", graphNr);
                 SimpleGraph gf = this.connectedGraphsGC.get(graphNr);
                 isomorphicGraphsTemp.add(gf);
                 Integer isoIndex = this.isomorphicGraphsGC.indexOf(isomorphicGraphList);
 
-                if (colorIsoGF.size() == 0) {
-                    List<String> coloredIso = new ArrayList<>();
-                    if (this.colorIsomorphicPatternsGC.containsKey(this.isomorphicGraphsGC.indexOf(isomorphicGraphList))) {
-                        coloredIso = this.colorIsomorphicPatternsGC.get(this.isomorphicGraphsGC.indexOf(isomorphicGraphList));
-                    }
-                    coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset, isomorphicListType).toString());
-                    this.colorIsomorphicPatternsGC.put(isoIndex, coloredIso);
-                    colorIsoGroupIndex += 1;
-                    colorIsoGF.add(gf);
-                } else {
-                    boolean add = true;
+                boolean add = true;
+                if (colorIsoGF.size() > 0) {
                     for (SimpleGraph coloredGF: colorIsoGF) {
+                        Set<String> verticesOfGraph = gf.vertexSet();
+                        Set<String> verticesOfGraphToCheck = coloredGF.vertexSet();
+                        List<String> classesGraph = new ArrayList<>();
+                        List<String> classesGraphToCheck = new ArrayList<>();
+                        for (String v: verticesOfGraph) {
+                            classesGraph.add(this.dataset.getClassForSubject(v));
+                        }
+                        for (String v: verticesOfGraphToCheck) {
+                            classesGraphToCheck.add(this.dataset.getClassForSubject(v));
+                        }
+                        Collections.sort(classesGraph);
+                        Collections.sort(classesGraphToCheck);
+                        if (!classesGraph.equals(classesGraphToCheck)) {
+                            break;
+                        }
+
                         PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
                         while (inspector.hasNext()) {
                             boolean colorIsomorph = true;
@@ -1079,16 +1139,16 @@ public class GraphLOD {
                             }
                         }
                     }
-                    if (add) {
-                        List<String> coloredIso = new ArrayList<>();
-                        if (this.colorIsomorphicPatternsGC.containsKey(this.isomorphicGraphsGC.indexOf(isomorphicGraphList))) {
-                            coloredIso = this.colorIsomorphicPatternsGC.get(this.isomorphicGraphsGC.indexOf(isomorphicGraphList));
-                        }
-                        coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset, isomorphicListType).toString());
-                        this.colorIsomorphicPatternsGC.put(isoIndex, coloredIso);
-                        colorIsoGroupIndex += 1;
-                        colorIsoGF.add(gf);
+                }
+                if (add) {
+                    List<String> coloredIso = new ArrayList<>();
+                    if (this.colorIsomorphicPatternsGC.containsKey(this.isomorphicGraphsGC.indexOf(isomorphicGraphList))) {
+                        coloredIso = this.colorIsomorphicPatternsGC.get(this.isomorphicGraphsGC.indexOf(isomorphicGraphList));
                     }
+                    coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset, isomorphicListType).toString());
+                    this.colorIsomorphicPatternsGC.put(isoIndex, coloredIso);
+                    colorIsoGroupIndex += 1;
+                    colorIsoGF.add(gf);
                 }
                 List<String> colored = new ArrayList<>();
                 if (this.coloredPatternsGC.containsKey(colorIsoGroupIndex)) {
@@ -1179,18 +1239,25 @@ public class GraphLOD {
                 isomorphicGraphsTemp.add(gf);
                 Integer isoIndex = isomorphicGraphs.indexOf(isomorphicGraphList);
 
-                if (colorIsoGF.size() == 0) {
-                    List<String> coloredIso = new ArrayList<>();
-                    if (colorIsomorphicPatterns.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
-                        coloredIso = colorIsomorphicPatterns.get(isomorphicGraphs.indexOf(isomorphicGraphList));
-                    }
-                    coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
-                    colorIsomorphicPatterns.put(isoIndex, coloredIso);
-                    colorIsoGroupIndex += 1;
-                    colorIsoGF.add(gf);
-                } else {
-                    boolean add = true;
+                boolean add = true;
+                if (colorIsoGF.size() > 0) {
                     for (GraphFeatures coloredGF: colorIsoGF) {
+                        Set<String> verticesOfGraph = gf.getSimpleGraph().vertexSet();
+                        Set<String> verticesOfGraphToCheck = coloredGF.getSimpleGraph().vertexSet();
+                        List<String> classesGraph = new ArrayList<>();
+                        List<String> classesGraphToCheck = new ArrayList<>();
+                        for (String v: verticesOfGraph) {
+                            classesGraph.add(this.dataset.getClassForSubject(v));
+                        }
+                        for (String v: verticesOfGraphToCheck) {
+                            classesGraphToCheck.add(this.dataset.getClassForSubject(v));
+                        }
+                        Collections.sort(classesGraph);
+                        Collections.sort(classesGraphToCheck);
+                        if (!classesGraph.equals(classesGraphToCheck)) {
+                            break;
+                        }
+
                         PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getGraph(), gf.getGraph()); // , new VertexDegreeEquivalenceComparator(), null
                         while (inspector.hasNext()) {
                             boolean colorIsomorph = true;
@@ -1208,16 +1275,16 @@ public class GraphLOD {
                             }
                         }
                     }
-                    if (add) {
-                        List<String> coloredIso = new ArrayList<>();
-                        if (colorIsomorphicPatterns.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
-                            coloredIso = colorIsomorphicPatterns.get(isomorphicGraphs.indexOf(isomorphicGraphList));
-                        }
-                        coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
-                        colorIsomorphicPatterns.put(isoIndex, coloredIso);
-                        colorIsoGroupIndex += 1;
-                        colorIsoGF.add(gf);
+                }
+                if (add) {
+                    List<String> coloredIso = new ArrayList<>();
+                    if (colorIsomorphicPatterns.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
+                        coloredIso = colorIsomorphicPatterns.get(isomorphicGraphs.indexOf(isomorphicGraphList));
                     }
+                    coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
+                    colorIsomorphicPatterns.put(isoIndex, coloredIso);
+                    colorIsoGroupIndex += 1;
+                    colorIsoGF.add(gf);
                 }
                 List<String> colored = new ArrayList<>();
                 if (coloredPatterns.containsKey(colorIsoGroupIndex)) {
