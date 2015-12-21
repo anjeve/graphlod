@@ -25,10 +25,10 @@ public class Dataset {
 
     private static final Map<String, String> classes = new HashMap<>(); // mapping from entities to their class
 
-    private final DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
     private final String namespace;
     private final String ontologyNamespace;
-    private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
+    private SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private final Set<String> removeVertices = new HashSet<>();
     private final Set<String> ontologyClasses = new HashSet<>(); // list of all classes
@@ -159,16 +159,21 @@ public class Dataset {
                     g.addVertex(objectUri);
                     simpleGraph.addVertex(objectUri);
                 }
-                if (g instanceof DirectedGraph) {
-                    DefaultEdge e = new DefaultEdge(propertyUri);
-                    e.setSource(subjectUri);
-                    e.setTarget(objectUri);
-                    g.addEdge(subjectUri, objectUri, e);
-                } else {
-                    if (!g.containsEdge(subjectUri, objectUri) && !g.containsEdge(objectUri, subjectUri)) {
-                        g.addEdge(subjectUri, objectUri);
-                        simpleGraph.addEdge(subjectUri, objectUri);
-                    }
+                /*
+                DefaultEdge e = new DefaultEdge(propertyUri);
+                e.setSource(subjectUri);
+                e.setTarget(objectUri);
+                g.addEdge(subjectUri, objectUri, e);
+                */
+                g.addEdge(subjectUri, objectUri);
+                if (!simpleGraph.containsEdge(subjectUri, objectUri) && !simpleGraph.containsEdge(objectUri, subjectUri)) {
+                    /*
+                    DefaultEdge e1 = new DefaultEdge(propertyUri);
+                    e1.setSource(subjectUri);
+                    e1.setTarget(objectUri);
+                    simpleGraph.addEdge(subjectUri, objectUri, e1);
+                    */
+                    simpleGraph.addEdge(subjectUri, objectUri);
                 }
             }
         }
