@@ -83,11 +83,11 @@ public class GraphLOD {
     public GraphFeatures graphFeatures;
     public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
-    public HashMap<Integer, List<String>> coloredPatterns = new HashMap<>();
+    public HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns = new HashMap<>();
     public HashMap<Integer, List<String>> colorIsomorphicPatterns = new HashMap<>();
     public HashMap<Integer, HashMap<String, Integer>> patternsGC = new HashMap<>();
     public HashMap<Integer, Double> patternDiameterGC = new HashMap<>();
-    public HashMap<Integer, List<String>> coloredPatternsGC = new HashMap<>();
+    public HashMap<Integer, HashMap<Integer, List<String>>> coloredPatternsGC = new HashMap<>();
     public HashMap<Integer, List<String>> colorIsomorphicPatternsGC = new HashMap<>();
     public List<String> patternsWithSurroundingGC = new ArrayList<>();
     public List<String> outboundStars = new ArrayList<>();
@@ -247,8 +247,6 @@ public class GraphLOD {
             connectedGraphs = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
 
-
-
         if (apiOnly) {
             searchGiantComponent();
 
@@ -266,125 +264,132 @@ public class GraphLOD {
             highestOutdegrees = new JSONObject(highestOutdegreeMap);
         }
 
-        for (GraphFeatures subGraph : connectedGraphs) {
-            if (subGraph.getVertices().size() > MAX_SIZE_FOR_PROLOD) continue;
-            // getWalks(subGraph.getSimpleGraph());
+        if (this.connectedGraphs.size() > 1) {
+            for (GraphFeatures subGraph : connectedGraphs) {
+                if (subGraph.getVertices().size() >= this.bigComponentSize) continue;
+                // getWalks(subGraph.getSimpleGraph());
+                // String pattern = getMinimizedPatterns(subGraph.getSimpleGraph());
 
-            String pattern = getMinimizedPatterns(subGraph.getSimpleGraph());
+                this.connectedGraphSizes.add(subGraph.getVertexCount());
 
-            this.connectedGraphSizes.add(subGraph.getVertexCount());
-
-            if (subGraph.getVertexCount() < minImportantSubgraphSize) {
-                continue;
-            }
-
-            if (connectedGraphs.size() == 1) {
-                logger.info("Graph: " + subGraph.getVertexCount());
-            } else {
-                logger.info("Subgraph: " + subGraph.getVertexCount());
-            }
-            logger.info("  " + subGraph.getVertexCount() + " vertices");
-
-            analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
-
-            boolean cycles = subGraph.containsCycles();
-            logger.info("\tContains cycles: {}", cycles);
-
-            boolean isTree = false;
-            boolean isCaterpillar = false;
-			boolean isLobster = false;
-            if (!cycles) {
-                logger.debug("Checking for tree graph.");
-                isTree = subGraph.isTree();
-                if (isTree) {
-                    logger.info("\tTree: {}", isTree);
-                    treeGraphs.add(subGraph);
-                    logger.debug("Checking for caterpillar graph.");
-                    isCaterpillar = subGraph.isCaterpillar();
-                    if (isCaterpillar) {
-                        logger.info("\tCaterpillar: {}", isCaterpillar);
-                        caterpillarGraphs.add(subGraph);
-                    } else {
-                        logger.debug("Checking for lobster graph.");
-						isLobster = subGraph.isLobster();
-                        logger.info("\tLobster: {}", isLobster);
-						lobsterGraphs.add(subGraph);
-						
-					}
+                if (subGraph.getVertexCount() < minImportantSubgraphSize) {
+                    continue;
                 }
-            }
 
-            logger.debug("Checking for completeness.");
-            boolean isCompleteGraph = subGraph.isCompleteGraph();
-            if (isCompleteGraph) {
-                logger.info("\tComplete graph: {}", isCompleteGraph);
-                completeGraphs.add(subGraph);
-            }
-
-            boolean isBipartiteGraph = false;
-            /* TODO Takes too long for some graphs and results in OutOfMemoryError. Deal with that first.
-            boolean isBipartiteGraph = subGraph.isBipartite();
-            if (isBipartiteGraph) {
-                System.out.printf("\tBipartite graph: %s\n", isBipartiteGraph);
-                bipartiteGraphs.add(subGraph);
-            }
-            */
-
-            boolean isPathGraph = false;
-            boolean isDirectedPathGraph = false;
-            boolean isMixedDirectedStarGraph = false;
-            boolean isOutboundStarGraph = false;
-            boolean isInboundStarGraph = false;
-
-            if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
-                logger.debug("Checking for path graph.");
-                isPathGraph = subGraph.isPathGraph();
-                logger.info("\tPath graph: {}", isPathGraph);
-                if (isPathGraph) {
-                    pathGraphs.add(subGraph);
-                    logger.debug("Checking for directed path graph.");
-                    isDirectedPathGraph = subGraph.isDirectedPathGraph();
-                    logger.info("\tDirected path graph: {}",
-                            isDirectedPathGraph);
-                    if (isDirectedPathGraph) {
-                        directedPathGraphs.add(subGraph);
-                    }
+                if (connectedGraphs.size() == 1) {
+                    logger.info("Graph: " + subGraph.getVertexCount());
                 } else {
-                    logger.debug("Checking for mixed directed star graph.");
-                    isMixedDirectedStarGraph = subGraph.isMixedDirectedStarGraph();
-                    if (isMixedDirectedStarGraph) {
-                        logger.info(
-                                "\tMixed directed star graph: {}",
-                                isMixedDirectedStarGraph);
-                        mixedDirectedStarGraphs.add(subGraph);
-                        logger.debug("Checking for outbound star graph.");
-                        isOutboundStarGraph = subGraph.isOutboundStarGraph();
-                        if (isOutboundStarGraph) {
-                            logger.info("\tOutbound star graph: {}",
-                                    isOutboundStarGraph);
-                            outboundStarGraphs.add(subGraph);
+                    logger.info("Subgraph: " + subGraph.getVertexCount());
+                }
+                logger.info("  " + subGraph.getVertexCount() + " vertices");
+
+                analyzeConnectedGraph(subGraph, importantDegreeCount, i++);
+
+                boolean cycles = subGraph.containsCycles();
+                logger.info("\tContains cycles: {}", cycles);
+
+                boolean isTree = false;
+                boolean isCaterpillar = false;
+                boolean isLobster = false;
+                if (!cycles) {
+                    logger.debug("Checking for tree graph.");
+                    isTree = subGraph.isTree();
+                    if (isTree) {
+                        logger.info("\tTree: {}", isTree);
+                        treeGraphs.add(subGraph);
+                        logger.debug("Checking for caterpillar graph.");
+                        isCaterpillar = subGraph.isCaterpillar();
+                        if (isCaterpillar) {
+                            logger.info("\tCaterpillar: {}", isCaterpillar);
+                            caterpillarGraphs.add(subGraph);
                         } else {
-                            logger.debug("Checking for inbound star graph.");
-                            isInboundStarGraph = subGraph.isInboundStarGraph();
-                            if (isInboundStarGraph) {
-                                logger.info("\tInbound star graph: {}",
-                                        isInboundStarGraph);
-                                inboundStarGraphs.add(subGraph);
+                            logger.debug("Checking for lobster graph.");
+                            isLobster = subGraph.isLobster();
+                            logger.info("\tLobster: {}", isLobster);
+                            lobsterGraphs.add(subGraph);
+
+                        }
+                    }
+                }
+
+                logger.debug("Checking for completeness.");
+                boolean isCompleteGraph = subGraph.isCompleteGraph();
+                if (isCompleteGraph) {
+                    logger.info("\tComplete graph: {}", isCompleteGraph);
+                    completeGraphs.add(subGraph);
+                }
+
+                boolean isBipartiteGraph = false;
+                /* TODO Takes too long for some graphs and results in OutOfMemoryError. Deal with that first.
+                boolean isBipartiteGraph = subGraph.isBipartite();
+                if (isBipartiteGraph) {
+                    System.out.printf("\tBipartite graph: %s\n", isBipartiteGraph);
+                    bipartiteGraphs.add(subGraph);
+                }
+                */
+
+                boolean isPathGraph = false;
+                boolean isDirectedPathGraph = false;
+                boolean isStarGraph = false;
+                boolean isMixedDirectedStarGraph = false;
+                boolean isOutboundStarGraph = false;
+                boolean isInboundStarGraph = false;
+
+                if (subGraph.getVertexCount() < MAX_SIZE_FOR_DIAMETER) {
+                    logger.debug("Checking for path graph.");
+                    isPathGraph = subGraph.isPathGraph();
+                    logger.info("\tPath graph: {}", isPathGraph);
+                    if (isPathGraph) {
+                        pathGraphs.add(subGraph);
+                        logger.debug("Checking for directed path graph.");
+                        isDirectedPathGraph = subGraph.isDirectedPathGraph();
+                        logger.info("\tDirected path graph: {}",
+                                isDirectedPathGraph);
+                        if (isDirectedPathGraph) {
+                            directedPathGraphs.add(subGraph);
+                        }
+                    } else {
+                        logger.debug("Checking for star graph.");
+                        isStarGraph = subGraph.isStarGraph();
+                        if (isStarGraph) {
+                            logger.debug("Checking for outbound star graph.");
+                            isOutboundStarGraph = subGraph.isOutboundStarGraph();
+                            if (isOutboundStarGraph) {
+                                logger.info("\tOutbound star graph: {}",
+                                        isOutboundStarGraph);
+                                outboundStarGraphs.add(subGraph);
+                            } else {
+                                logger.debug("Checking for inbound star graph.");
+                                isInboundStarGraph = subGraph.isInboundStarGraph();
+                                if (isInboundStarGraph) {
+                                    logger.info("\tInbound star graph: {}",
+                                            isInboundStarGraph);
+                                    inboundStarGraphs.add(subGraph);
+                                } else {
+                                    isMixedDirectedStarGraph = subGraph.isMixedDirectedStarGraph();
+                                    if (isMixedDirectedStarGraph) {
+                                        logger.info(
+                                                "\tMixed directed star graph: {}",
+                                                isMixedDirectedStarGraph);
+                                        mixedDirectedStarGraphs.add(subGraph);
+                                    }
+                                }
                             }
                         }
-
                     }
                 }
-            }
 
-            if (!isTree && !isBipartiteGraph && !isCaterpillar && !isLobster && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
-                unrecognizedStructure.add(subGraph);
+                if (!isTree && !isBipartiteGraph && !isCaterpillar && !isLobster && !isCompleteGraph && !isPathGraph && !isMixedDirectedStarGraph && !isOutboundStarGraph && !isInboundStarGraph) {
+                    unrecognizedStructure.add(subGraph);
+                }
             }
+        } else {
+            this.connectedGraphSizes.add(this.connectedGraphs.get(0).getVertexCount());
         }
 
-        logger.debug("Checking for isomorphisms.");
+        logger.debug("Checking for isomorphisms of connected components.");
         sw = Stopwatch.createStarted();
-        groupIsomorphicGraphFeatures(this.connectedGraphs, isomorphicGraphs, this.colorIsomorphicPatterns, this.coloredPatterns, this.patterns, this.patternDiameter);
+        groupIsomorphicGraphFeatures();
         logger.debug("Isomorphism check took " + sw);
 
 
@@ -565,7 +570,7 @@ public class GraphLOD {
                 this.connectedGraphsGC.add(simpleDoublyLinkedPath);
                 this.connectedGraphsGCTypes.add(DOUBLY_LINKED_PATH);
                 verticesInDoublyLinkedLists.addAll(doublyLinkedList);
-            } else {
+            } else  if (doublyLinkedList.size() > 1) {
                 logger.info("Doubly linked path of length {} found", doublyLinkedList.size());
             }
         }
@@ -623,7 +628,7 @@ public class GraphLOD {
             Set<String> surroundingVertices = new HashSet<>();
             Set<String> vertices = new HashSet<>();
             int numberOfEdgesForSurrounding = 0;
-            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            List<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
             SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -720,7 +725,7 @@ public class GraphLOD {
         return false;
     }
 
-    private void addStats(String v_center, Set<String> surroundingVertices, BufferedWriter writer) {
+    private void addStats(String v_center, List<String> surroundingVertices, BufferedWriter writer) {
         String centerNodeClass = dataset.getClassForSubject(v_center);
         HashMap<String, Integer> classesSurrounding = new HashMap<String, Integer>();
         for (String v : surroundingVertices) {
@@ -768,7 +773,7 @@ public class GraphLOD {
             this.connectedGraphsGC.add(simpleDoublyLinkedPath);
             this.connectedGraphsGCTypes.add(PATH);
             verticesInPaths.addAll(path);
-        } else {
+        } else if (path.size() > 1) {
             logger.info("Path of length {} found", path.size());
         }
     }
@@ -810,7 +815,7 @@ public class GraphLOD {
         Set<DefaultEdge> surroundingIEdges = connectedSet.incomingEdgesOf(v_center);
         if (surroundingIEdges.size() >= 4) {
             int numberOfEdgesForSurrounding = 0;
-            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            List<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
             SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -949,7 +954,7 @@ public class GraphLOD {
         Set<String> vertices = new HashSet<>();
         if (surroundingEdges.size() >= 4) {
             int numberOfEdgesForSurrounding = 0;
-            Set<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
+            List<String> neighbourVertices = connectedSet.getNeighbourVertices(v_center);
             DirectedGraph<String, DefaultEdge> outgoingStar = new DefaultDirectedGraph<>(DefaultEdge.class);
             SimpleGraph<String, DefaultEdge> simpleStar = new SimpleGraph<>(DefaultEdge.class);
             DirectedGraph<String, DefaultEdge> outgoingStarLevel2 = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -1042,7 +1047,7 @@ public class GraphLOD {
             type = connectedGraphsGCTypes.get(graphIndex);
             int connectedSetVertexSetSize = connectedSet.vertexSet().size();
             if (connectedSetVertexSetSize > MAX_SIZE_FOR_ISO) continue;
-            logger.debug("\tChecking graph {}/{} {}.", ++i, this.connectedGraphsGC.size(), connectedSetVertexSetSize);
+            logger.debug("\tChecking graph {}/{} ({} vertices).", ++i, this.connectedGraphsGC.size(), connectedSetVertexSetSize);
             int putIntoBag = -1;
 
             for (List<Integer> isomorphicGraphList : this.isomorphicGraphsGC) {
@@ -1070,11 +1075,11 @@ public class GraphLOD {
                 isomorphicGraphList.addAll(this.isomorphicGraphsGC.get(putIntoBag));
                 this.isomorphicGraphsGC.remove(putIntoBag);
                 this.isomorphicGraphsGC.add(putIntoBag, isomorphicGraphList);
-                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSetVertexSetSize, isomorphicGraphList.size()-1);
+                logger.debug("\t\tAdding graph of size {} to isomorphism group bag #{} of size {}.", connectedSetVertexSetSize, putIntoBag, isomorphicGraphList.size()-1);
             } else {
                 this.isomorphicGraphsGC.add(isomorphicGraphList);
                 this.isomorphicGraphsGCTypes.add(type);
-                logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSetVertexSetSize);
+                logger.debug("\t\tCreating new isomorphism bag for graphs of size {}.", connectedSetVertexSetSize);
             }
         }
 
@@ -1082,12 +1087,11 @@ public class GraphLOD {
     }
 
     private void groupIsomorphicGCGraphsByColor() {
-        Integer colorIsoGroupIndex = -1;
-
         Collections.sort(this.isomorphicGraphsGC, new GraphLODComparator());
         for (List<Integer> isomorphicGraphList : this.isomorphicGraphsGC) {
-            Integer index = this.isomorphicGraphsGC.indexOf(isomorphicGraphList);
-            String isomorphicListType = this.isomorphicGraphsGCTypes.get(index);
+            Integer indexIsomorphicList = this.isomorphicGraphsGC.indexOf(isomorphicGraphList);
+            String isomorphicListType = this.isomorphicGraphsGCTypes.get(indexIsomorphicList);
+            logger.debug("\tChecking color isomorphism for graphs in bag #{}.", indexIsomorphicList);
             /*
             if (graphRenderer != null) {
                 this.graphRenderer.writeDotFile(index.toString(), graphFeatures.get(isomorphicGraphList.get(0)), false);
@@ -1096,68 +1100,78 @@ public class GraphLOD {
             List<SimpleGraph> isomorphicGraphsTemp = new ArrayList<>();
 
             List<SimpleGraph> colorIsoGF = new ArrayList();
+            // TODO right here?
+            Integer colorIsoGroupIndex = -1;
             for (Integer graphNr : isomorphicGraphList) {
-                logger.debug("Checking color isomorphism for graph {}", graphNr);
+                logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
                 SimpleGraph gf = this.connectedGraphsGC.get(graphNr);
                 isomorphicGraphsTemp.add(gf);
-                Integer isoIndex = this.isomorphicGraphsGC.indexOf(isomorphicGraphList);
 
-                boolean add = true;
-                if (colorIsoGF.size() > 0) {
-                    for (SimpleGraph coloredGF: colorIsoGF) {
-                        Set<String> verticesOfGraph = gf.vertexSet();
-                        Set<String> verticesOfGraphToCheck = coloredGF.vertexSet();
-                        List<String> classesGraph = new ArrayList<>();
-                        List<String> classesGraphToCheck = new ArrayList<>();
-                        for (String v: verticesOfGraph) {
-                            classesGraph.add(this.dataset.getClassForSubject(v));
+                boolean newColorIsomorphismGroup = true;
+                for (SimpleGraph coloredGF: colorIsoGF) {
+                    Set<String> verticesOfGraph = gf.vertexSet();
+                    Set<String> verticesOfGraphToCheck = coloredGF.vertexSet();
+                    List<String> classesGraph = new ArrayList<>();
+                    List<String> classesGraphToCheck = new ArrayList<>();
+                    for (String v: verticesOfGraph) {
+                        classesGraph.add(this.dataset.getClassForSubject(v));
+                    }
+                    for (String v: verticesOfGraphToCheck) {
+                        classesGraphToCheck.add(this.dataset.getClassForSubject(v));
+                    }
+                    Collections.sort(classesGraph);
+                    Collections.sort(classesGraphToCheck);
+                    if (!classesGraph.equals(classesGraphToCheck)) {
+                        break;
+                    }
+
+                    PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
+                    while (inspector.hasNext()) {
+                        boolean colorIsomorph = true;
+                        IsomorphismRelation graphMapping = inspector.nextIsoRelation();
+                        for (Object o : gf.vertexSet()) {
+                            String v = o.toString();
+                            String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
+                            String vClass = this.dataset.getClassForSubject(v);
+                            if (!this.dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
+                                colorIsomorph = false;
+                            }
                         }
-                        for (String v: verticesOfGraphToCheck) {
-                            classesGraphToCheck.add(this.dataset.getClassForSubject(v));
-                        }
-                        Collections.sort(classesGraph);
-                        Collections.sort(classesGraphToCheck);
-                        if (!classesGraph.equals(classesGraphToCheck)) {
+                        if (colorIsomorph) {
+                            newColorIsomorphismGroup = false;
+                            colorIsoGroupIndex = colorIsoGF.indexOf(coloredGF);
+                            logger.debug("\t\tAdding to color isomorphism bag #{}.", colorIsoGroupIndex);
                             break;
                         }
-
-                        PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
-                        while (inspector.hasNext()) {
-                            boolean colorIsomorph = true;
-                            IsomorphismRelation graphMapping = inspector.nextIsoRelation();
-                            for (Object o : gf.vertexSet()) {
-                                String v = o.toString();
-                                String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
-                                String vClass = this.dataset.getClassForSubject(v);
-                                if (!this.dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
-                                    colorIsomorph = false;
-                                }
-                            }
-                            if (colorIsomorph) {
-                                add = false;
-                                break;
-                            }
-                        }
                     }
                 }
-                if (add) {
+                if (newColorIsomorphismGroup) {
                     List<String> coloredIso = new ArrayList<>();
-                    if (this.colorIsomorphicPatternsGC.containsKey(this.isomorphicGraphsGC.indexOf(isomorphicGraphList))) {
-                        coloredIso = this.colorIsomorphicPatternsGC.get(this.isomorphicGraphsGC.indexOf(isomorphicGraphList));
+                    if (this.colorIsomorphicPatternsGC.containsKey(indexIsomorphicList)) {
+                        coloredIso = this.colorIsomorphicPatternsGC.get(indexIsomorphicList);
                     }
                     coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset, isomorphicListType).toString());
-                    this.colorIsomorphicPatternsGC.put(isoIndex, coloredIso);
-                    colorIsoGroupIndex += 1;
+                    this.colorIsomorphicPatternsGC.put(indexIsomorphicList, coloredIso);
+                    //colorIsoGroupIndex = colorIsoGF.size();
                     colorIsoGF.add(gf);
+                    // colorIsoGroupIndex = colorIsoGF.indexOf(gf);
+                    colorIsoGroupIndex = colorIsoGF.size() - 1;
+                    logger.debug("\t\tCreating new color isomorphism bag #{}.", colorIsoGroupIndex);
                 }
-                List<String> colored = new ArrayList<>();
-                if (this.coloredPatternsGC.containsKey(colorIsoGroupIndex)) {
-                    colored = this.coloredPatternsGC.get(colorIsoGroupIndex);
+
+                HashMap<Integer, List<String>> colored = new HashMap<>();
+                List<String> coloredList = new ArrayList<>();
+                if (this.coloredPatternsGC.containsKey(indexIsomorphicList)) {
+                    colored = this.coloredPatternsGC.get(indexIsomorphicList);
+                    if (colored.containsKey(colorIsoGroupIndex)) {
+                        coloredList = colored.get(colorIsoGroupIndex);
+                    }
                 }
                 //colored.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
                 // differs from not GC
-                colored.add(this.patternsWithSurroundingGC.get(this.connectedGraphsGC.indexOf(gf)));
-                this.coloredPatternsGC.put(colorIsoGroupIndex, colored);
+                coloredList.add(this.patternsWithSurroundingGC.get(graphNr));
+                colored.put(colorIsoGroupIndex, coloredList);
+                this.coloredPatternsGC.put(indexIsomorphicList, colored);
             }
             logger.info("Patterns");
             if (isomorphicGraphsTemp.get(0).edgeSet().size() <= MAX_SIZE_FOR_ISO) {
@@ -1166,7 +1180,7 @@ public class GraphLOD {
                 logger.info(JsonOutput.getJson(this.connectedGraphsGC.get(isomorphicGraphList.get(0)), "").toString());
                 HashMap patternTemp = new HashMap<>();
                 patternTemp.put(JsonOutput.getJson(this.connectedGraphsGC.get(isomorphicGraphList.get(0)), isomorphicListType).toString(), isomorphicGraphList.size());
-                patternsGC.put(index, patternTemp);
+                patternsGC.put(indexIsomorphicList, patternTemp);
                 // TODO
                 // patternDiameter.put(index, graphs.get(isomorphicGraphList.get(0)).getDiameter());
 
@@ -1179,22 +1193,21 @@ public class GraphLOD {
         }
     }
 
-    private void groupIsomorphicGraphFeatures(List<GraphFeatures> graphFeatures, List<List<Integer>> isomorphicGraphs, HashMap<Integer, List<String>> colorIsomorphicPatterns,
-                                              HashMap<Integer, List<String>> coloredPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, Double> patternDiameter) {
+    private void groupIsomorphicGraphFeatures() {
         int i = 0;
-        for (GraphFeatures connectedSet : graphFeatures) {
+        for (GraphFeatures connectedSet : this.connectedGraphs) {
             if (connectedSet.getVertexCount() > MAX_SIZE_FOR_ISO) continue;
-            logger.debug("\tChecking graph {}/{} {}.", ++i, graphFeatures.size(), connectedSet.getVertexCount());
+            logger.debug("\tChecking graph {}/{} {}.", ++i, this.connectedGraphs.size(), connectedSet.getVertexCount());
             int putIntoBag = -1;
 
-            for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
-                GraphFeatures firstGraph = graphFeatures.get(isomorphicGraphList.get(0));
+            for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
+                GraphFeatures firstGraph = this.connectedGraphs.get(isomorphicGraphList.get(0));
                 try {
                     if ((firstGraph.getVertexCount() != connectedSet.getVertexCount()) || (firstGraph.getEdgeCount() != connectedSet.getEdgeCount())) continue;
                     if (firstGraph.getAverageIndegree() != connectedSet.getAverageIndegree()) continue;
                     GraphIsomorphismInspector inspector = createIsomorphismInspector(connectedSet.getSimpleGraph(), firstGraph.getSimpleGraph());
                     if (inspector.isIsomorphic()) {
-                        putIntoBag = isomorphicGraphs.indexOf(isomorphicGraphList);
+                        putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
                         break;
                     }
                 } catch (ArrayIndexOutOfBoundsException e) {
@@ -1203,173 +1216,116 @@ public class GraphLOD {
                 }
             }
             List<Integer> isomorphicGraphList = new ArrayList<>();
-            int graphIndex = graphFeatures.indexOf(connectedSet);
+            int graphIndex = this.connectedGraphs.indexOf(connectedSet);
             isomorphicGraphList.add(graphIndex);
 
             // if there is already a isomorphism group
             if (putIntoBag >= 0) {
-                isomorphicGraphList.addAll(isomorphicGraphs.get(putIntoBag));
-                isomorphicGraphs.remove(putIntoBag);
-                isomorphicGraphs.add(putIntoBag, isomorphicGraphList);
+                isomorphicGraphList.addAll(this.isomorphicGraphs.get(putIntoBag));
+                this.isomorphicGraphs.remove(putIntoBag);
+                this.isomorphicGraphs.add(putIntoBag, isomorphicGraphList);
                 logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), isomorphicGraphList.size()-1);
 
             } else {
-                isomorphicGraphs.add(isomorphicGraphList);
+                this.isomorphicGraphs.add(isomorphicGraphList);
                 logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
             }
         }
 
-        groupIsomorphicGraphsInternally(graphFeatures, isomorphicGraphs, colorIsomorphicPatterns, coloredPatterns, patterns, patternDiameter);
+        groupIsomorphicGraphsByColor();
     }
 
-    private void groupIsomorphicGraphsInternally(List<GraphFeatures> graphFeatures, List<List<Integer>> isomorphicGraphs, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, List<String>> coloredPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, Double> patternDiameter) {
-        Integer colorIsoGroupIndex = -1;
-
-        Collections.sort(isomorphicGraphs, new GraphLODComparator());
-        for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
-            Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
-            if (graphRenderer != null) {
-                this.graphRenderer.writeDotFile(index.toString(), graphFeatures.get(isomorphicGraphList.get(0)), false);
+    private void groupIsomorphicGraphsByColor() {
+        Collections.sort(this.isomorphicGraphs, new GraphLODComparator());
+        for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
+            Integer indexIsomorphicList = this.isomorphicGraphs.indexOf(isomorphicGraphList);
+            logger.debug("\tChecking color isomorphism for graphs in bag #{}.", indexIsomorphicList);
+            if (this.graphRenderer != null) {
+                this.graphRenderer.writeDotFile(indexIsomorphicList.toString(), this.connectedGraphs.get(isomorphicGraphList.get(0)), false);
             }
             List<GraphFeatures> isomorphicGraphsTemp = new ArrayList<>();
 
             List<GraphFeatures> colorIsoGF = new ArrayList();
+            Integer colorIsoGroupIndex = -1;
             for (Integer graphNr : isomorphicGraphList) {
-                GraphFeatures gf = graphFeatures.get(graphNr);
+                GraphFeatures gf = this.connectedGraphs.get(graphNr);
+                logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
                 isomorphicGraphsTemp.add(gf);
-                Integer isoIndex = isomorphicGraphs.indexOf(isomorphicGraphList);
 
-                boolean add = true;
-                if (colorIsoGF.size() > 0) {
-                    for (GraphFeatures coloredGF: colorIsoGF) {
-                        Set<String> verticesOfGraph = gf.getSimpleGraph().vertexSet();
-                        Set<String> verticesOfGraphToCheck = coloredGF.getSimpleGraph().vertexSet();
-                        List<String> classesGraph = new ArrayList<>();
-                        List<String> classesGraphToCheck = new ArrayList<>();
-                        for (String v: verticesOfGraph) {
-                            classesGraph.add(this.dataset.getClassForSubject(v));
+                boolean createNewColorIsomorphismBag = true;
+                for (GraphFeatures coloredGF: colorIsoGF) {
+                    Set<String> verticesOfGraph = gf.getSimpleGraph().vertexSet();
+                    Set<String> verticesOfGraphToCheck = coloredGF.getSimpleGraph().vertexSet();
+                    List<String> classesGraph = new ArrayList<>();
+                    List<String> classesGraphToCheck = new ArrayList<>();
+                    for (String v: verticesOfGraph) {
+                        classesGraph.add(this.dataset.getClassForSubject(v));
+                    }
+                    for (String v: verticesOfGraphToCheck) {
+                        classesGraphToCheck.add(this.dataset.getClassForSubject(v));
+                    }
+                    Collections.sort(classesGraph);
+                    Collections.sort(classesGraphToCheck);
+                    if (!classesGraph.equals(classesGraphToCheck)) {
+                        break;
+                    }
+
+                    PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getSimpleGraph(), gf.getSimpleGraph()); // , new VertexDegreeEquivalenceComparator(), null
+                    while (inspector.hasNext()) {
+                        boolean colorIsomorph = true;
+                        IsomorphismRelation graphMapping = inspector.nextIsoRelation();
+                        for (String v : gf.getVertices()) {
+                            String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
+                            String vClass = dataset.getClassForSubject(v);
+                            if (!dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
+                                colorIsomorph = false;
+                            }
                         }
-                        for (String v: verticesOfGraphToCheck) {
-                            classesGraphToCheck.add(this.dataset.getClassForSubject(v));
-                        }
-                        Collections.sort(classesGraph);
-                        Collections.sort(classesGraphToCheck);
-                        if (!classesGraph.equals(classesGraphToCheck)) {
+                        if (colorIsomorph) {
+                            createNewColorIsomorphismBag = false;
+                            colorIsoGroupIndex = colorIsoGF.indexOf(coloredGF);
+                            logger.debug("\t\tAdding to color isomorphism bag #{}.", colorIsoGroupIndex);
                             break;
-                        }
-
-                        PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getGraph(), gf.getGraph()); // , new VertexDegreeEquivalenceComparator(), null
-                        while (inspector.hasNext()) {
-                            boolean colorIsomorph = true;
-                            IsomorphismRelation graphMapping = inspector.nextIsoRelation();
-                            for (String v : gf.getVertices()) {
-                                String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
-                                String vClass = dataset.getClassForSubject(v);
-                                if (!dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
-                                    colorIsomorph = false;
-                                }
-                            }
-                            if (colorIsomorph) {
-                                add = false;
-                                break;
-                            }
                         }
                     }
                 }
-                if (add) {
+                if (createNewColorIsomorphismBag) {
                     List<String> coloredIso = new ArrayList<>();
                     if (colorIsomorphicPatterns.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
                         coloredIso = colorIsomorphicPatterns.get(isomorphicGraphs.indexOf(isomorphicGraphList));
                     }
                     coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
-                    colorIsomorphicPatterns.put(isoIndex, coloredIso);
-                    colorIsoGroupIndex += 1;
+                    colorIsomorphicPatterns.put(indexIsomorphicList, coloredIso);
                     colorIsoGF.add(gf);
+                    colorIsoGroupIndex = colorIsoGF.size() - 1;
+                    logger.debug("\t\tCreating new color isomorphism bag #{}.", colorIsoGroupIndex);
                 }
-                List<String> colored = new ArrayList<>();
-                if (coloredPatterns.containsKey(colorIsoGroupIndex)) {
-                    colored = coloredPatterns.get(colorIsoGroupIndex);
+
+                HashMap<Integer, List<String>> colored = new HashMap<>();
+                List<String> coloredList = new ArrayList<>();
+                if (this.coloredPatterns.containsKey(indexIsomorphicList)) {
+                    colored = this.coloredPatterns.get(indexIsomorphicList);
+                    if (colored.containsKey(colorIsoGroupIndex)) {
+                        coloredList = colored.get(colorIsoGroupIndex);
+                    }
                 }
-                colored.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
-                coloredPatterns.put(colorIsoGroupIndex, colored);
+                coloredList.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
+                colored.put(colorIsoGroupIndex, coloredList);
+                this.coloredPatterns.put(indexIsomorphicList, colored);
             }
             logger.info("Patterns");
                 if (isomorphicGraphsTemp.get(0).getEdgeCount() <= MAX_SIZE_FOR_ISO) {
                 logger.info(isomorphicGraphsTemp.size() + " x ");
-                logger.info(JsonOutput.getJson(graphFeatures.get(isomorphicGraphList.get(0))).toString());
+                logger.info(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString());
                 HashMap patternTemp = new HashMap<>();
-                patternTemp.put(JsonOutput.getJson(graphFeatures.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphList.size());
-                patterns.put(index, patternTemp);
-                patternDiameter.put(index, graphFeatures.get(isomorphicGraphList.get(0)).getDiameter());
+                patternTemp.put(JsonOutput.getJson(this.connectedGraphs.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphList.size());
+                patterns.put(indexIsomorphicList, patternTemp);
+                patternDiameter.put(indexIsomorphicList, this.connectedGraphs.get(isomorphicGraphList.get(0)).getDiameter());
 
-                if (graphRenderer != null) {
-                    this.graphRenderer.writeDotFiles(index.toString() + "_detailed", isomorphicGraphsTemp, true);
+                if (this.graphRenderer != null) {
+                    this.graphRenderer.writeDotFiles(indexIsomorphicList.toString() + "_detailed", isomorphicGraphsTemp, true);
                 }
             }
-        }
-    }
-
-    private void groupIsomorphicBCGraphs(List<SimpleGraph> graphList, HashMap<Integer, List<Integer>> patternPerGroup, HashMap<Integer, HashMap<String, Integer>> patterns) {
-        if (graphList.size() == 0) return;
-        int i = 0;
-        List<List<Integer>> isomorphicGraphs = new ArrayList<>();
-        for (SimpleGraph graph : graphList) {
-            int vertices = graph.vertexSet().size();
-            if (vertices > MAX_SIZE_FOR_ISO) continue;
-            logger.debug("\tChecking graph {}/{} {}.", ++i, graphList.size(), vertices);
-            int putIntoBag = -1;
-            for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
-                SimpleGraph firstGraph = graphList.get(isomorphicGraphList.get(0));
-                try {
-                    if ((firstGraph.vertexSet().size() != vertices) || (firstGraph.edgeSet().size() != graph.edgeSet().size())) continue;
-                    GraphIsomorphismInspector inspector = createIsomorphismInspector(firstGraph, graph);
-                    if (inspector.isIsomorphic()) {
-                        putIntoBag = isomorphicGraphs.indexOf(isomorphicGraphList);
-                        break;
-                    }
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    putIntoBag = -1;
-                    logger.warn(e.getMessage());
-                }
-            }
-            List<Integer> graphs = new ArrayList<>();
-            graphs.add(graphList.indexOf(graph));
-            if (putIntoBag >= 0) {
-                graphs.addAll(isomorphicGraphs.get(putIntoBag));
-                isomorphicGraphs.remove(putIntoBag);
-                isomorphicGraphs.add(putIntoBag, graphs);
-                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", vertices, graphs.size()-1);
-            } else {
-                isomorphicGraphs.add(graphs);
-            }
-        }
-        Collections.sort(isomorphicGraphs, new GraphLODComparator());
-        for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
-            Integer index = isomorphicGraphs.indexOf(isomorphicGraphList);
-            // TODO render
-            List<SimpleGraph> iIsomorphicGraphs = new ArrayList<>();
-            for (Integer graphNr : isomorphicGraphList) {
-                SimpleGraph gf = graphList.get(graphNr);
-                iIsomorphicGraphs.add(gf);
-                List<Integer> colored = new ArrayList<>();
-                if (patternPerGroup.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
-                    colored = patternPerGroup.get(isomorphicGraphs.indexOf(isomorphicGraphList));
-                }
-                // JsonOutput.getJsonColored(gf, this.dataset).toString()
-                colored.add(graphList.indexOf(gf));
-                patternPerGroup.put(isomorphicGraphs.indexOf(isomorphicGraphList), colored);
-            }
-            logger.info("Patterns");
-            //if (iIsomorphicGraphs.get(0).edgeSet().size() <= bigComponentSize) {
-            logger.info(iIsomorphicGraphs.size() + " x ");
-            HashMap<String, Integer> patternTemp = new HashMap<>();
-            if (patterns.containsKey(index)) {
-                patternTemp = patterns.get(index);
-            }
-            patternTemp.put(JsonOutput.getJson(graphList.get(isomorphicGraphList.get(0)), "Star").toString(), isomorphicGraphs.size());
-            patterns.put(index, patternTemp);
-                // TODO render
-            //}
         }
     }
 

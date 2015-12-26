@@ -4,10 +4,7 @@ import graphlod.utils.CollectionUtils;
 import graphlod.dataset.Dataset;
 import graphlod.graph.Degree;
 import org.jgraph.graph.DefaultEdge;
-import org.jgrapht.DirectedGraph;
-import org.jgrapht.Graph;
-import org.jgrapht.GraphPath;
-import org.jgrapht.UndirectedGraph;
+import org.jgrapht.*;
 import org.jgrapht.alg.*;
 import org.jgrapht.event.EdgeTraversalEvent;
 import org.jgrapht.event.TraversalListenerAdapter;
@@ -61,17 +58,8 @@ public class GraphFeatures {
 		return this.simpleGraph.hashCode();
 	}
 
-	public Set<String> getNeighbourVertices(String v) {
-		Set<DefaultEdge> incomingEdges = incomingEdgesOf(v);
-		Set<DefaultEdge> outgoingEdges = outgoingEdgesOf(v);
-		Set<String> vertices = new HashSet<>();
-		for (DefaultEdge incomingEdge : incomingEdges) {
-			vertices.add(incomingEdge.getSource().toString());
-		}
-		for (DefaultEdge outgoingEdge : outgoingEdges) {
-			vertices.add(outgoingEdge.getTarget().toString());
-		}
-		return vertices;
+	public List<String> getNeighbourVertices(String v) {
+		return Graphs.neighborListOf(this.graph, v);
 	}
 	
 	public boolean isConnected() {
@@ -237,10 +225,20 @@ public class GraphFeatures {
 		return false;
 	}
 
-	public boolean isMixedDirectedStarGraph() {
+	public boolean isStarGraph() {
 		for (String v : this.simpleGraph.vertexSet()) {
 			if (this.simpleGraph.degreeOf(v) == this.getEdgeCount()) {
 				this.type = "Star";
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean isMixedDirectedStarGraph() {
+		for (String v : this.simpleGraph.vertexSet()) {
+			if (this.simpleGraph.degreeOf(v) == this.getEdgeCount() && (this.graph.outDegreeOf(v) > 0) && (this.graph.inDegreeOf(v) > 0)) {
+				this.type = "Mixed Star";
 				return true;
 			}
 		}
@@ -295,7 +293,7 @@ public class GraphFeatures {
 			}
 		}
 		for (DefaultEdge e : this.edges) {
-			if (!edgesDeletedTemp.contains(e)) {
+			if (!edgesDeletedTemp.contains(e) && tempG.containsVertex(e.getSource().toString()) && tempG.containsVertex(e.getTarget().toString())) {
 				tempG.addEdge(e.getSource().toString(), e.getTarget().toString());
 			}
 		}
