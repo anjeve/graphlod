@@ -159,21 +159,17 @@ public class Dataset {
                     g.addVertex(objectUri);
                     simpleGraph.addVertex(objectUri);
                 }
-                /*
                 DefaultEdge e = new DefaultEdge(propertyUri);
                 e.setSource(subjectUri);
                 e.setTarget(objectUri);
                 g.addEdge(subjectUri, objectUri, e);
-                */
-                g.addEdge(subjectUri, objectUri);
+                //g.addEdge(subjectUri, objectUri);
                 if (!simpleGraph.containsEdge(subjectUri, objectUri) && !simpleGraph.containsEdge(objectUri, subjectUri)) {
-                    /*
                     DefaultEdge e1 = new DefaultEdge(propertyUri);
                     e1.setSource(subjectUri);
                     e1.setTarget(objectUri);
                     simpleGraph.addEdge(subjectUri, objectUri, e1);
-                    */
-                    simpleGraph.addEdge(subjectUri, objectUri);
+                    // simpleGraph.addEdge(subjectUri, objectUri);
                 }
             }
         }
