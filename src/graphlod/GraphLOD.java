@@ -773,7 +773,7 @@ public class GraphLOD {
             this.connectedGraphsGC.add(simpleDoublyLinkedPath);
             this.connectedGraphsGCTypes.add(PATH);
             verticesInPaths.addAll(path);
-        } else if (path.size() > 1) {
+        } else if (path.size() > 3) {
             logger.info("Path of length {} found", path.size());
         }
     }
@@ -1044,7 +1044,7 @@ public class GraphLOD {
         String type;
         for (SimpleGraph connectedSet : this.connectedGraphsGC) {
             int graphIndex = this.connectedGraphsGC.indexOf(connectedSet);
-            type = connectedGraphsGCTypes.get(graphIndex);
+            type = this.connectedGraphsGCTypes.get(graphIndex);
             int connectedSetVertexSetSize = connectedSet.vertexSet().size();
             if (connectedSetVertexSetSize > MAX_SIZE_FOR_ISO) continue;
             logger.debug("\tChecking graph {}/{} ({} vertices).", ++i, this.connectedGraphsGC.size(), connectedSetVertexSetSize);
@@ -1122,7 +1122,7 @@ public class GraphLOD {
                     Collections.sort(classesGraph);
                     Collections.sort(classesGraphToCheck);
                     if (!classesGraph.equals(classesGraphToCheck)) {
-                        break;
+                        continue;
                     }
 
                     PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
@@ -1267,7 +1267,7 @@ public class GraphLOD {
                     Collections.sort(classesGraph);
                     Collections.sort(classesGraphToCheck);
                     if (!classesGraph.equals(classesGraphToCheck)) {
-                        break;
+                        continue;
                     }
 
                     PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getSimpleGraph(), gf.getSimpleGraph()); // , new VertexDegreeEquivalenceComparator(), null
