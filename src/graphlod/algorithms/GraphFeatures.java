@@ -227,7 +227,7 @@ public class GraphFeatures {
 
 	public boolean isStarGraph() {
 		for (String v : this.simpleGraph.vertexSet()) {
-			if (this.simpleGraph.degreeOf(v) == this.getEdgeCount()) {
+			if ((this.simpleGraph.degreeOf(v) == this.getEdgeCount()) && (this.getVertexCount() >= 5)) {
 				this.type = "Star";
 				return true;
 			}
@@ -246,7 +246,7 @@ public class GraphFeatures {
 	}
 
 	public boolean isCompleteGraph() {
-		if (GraphTests.isComplete(this.undirectedG)) {
+		if (GraphTests.isComplete(this.undirectedG) && (this.getVertexCount() >= 3)) {
 			this.type = "Complete";
 			return true;
 		}
