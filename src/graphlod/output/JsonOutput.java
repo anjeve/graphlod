@@ -61,7 +61,7 @@ public class JsonOutput {
                         vertexObject.put("uri", classes.get(vertex));
                     } else {
                         vertexObject.put("uri", vertex);
-                        vertexObject.put("label", dataset.getLabel(vertex));
+                        //vertexObject.put("label", dataset.getLabel(vertex));
                     }
                 }
                 if (classes != null) {
@@ -80,7 +80,7 @@ public class JsonOutput {
             if (addClass) {
                 vertexObject.put("uri", vertex);
                 //vertexObject.put("group", dataset.getClass(vertex));
-                vertexObject.put("label", dataset.getLabel(vertex));
+                //vertexObject.put("label", dataset.getLabel(vertex));
                 vertexObject.put("surrounding", true);
             }
             jsonNodes.add(vertexObject);
@@ -93,7 +93,7 @@ public class JsonOutput {
                 JSONObject edgeObject = new JSONObject();
                 if (addClass && addUris) {
                     edgeObject.put("uri", edge.toString());
-                    edgeObject.put("label", dataset.getLabel(edge.toString()));
+                    //edgeObject.put("label", dataset.getLabel(edge.toString()));
                 }
                 edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
                 edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
@@ -107,7 +107,7 @@ public class JsonOutput {
                 JSONObject edgeObject = new JSONObject();
                 if (addClass) {
                     edgeObject.put("uri", edge.toString());
-                    edgeObject.put("label", dataset.getLabel(edge.toString()));
+                    //edgeObject.put("label", dataset.getLabel(edge.toString()));
                 }
                 edgeObject.put("source", new Integer(vertexIds.get(edge.getSource().toString())));
                 edgeObject.put("target", new Integer(vertexIds.get(edge.getTarget().toString())));
