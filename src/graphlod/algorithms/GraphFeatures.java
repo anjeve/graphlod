@@ -3,6 +3,7 @@ package graphlod.algorithms;
 import graphlod.utils.CollectionUtils;
 import graphlod.dataset.Dataset;
 import graphlod.graph.Degree;
+import graphlod.utils.GraphUtils;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.*;
 import org.jgrapht.alg.*;
@@ -59,7 +60,7 @@ public class GraphFeatures {
 	}
 
 	public List<String> getNeighbourVertices(String v) {
-		return Graphs.neighborListOf(this.graph, v);
+		return GraphUtils.getNeighboursOfV(this.graph, v);
 	}
 	
 	public boolean isConnected() {
