@@ -6,6 +6,7 @@ import graphlod.algorithms.GraphFeatures;
 import graphlod.dataset.Dataset;
 import org.apache.commons.lang3.StringUtils;
 import org.jgraph.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,53 @@ public class GraphRenderer {
     	featureList.add(features);
     	writeDotFiles(type, featureList, colored);
     }
-    
+
+    public void writeDotFilesGC(String type, List<SimpleGraph> graphs, boolean colored) {
+        this.colored = colored;
+        try {
+            int c = 0;
+            int lastVertexCount = 0;
+            int vertexCount;
+            HashMap<Integer, Integer> written = new HashMap<>();
+            Writer writer = null;
+            for (SimpleGraph graph : graphs) {
+                vertexCount = graph.vertexSet().size();
+                int alreadyWrittenForSizeGroup = 0;
+                if (written.containsKey(vertexCount)) {
+                    alreadyWrittenForSizeGroup = written.get(vertexCount);
+                }
+                String dotFileName = this.filePath + "dot/" + this.fileName + "_" + type + "_dotgraph" + (vertexCount) + ".txt";
+                if (lastVertexCount != vertexCount) {
+                    if (lastVertexCount == 0) {
+                        lastVertexCount = vertexCount;
+                    } else {
+                        closeDot(writer);
+                    }
+                    writer = createDot(dotFileName);
+                }
+                if (vertexCount >= MIN_VERTICES) {
+                    if ((alreadyWrittenForSizeGroup + vertexCount < MAX_VERTICES_PER_GROUP) /* || (!written.containsKey(vertexCount) && (f.getVertexCount() < MAX_VERTICES_PER_GROUP))*/ ) {
+                        alreadyWrittenForSizeGroup += vertexCount;
+                        written.remove(vertexCount);
+                        written.put(vertexCount, alreadyWrittenForSizeGroup);
+                        writeDot(graph, writer);
+                    }
+                }
+                c++;
+                if (((lastVertexCount != vertexCount) && (written.containsKey(vertexCount))) || (c == graphs.size() && (written.containsKey(vertexCount)))) {
+                    logger.debug(c + " " + alreadyWrittenForSizeGroup + " " + dotFileName);
+                    files.add(new DotFile(dotFileName, alreadyWrittenForSizeGroup, written.size()));
+                }
+                lastVertexCount = vertexCount;
+            }
+            if (writer != null) {
+                closeDot(writer);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void writeDotFiles(String type, List<GraphFeatures> features, boolean colored) {
         this.colored = colored;
         try {
@@ -210,6 +257,21 @@ public class GraphRenderer {
         writer.write("edge [color=\"#31CEF0\"]\n");
         writer.write("edge [arrowsize=\"0.5\"]\n");
         return writer;
+    }
+
+    private void writeDot(SimpleGraph<String, DefaultEdge> graph, Writer writer) throws IOException {
+        for (String vertex : graph.vertexSet()) {
+            writer.write("\t\"" + vertex + "\" ");
+            writer.write("[");
+            if (this.colored && (dataset.getClass(vertex) != null)) {
+                writer.write("color=\"#" + getColor(dataset.getClass(vertex)) + "\",fillcolor=\"#" + getColor(dataset.getClass(vertex)) + "\",");
+            }
+            writer.write("tooltip=\"" + vertex.substring(StringUtils.lastOrdinalIndexOf(vertex, "/", 2)) + "\" ");
+            writer.write("URL=\"" + vertex + "\"]\n");
+        }
+        for (DefaultEdge edge : graph.edgeSet()) {
+            writer.write("\t\"" + edge.getSource() + "\" -> \"" + edge.getTarget() + "\"\n");
+        }
     }
 
     private void writeDot(GraphFeatures features, Writer writer) throws IOException {
