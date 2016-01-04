@@ -618,6 +618,7 @@ public class GraphLOD {
                         }
                         logger.info("Adding 1 siamese star");
 
+                        // TODO addPatterns(path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, SIAMESE_STAR, this.connectedGraphsGC.indexOf(simpleDoublyLinkedPath));
                         getNeighbourVerticesAndEdges(connectedSet.getGraph(), doublyLinkedPath, doublyLinkedPath2);
 
                         this.patternsWithSurroundingGC.add(JsonOutput.getJson(doublyLinkedPath, doublyLinkedPath2, SIAMESE_STAR, this.dataset).toString());
@@ -654,13 +655,8 @@ public class GraphLOD {
                 lastVertex = vertex;
             }
 
-            getNeighbourVerticesAndEdges(graph, doublyLinkedPath, doublyLinkedPath2);
-
-            this.patternsWithSurroundingGC.add(JsonOutput.getJson(doublyLinkedPath, doublyLinkedPath2, DOUBLY_LINKED_PATH, this.dataset).toString());
-            this.connectedGraphsGC.add(simpleDoublyLinkedPath);
-            this.connectedGraphsGCTypes.add(DOUBLY_LINKED_PATH);
-            addVerticesForPatterns(simpleDoublyLinkedPath, this.connectedGraphsGC.indexOf(simpleDoublyLinkedPath));
-        } else  if (doublyLinkedList.size() > 1) {
+            addPatterns(doublyLinkedList, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, DOUBLY_LINKED_PATH, this.connectedGraphsGC.indexOf(simpleDoublyLinkedPath));
+        } else  if (doublyLinkedList.size() >= 3) {
             logger.info("Doubly linked path of length {} found", doublyLinkedList.size());
         }
     }
@@ -725,7 +721,7 @@ public class GraphLOD {
                 addEdges(simpleWindmillGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
             }
         }
-        addPatterns(verticesInWindmills, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WINDMILL, this.connectedGraphsGC.indexOf(simpleWindmillGraph));
+        addPatterns(verticesInWindmills, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WINDMILL);
         verticesInWindmills.add(v_center);
         return true;
     }
@@ -757,7 +753,7 @@ public class GraphLOD {
                 addEdges(simpleWindmillGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
             }
         }
-        addPatterns(verticesinWheels, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WHEEL, this.connectedGraphsGC.indexOf(simpleWindmillGraph));
+        addPatterns(verticesinWheels, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WHEEL);
         verticesinWheels.add(v_center);
         return true;
     }
@@ -835,7 +831,7 @@ public class GraphLOD {
             }
             //addEdgesOnLevel2Vertices(connectedSet, outgoingStarLevel2, surroundingVertices);
             if ((numberOfEdgesForSurrounding <= surroundingEdges.size()) || (surroundingVertices.size() <= (vertices.size() + 1))) {
-                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, OUTBOUND_STAR, this.connectedGraphsGC.indexOf(simpleStar));
+                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, OUTBOUND_STAR);
                 addStats(v_center, neighbourVertices, outStatsCsv);
                 return true;
             }
@@ -894,7 +890,7 @@ public class GraphLOD {
             addEdges(simpleDoublyLinkedPath, graph.getAllEdges(path.get(0), lastVertex), path.get(0), lastVertex);
             addEdges(simpleDoublyLinkedPath, graph.getAllEdges(lastVertex, path.get(0)), lastVertex, path.get(0));
 
-            addPatterns(verticesInCircles, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, CIRCLE, this.connectedGraphsGC.indexOf(simpleDoublyLinkedPath));
+            addPatterns(verticesInCircles, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, CIRCLE);
             return true;
         } else if (path.size() >= 3) {
             logger.info("Circle of length {} found", path.size());
@@ -902,12 +898,19 @@ public class GraphLOD {
         return false;
     }
 
-    private void addPatterns(List<String> verticesInPattern, List<String> vertices, DirectedGraph graph, DirectedGraph<String, DefaultEdge> directedGraph, SimpleGraph<String, DefaultEdge> simpleGraph, DirectedGraph<String, DefaultEdge> directedGraphSurrounding, String patternType, int patternId) {
+    private void addPatterns(List<String> vertices, DirectedGraph graph, DirectedGraph<String, DefaultEdge> directedGraph, SimpleGraph<String, DefaultEdge> simpleGraph, DirectedGraph<String, DefaultEdge> directedGraphSurrounding, String patternType, int patternId) {
+        addPatterns(new ArrayList<String>(), vertices, graph, directedGraph, simpleGraph, directedGraphSurrounding, patternType);
+    }
+
+    private void addPatterns(List<String> verticesInPattern, List<String> vertices, DirectedGraph graph, DirectedGraph<String, DefaultEdge> directedGraph, SimpleGraph<String, DefaultEdge> simpleGraph, DirectedGraph<String, DefaultEdge> directedGraphSurrounding, String patternType) {
         getNeighbourVerticesAndEdges(graph, directedGraph, directedGraphSurrounding);
         this.patternsWithSurroundingGC.add(JsonOutput.getJson(directedGraph, directedGraphSurrounding, patternType, this.dataset).toString());
         this.connectedGraphsGC.add(simpleGraph);
+        if (patternType.equals(OUTBOUND_STAR) || patternType.equals(INBOUND_STAR) || patternType.equals(MIXED_STAR)) {
+            patternType = STAR;
+        }
         this.connectedGraphsGCTypes.add(patternType);
-        addVerticesForPatterns(simpleGraph, patternId);
+        addVerticesForPatterns(simpleGraph, this.connectedGraphsGC.indexOf(simpleGraph));
         verticesInPattern.addAll(vertices);
     }
 
@@ -999,7 +1002,7 @@ public class GraphLOD {
                 }
                 lastVertex = vertex;
             }
-            addPatterns(verticesInPaths, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, PATH, this.connectedGraphsGC.indexOf(simpleDoublyLinkedPath));
+            addPatterns(verticesInPaths, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, PATH);
             return true;
         } else if (path.size() > 3) {
             logger.info("Path of length {} found", path.size());
@@ -1085,7 +1088,7 @@ public class GraphLOD {
                 }
             }
             if ((numberOfEdgesForSurrounding <= surroundingIEdges.size()) || (surroundingVertices.size() <= (surroundingIEdges.size() + 1))) {
-                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, INBOUND_STAR, this.connectedGraphsGC.indexOf(simpleStar));
+                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, INBOUND_STAR);
                 addStats(v_center, neighbourVertices, this.outStatsInboundCsv);
                 return true;
             }
@@ -1204,7 +1207,7 @@ public class GraphLOD {
                 }
             }
             if ((numberOfEdgesForSurrounding <= surroundingEdges.size()) || (surroundingVertices.size() <= (surroundingEdges.size() + 1))) {
-                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, OUTBOUND_STAR, this.connectedGraphsGC.indexOf(simpleStar));
+                addPatterns(verticesInStars, neighbourVertices, connectedSet.getGraph(), outgoingStar, simpleStar, outgoingStarLevel2, OUTBOUND_STAR);
                 addStats(v_center, neighbourVertices, this.outStatsOutboundCsv);
                 return true;
             }
