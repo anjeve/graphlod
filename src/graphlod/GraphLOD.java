@@ -1596,7 +1596,6 @@ public class GraphLOD {
 
     private void groupIsomorphicGraphsByColor(List<SimpleGraph> connectedGraphs, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
         logger.info("Color isomorphism groups for GC patterns");
-        Collections.sort(isomorphicGraphs, new GraphLODComparator());
         for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
             Integer indexIsomorphicList = isomorphicGraphs.indexOf(isomorphicGraphList);
             String isomorphicListType = isomorphicGraphsTypes.get(indexIsomorphicList);
