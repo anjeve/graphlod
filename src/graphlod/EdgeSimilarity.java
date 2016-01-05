@@ -6,10 +6,14 @@ import graphlod.output.JsonOutput;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.SimpleGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class EdgeSimilarity {
+    private static Logger logger = LoggerFactory.getLogger(EdgeSimilarity.class);
+
     private List<List<GraphFeatures>> similarityBags = new ArrayList<>();
     public List<List<String>> similarityLists = new ArrayList<>();
     public List<String> similarityPaths = new ArrayList<>();
@@ -20,6 +24,8 @@ public class EdgeSimilarity {
     }
 
     public EdgeSimilarity(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        logger.info("Similar edge generation");
+
         GraphLOD graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces);
         GraphFeatures graphFeatures = graphLod.graphFeatures;
         List<GraphFeatures> connectedGraphs = new ArrayList<>();
@@ -115,7 +121,7 @@ public class EdgeSimilarity {
             }
         }
 
-        System.out.println(similarityBags.size());
+        logger.info(similarityBags.size() + " similar edge bags");
         for (List<GraphFeatures> similarityBag : similarityBags) {
             Set<Edge> edges = new HashSet<>();
             for (DefaultEdge edge : similarityBag.get(0).getSimpleGraph().edgeSet()) {
@@ -162,9 +168,7 @@ public class EdgeSimilarity {
             */
             if (simpleGraph.edgeSet().size() > 0) {
                 this.similarityPaths.add(JsonOutput.getJsonColored(simpleGraph, graphLod.dataset, classes).toString().replaceAll("\\\\/", "/"));
-                System.out.println("");
             }
-
         }
     }
 

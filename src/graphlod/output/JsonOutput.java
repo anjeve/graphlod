@@ -60,7 +60,7 @@ public class JsonOutput {
                     if (classes != null) {
                         vertexObject.put("uri", classes.get(vertex));
                     } else {
-                        vertexObject.put("uri", vertex);
+                        vertexObject.put("uri", vertex.replace("%", ""));
                         //vertexObject.put("label", dataset.getLabel(vertex));
                     }
                 }
@@ -78,7 +78,7 @@ public class JsonOutput {
             JSONObject vertexObject = new JSONObject();
             vertexObject.put("id", id++);
             if (addClass) {
-                vertexObject.put("uri", vertex);
+                vertexObject.put("uri", vertex.replace("%", ""));
                 //vertexObject.put("group", dataset.getClass(vertex));
                 //vertexObject.put("label", dataset.getLabel(vertex));
                 vertexObject.put("surrounding", true);

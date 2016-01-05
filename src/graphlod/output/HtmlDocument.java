@@ -140,6 +140,7 @@ public class HtmlDocument {
             BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
             printTableHeader(out);
             // TODO printStats(out, bipartiteGraphs, "Bipartite graphs", 0);
+            /*
             printStats(out, graphLod.completeGraphs, "Complete graphs", 0);
             printStats(out, graphLod.treeGraphs, "Trees", 0);
             printStats(out, graphLod.caterpillarGraphs, "Caterpillar graphs", 1);
@@ -150,6 +151,7 @@ public class HtmlDocument {
             printStats(out, graphLod.inboundStarGraphs, "Inbound star graphs", 2);
             printStats(out, graphLod.outboundStarGraphs, "Outbound star graphs", 2);
             printStats(out, graphLod.unrecognizedStructure, "Unrecognized", 0);
+            */
             printTableFooter(out);
             out.close();
         } catch (IOException e) {

@@ -566,6 +566,20 @@ public class GraphLOD {
                     }
                 }
 
+                if (!verticesInPaths.contains(v)) {
+                    vStartOfPath = checkVertexAsStartOfPath(graph, v, verticesInPaths, verticesInCircles, giantComponent, new ArrayList<String>());
+                    if (vStartOfPath) {
+                        added = true;
+                    }
+                }
+
+                if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v)) {
+                    boolean isCaterpillar = checkVertexAsStartOfCaterpillar(graph, v, verticesInCaterpillars, giantComponent);
+                    if (isCaterpillar) {
+                        added = true;
+                    }
+                }
+
                 if (!verticeCentreOfStar.contains(v)) {
                     if (!verticesInWindmills.contains(v)) {
                         boolean isWindmill = checkVertexAsCentreOfWindmill(graph, v, verticesInWindmills, giantComponent);
@@ -587,18 +601,7 @@ public class GraphLOD {
                             added = true;
                         }
                     }
-                    if (!verticesInPaths.contains(v)) {
-                        vStartOfPath = checkVertexAsStartOfPath(graph, v, verticesInPaths, verticesInCircles, giantComponent, new ArrayList<String>());
-                        if (vStartOfPath) {
-                            added = true;
-                        }
-                    }
-                    if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v)) {
-                        boolean isCaterpillar = checkVertexAsStartOfCaterpillar(graph, v, verticesInCaterpillars, giantComponent);
-                        if (isCaterpillar) {
-                            added = true;
-                        }
-                    }
+
 
                     if (!verticesInCompleteGraph.contains(v)) {
                         boolean isComplete = checkVertexinCompleteGraph(graph, v, verticesInCompleteGraph, giantComponent);
@@ -647,13 +650,14 @@ public class GraphLOD {
             int index = this.connectedGraphsGCTypes.indexOf(patternType);
             SimpleGraph simpleGraph = this.connectedGraphsGC.get(index);
             if (patternType.equals(STAR)) {
+                boolean alsoInOtherStar = checkIfAnyVerticeInStarIsAlsoInAnotherStar(simpleGraph.vertexSet(), verticesinSiameseStars);
+                if (!alsoInOtherStar) continue;
                 for (Object v: simpleGraph.vertexSet()) {
                     if ((this.verticesInPatterns.get(v.toString()).size() > 1) && (!verticesinSiameseStars.contains(v.toString()))) {
                         DirectedGraph<String, DefaultEdge> doublyLinkedPath = new DefaultDirectedGraph<>(DefaultEdge.class);
                         SimpleGraph<String, DefaultEdge> simpleDoublyLinkedPath = new SimpleGraph<>(DefaultEdge.class);
                         DirectedGraph<String, DefaultEdge> doublyLinkedPath2 = new DefaultDirectedGraph<>(DefaultEdge.class);
                         for (Integer id: this.verticesInPatterns.get(v.toString())) {
-                            if (id == index) continue;
                             String secondPatternType = this.connectedGraphsGCTypes.get(id);
                             if (secondPatternType.equals(STAR)) {
                                 SimpleGraph star = this.connectedGraphsGC.get(id);
@@ -694,6 +698,23 @@ public class GraphLOD {
         for (String type: typesToAdd) {
             this.connectedGraphsGCTypes.add(type);
         }
+    }
+
+    private boolean checkIfAnyVerticeInStarIsAlsoInAnotherStar(Set<String> vertices, List verticesinSiameseStars) {
+        Set<Integer> stars = new HashSet<>();
+        for (String v: vertices) {
+            if ((this.verticesInPatterns.get(v).size() > 1) && (!verticesinSiameseStars.contains(v.toString()))) {
+                for (Integer id : this.verticesInPatterns.get(v)) {
+                    if (this.connectedGraphsGCTypes.get(id).equals(STAR)) {
+                       stars.add(id);
+                    }
+                }
+            }
+        }
+        if (stars.size() > 1) {
+            return true;
+        }
+        return false;
     }
 
     private boolean checkDoublyLinkedPathsFromGC(DirectedGraph graph, String v, List<String> verticesInDoublyLinkedLists, boolean giantComponent) {
@@ -1170,7 +1191,7 @@ public class GraphLOD {
         // Check if this is not the first vertex of a path
         List<String> neighbourV = GraphUtils.getNeighboursOfV(graph, v);
         if (GraphUtils.getNeighboursOfV(graph, v).size() == 2) {
-            if (!iteratedVertices.contains(v)) {
+            if (!iteratedVertices.contains(v) && !iteratedVertices.contains(neighbourV.get(0))) {
                 iteratedVertices.add(v);
                 return checkVertexAsStartOfPath(graph, neighbourV.get(0), verticesInPaths, verticesInOtherPatterns, giantComponent, iteratedVertices);
             }
@@ -1235,6 +1256,9 @@ public class GraphLOD {
                 lastVertex = true;
             } else {
                 nextVertex = neighbourV.get(0);
+                if (nextVertex.equals(visited.get(0))) {
+                    return new ArrayList<>();
+                }
             }
         }
         List<String> path = new ArrayList<>();
@@ -1301,11 +1325,17 @@ public class GraphLOD {
         } else {
             if (neighbourV.size() == 1) {
                 nextVertex = neighbourV.get(0);
+                if (nextVertex.equals(visited.get(0))) {
+                    return new ArrayList<>();
+                }
             } else if (neighbourV.size() == 0) {
                 lastVertex = true;
             } else if (neighbourV.size() > 1) {
-                nextVertex = checkIfAllNeighboursCouldBePartOfCaterpillar(graph, neighbourV, v);
+                nextVertex = checkIfAllNeighboursCouldBePartOfCaterpillar(graph, neighbourV, v, visited);
                 if (nextVertex != null) {
+                    if (nextVertex.equals(visited.get(0))) {
+                        return new ArrayList<>();
+                    }
                     for (String neighbourVertex: neighbourV) {
                         if (!v.equals(neighbourVertex)) {
                             path.add(neighbourVertex);
@@ -1326,14 +1356,23 @@ public class GraphLOD {
         return path;
     }
 
-    private String checkIfAllNeighboursCouldBePartOfCaterpillar(DirectedGraph graph, List<String> neighbourV, String vertex) {
+    private String checkIfAllNeighboursCouldBePartOfCaterpillar(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
         boolean alreadyOnVerticeWithNeighbour = false;
         String nextV = null;
         Set<Integer> neighbourList = new HashSet<>();
         for (String v: neighbourV) {
-            List<String> neighboursOfV = Graphs.neighborListOf(graph, v);
+            // TODO check
+            if (visited.contains(v)) {
+                return null;
+            }
+            List<String> neighboursOfV = GraphUtils.getNeighboursOfV(graph, v);
             neighboursOfV.remove(vertex);
             if (neighboursOfV.size() > 0) {
+                for (String n: neighboursOfV) {
+                    if (visited.contains(n)) {
+                        return null;
+                    }
+                }
                 if (alreadyOnVerticeWithNeighbour) {
                     return null;
                 }
