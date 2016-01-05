@@ -106,7 +106,7 @@ public class HtmlDocument {
             Files.createParentDirs(file);
             BufferedWriter out = Files.newWriter(file, Charsets.UTF_8);
             printTableHeader(out);
-            printStats(out, graphLod.connectedGraphs, "Connected sets", 0);
+            printStats(out, graphLod.connectedGraphFeatures, "Connected sets", 0);
             printStats(out, graphLod.stronglyConnectedGraphs, "Strongly connected sets", 0);
             printTableFooter(out);
             printGroups(out);
@@ -121,7 +121,7 @@ public class HtmlDocument {
             try {
                 out.write("<p>" + graphs.size() + " x ");
                 int index = graphLod.isomorphicGraphs.indexOf(graphs);
-                int vertices = graphLod.connectedGraphs.get(index).getVertexCount();
+                int vertices = graphLod.connectedGraphFeatures.get(index).getVertexCount();
                 String imgName = "dot/" + graphLod.graphRenderer.getFileName() + "_" + index + "_dotgraph"  + vertices + ".txt.png";
                 String imgDetailedName = "dot/" + graphLod.graphRenderer.getFileName() + "_" + index + "_detailed_dotgraph"  + vertices + ".txt.html";
                 out.write("<a href=\"" + imgDetailedName + "\"><img src=\"" + imgName + "\"></a></p>");
