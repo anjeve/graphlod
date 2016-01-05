@@ -52,6 +52,7 @@ public class GraphLOD {
     public static final String CIRCLE = "Circle";
     public static final String WINDMILL = "Windmill Graph";
     public static final String WHEEL = "Wheel Graph";
+    public static final String UNRECOGNIZED = "";
     public static final String STRONGLY_CONNECTED = "Strongly Connected Component";
 
     private static Logger logger = LoggerFactory.getLogger(GraphLOD.class);
@@ -74,17 +75,16 @@ public class GraphLOD {
 
     public List<GraphFeatures> connectedGraphFeatures = new ArrayList<>();
     public List<GraphFeatures> stronglyConnectedGraphs = new ArrayList<>();
-    public List<GraphFeatures> pathGraphs = new ArrayList<>();
-    public List<GraphFeatures> directedPathGraphs = new ArrayList<>();
-    public List<GraphFeatures> outboundStarGraphs = new ArrayList<>();
-    public List<GraphFeatures> inboundStarGraphs = new ArrayList<>();
-    public List<GraphFeatures> mixedDirectedStarGraphs = new ArrayList<>();
-    public List<GraphFeatures> treeGraphs = new ArrayList<>();
-    public List<GraphFeatures> caterpillarGraphs = new ArrayList<>();
-    public List<GraphFeatures> lobsterGraphs = new ArrayList<>();
-    public List<GraphFeatures> completeGraphs = new ArrayList<>();
+
+    public boolean giantComponent = false;
+
+    public int nodes = 0;
+    public int edges = 0;
+    public int gcEdges = 0;
+    public int gcNodes = 0;
+
     private List<GraphFeatures> bipartiteGraphs = new ArrayList<>();
-    public List<GraphFeatures> unrecognizedStructure = new ArrayList<>();
+
     public List<String> htmlFiles = new ArrayList<>();
     public String output;
 
@@ -96,7 +96,6 @@ public class GraphLOD {
     public List<String> connectedGraphsGCTypes = new ArrayList<>();
     private List<List<Integer>> isomorphicGraphsGC = new ArrayList<>();
     public List<String> isomorphicGraphsGCTypes = new ArrayList<>();
-    private HashMap<Integer, List<List<Integer>>> colorPreservingIsomorphicGraphs = new HashMap<>();
 
     public HashMap<Integer, HashMap<String, Integer>> patterns  = new HashMap<>();
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
@@ -114,20 +113,7 @@ public class GraphLOD {
     private HashMap<String, List<Integer>> verticesInPatterns = new HashMap<>();
 
     public HashMap<Integer, Double> patternDiameterGC = new HashMap<>();
-    public List<String> outboundStars = new ArrayList<>();
-    public List<String> inboundStars = new ArrayList<>();
-    public List<String> mixedStars = new ArrayList<>();
-    public List<String> circleGraphs = new ArrayList<>();
-    public List<String> doublyLinkedPaths = new ArrayList<>();
-    private List<SimpleGraph> outboundStarSimpleGraphs = new ArrayList<>();
-    private List<SimpleGraph> inboundStarSimpleGraphs = new ArrayList<>();
-    private List<SimpleGraph> mixedStarSimpleGraphs = new ArrayList<>();
-    public HashMap<Integer, List<Integer>> isomorphicOutboundStars = new HashMap<>();
-    public HashMap<Integer, List<Integer>> isomorphicInboundStars = new HashMap<>();
-    public HashMap<Integer, List<Integer>> isomorphicMixedStars = new HashMap<>();
-    public HashMap<Integer, HashMap<String, Integer>> outboundStarsPattern =  new HashMap<>();
-    public HashMap<Integer, HashMap<String, Integer>> inboundStarsPattern = new HashMap<>();
-    public HashMap<Integer, HashMap<String, Integer>> mixedStarsPattern = new HashMap<>();
+
     public JSONObject nodeDegreeDistribution;
     public JSONObject highestIndegrees;
     public JSONObject highestOutdegrees;
@@ -166,7 +152,6 @@ public class GraphLOD {
         } else {
             this.bigComponentSize = MAX_SIZE_FOR_PROLOD;
         }
-
 
         if (apiOnly) {
             graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
@@ -271,6 +256,8 @@ public class GraphLOD {
             connectedGraphFeatures = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
         }
 
+        getStatistics();
+
         findPatterns();
         renderGCPatterns();
 
@@ -315,26 +302,12 @@ public class GraphLOD {
                 logger.info("\tContains cycles: {}", cycles);
 
                 boolean isTree = false;
-                boolean isCaterpillar = false;
-                boolean isLobster = false;
                 if (!cycles) {
                     logger.debug("Checking for tree graph.");
                     isTree = subGraph.isTree();
                     if (isTree) {
                         logger.info("\tTree: {}", isTree);
                         treeGraphs.add(subGraph);
-                        logger.debug("Checking for caterpillar graph.");
-                        isCaterpillar = subGraph.isCaterpillar();
-                        if (isCaterpillar) {
-                            logger.info("\tCaterpillar: {}", isCaterpillar);
-                            caterpillarGraphs.add(subGraph);
-                        } else {
-                            logger.debug("Checking for lobster graph.");
-                            isLobster = subGraph.isLobster();
-                            logger.info("\tLobster: {}", isLobster);
-                            lobsterGraphs.add(subGraph);
-
-                        }
                     }
                 }
 
@@ -345,12 +318,6 @@ public class GraphLOD {
                     completeGraphs.add(subGraph);
                 }
 
-                boolean isPathGraph = false;
-                boolean isDirectedPathGraph = false;
-                boolean isStarGraph = false;
-                boolean isMixedDirectedStarGraph = false;
-                boolean isOutboundStarGraph = false;
-                boolean isInboundStarGraph = false;
                 */
 
                 boolean isBipartiteGraph = false;
@@ -416,14 +383,8 @@ public class GraphLOD {
             this.connectedGraphSizes.add(this.connectedGraphFeatures.get(0).getVertexCount());
         }
 
-        /*
-        logger.debug("Checking for isomorphisms of connected components.");
-        sw = Stopwatch.createStarted();
-        groupIsomorphicGraphFeatures();
-        logger.debug("Isomorphism check took " + sw);
-        */
-
         if (graphRenderer != null) {
+/*
             graphRenderer.writeDotFiles("connected", connectedGraphFeatures, true);
             graphRenderer.writeDotFiles("strongly-connected", graphFeatures.createSubGraphFeatures(sci_sets), true);
             graphRenderer.writeDotFiles("pathgraphs", pathGraphs, true);
@@ -437,6 +398,7 @@ public class GraphLOD {
             graphRenderer.writeDotFiles("completegraphs", completeGraphs, true);
             graphRenderer.writeDotFiles("bipartitegraphs", completeGraphs, true);
             graphRenderer.writeDotFiles("unrecognized", unrecognizedStructure, true);
+            */
         }
 
         logger.debug("Analysing the components took " + sw + " to execute.");
@@ -547,16 +509,22 @@ public class GraphLOD {
     private void findPatterns() {
         createStatsCsv();
 
+        this.giantComponent = false;
         for (GraphFeatures connectedSet : this.connectedGraphFeatures) {
+            boolean added = false;
             DirectedGraph<String, DefaultEdge> graph = connectedSet.getGraph();
 
-            boolean giantComponent = false;
             if (connectedSet.getVertexCount() < this.bigComponentSize) {
                 if (this.connectedGraphFeatures.size() == 1) {
                     giantComponent = true;
                 }
             } else {
                 giantComponent = true;
+            }
+
+            if (giantComponent) {
+                this.gcNodes = graph.vertexSet().size();
+                this.gcEdges = graph.edgeSet().size();
             }
 
             List<String> verticesInPaths = new ArrayList<>();
@@ -575,58 +543,88 @@ public class GraphLOD {
             int i = 1;
             for (String v : connectedSet.getVertices()) {
                 if (i % 1000 == 0) logger.info(i++ + "/" + connectedSet.getVertices().size());
-                boolean vPartOfStar = false;
+                boolean vCentreOfStar = false;
                 boolean vStartOfPath = false;
                 if  ((connectedSet.incomingEdgesOf(v).size() == 0) && (connectedSet.outgoingEdgesOf(v).size() >= 4)) {
-                    vPartOfStar = checkVertexAsCentreOfOutboundStar(graph, v, verticesInStars, giantComponent);
+                    vCentreOfStar = checkVertexAsCentreOfOutboundStar(graph, v, verticesInStars, giantComponent);
                 } else if  ((connectedSet.outgoingEdgesOf(v).size() == 0) && (connectedSet.incomingEdgesOf(v).size() >= 4)) {
-                    vPartOfStar = checkVertexAsCentreOfInboundStar(graph, v, verticesInStars, giantComponent);
+                    vCentreOfStar = checkVertexAsCentreOfInboundStar(graph, v, verticesInStars, giantComponent);
                 } else  if  ((connectedSet.incomingEdgesOf(v).size() > 0) && (connectedSet.outgoingEdgesOf(v).size() > 0)) {
-                    vPartOfStar = checkVertexAsCentreOfMixedStar(graph, v, verticesInStars, giantComponent);
+                    vCentreOfStar = checkVertexAsCentreOfMixedStar(graph, v, verticesInStars, giantComponent);
                 }
-                if (vPartOfStar) {
+                if (vCentreOfStar) {
                     verticeCentreOfStar.add(v);
+                    added = true;
                 }
 
                 // TODO if no vertice already on circle
                 if (!verticesInCircles.contains(v)) {
-                    checkVertexAsStartOfCircle(graph, v, verticesInCircles, giantComponent);
+                    boolean isCircle = checkVertexAsStartOfCircle(graph, v, verticesInCircles, giantComponent);
                     verticesInOtherPatterns.addAll(verticesInCircles);
+                    if (isCircle) {
+                        added = true;
+                    }
                 }
 
                 if (!verticeCentreOfStar.contains(v)) {
                     if (!verticesInWindmills.contains(v)) {
-                        checkVertexAsCentreOfWindmill(graph, v, verticesInWindmills, giantComponent);
+                        boolean isWindmill = checkVertexAsCentreOfWindmill(graph, v, verticesInWindmills, giantComponent);
                         verticesInOtherPatterns.addAll(verticesInWindmills);
+                        if (isWindmill) {
+                            added = true;
+                        }
                     }
                     if (!verticesInWindmills.contains(v) && !verticesInWheels.contains(v)) {
-                        checkVertexAsCentreOfWheel(graph, v, verticesInWheels, giantComponent);
+                        boolean isWheel = checkVertexAsCentreOfWheel(graph, v, verticesInWheels, giantComponent);
                         verticesInOtherPatterns.addAll(verticesInWheels);
+                        if (isWheel) {
+                            added = true;
+                        }
                     }
                     if (!verticesInDoublyLinkedLists.contains(v)) {
-                        checkDoublyLinkedPathsFromGC(graph, v, verticesInDoublyLinkedLists, giantComponent);
+                        boolean isDoublyLinkedList = checkDoublyLinkedPathsFromGC(graph, v, verticesInDoublyLinkedLists, giantComponent);
+                        if (isDoublyLinkedList) {
+                            added = true;
+                        }
                     }
                     if (!verticesInPaths.contains(v)) {
                         vStartOfPath = checkVertexAsStartOfPath(graph, v, verticesInPaths, verticesInCircles, giantComponent, new ArrayList<String>());
+                        if (vStartOfPath) {
+                            added = true;
+                        }
                     }
                     if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v)) {
-                        checkVertexAsStartOfCaterpillar(graph, v, verticesInCaterpillars, giantComponent);
+                        boolean isCaterpillar = checkVertexAsStartOfCaterpillar(graph, v, verticesInCaterpillars, giantComponent);
+                        if (isCaterpillar) {
+                            added = true;
+                        }
                     }
 
                     if (!verticesInCompleteGraph.contains(v)) {
-                        checkVertexinCompleteGraph(graph, v, verticesInCompleteGraph, giantComponent);
+                        boolean isComplete = checkVertexinCompleteGraph(graph, v, verticesInCompleteGraph, giantComponent);
+                        if (isComplete) {
+                            added = true;
+                        }
                     }
                 }
-
             }
             // this works different for not GC
             if (giantComponent) {
                 getSiameseStarsFromGC(graph, giantComponent);
             }
+
+            if (!giantComponent && !added) {
+                addPatterns(graph, UNRECOGNIZED, giantComponent);
+            }
         }
         closeStatsCsv();
 
-        groupIsomorphicGraphs(this.connectedGraphsGC, this.connectedGraphsGCTypes, this.isomorphicGraphsGC, this.isomorphicGraphsGCTypes, this.colorIsomorphicPatternsGC, this.patternsGC, this.coloredPatternsGC, this.patternsWithSurroundingGC);
+        if (giantComponent) {
+            logger.info("Isomorphism groups for GC patterns");
+            groupIsomorphicGraphs(this.connectedGraphsGC, this.connectedGraphsGCTypes, this.isomorphicGraphsGC, this.isomorphicGraphsGCTypes, this.colorIsomorphicPatternsGC, this.patternsGC, this.coloredPatternsGC, this.patternsWithSurroundingGC);
+        }
+
+        logger.info("Isomorphism groups for patterns");
         groupIsomorphicGraphs(this.connectedGraphs, this.connectedGraphsTypes, this.isomorphicGraphs, this.isomorphicGraphsTypes, this.colorIsomorphicPatterns, this.patterns, this.coloredPatterns, this.patternsConnectedComponents);
     }
 
@@ -655,6 +653,7 @@ public class GraphLOD {
                         SimpleGraph<String, DefaultEdge> simpleDoublyLinkedPath = new SimpleGraph<>(DefaultEdge.class);
                         DirectedGraph<String, DefaultEdge> doublyLinkedPath2 = new DefaultDirectedGraph<>(DefaultEdge.class);
                         for (Integer id: this.verticesInPatterns.get(v.toString())) {
+                            if (id == index) continue;
                             String secondPatternType = this.connectedGraphsGCTypes.get(id);
                             if (secondPatternType.equals(STAR)) {
                                 SimpleGraph star = this.connectedGraphsGC.get(id);
@@ -697,7 +696,7 @@ public class GraphLOD {
         }
     }
 
-    private void checkDoublyLinkedPathsFromGC(DirectedGraph graph, String v, List<String> verticesInDoublyLinkedLists, boolean giantComponent) {
+    private boolean checkDoublyLinkedPathsFromGC(DirectedGraph graph, String v, List<String> verticesInDoublyLinkedLists, boolean giantComponent) {
         // Check if this is not the first vertex of a doubly linked list
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v);
         if (neighbourVertices.size() == 2) {
@@ -717,15 +716,14 @@ public class GraphLOD {
                 }
             }
             if (firstNeighbourVCouldBeStart && secondNeighbourVCouldBeStart) {
-                checkDoublyLinkedPathsFromGC(graph, neighbourVertices.get(0), verticesInDoublyLinkedLists, giantComponent);
-                return;
+                return checkDoublyLinkedPathsFromGC(graph, neighbourVertices.get(0), verticesInDoublyLinkedLists, giantComponent);
             }
         }
 
         List<String> doublyLinkedList = checkVertexInLinkedList(graph, v, new ArrayList<String>());
 
         if (!giantComponent && (doublyLinkedList.size() < graph.vertexSet().size())) {
-            return;
+            return false;
         }
 
         if (doublyLinkedList.size() >= 4) {
@@ -748,7 +746,9 @@ public class GraphLOD {
             addPatterns(verticesInDoublyLinkedLists, doublyLinkedList, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, DOUBLY_LINKED_PATH, giantComponent);
         } else  if (doublyLinkedList.size() >= 3) {
             logger.info("Doubly linked path of length {} found", doublyLinkedList.size());
+            return false;
         }
+        return true;
     }
 
     private List<String> checkVertexInLinkedList(DirectedGraph graph, String v, List<String> visited) {
@@ -782,12 +782,13 @@ public class GraphLOD {
         return linkedList;
     }
 
-    private void checkVertexinCompleteGraph(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInCompleteGraph, boolean giantComponent) {
+    private boolean checkVertexinCompleteGraph(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInCompleteGraph, boolean giantComponent) {
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v);
         for (String vertex: neighbourVertices) {
             // TODO
         }
         //addPatterns(verticesInWindmills, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WINDMILL);
+        return false;
     }
 
     private boolean checkVertexAsCentreOfWindmill(DirectedGraph graph, String v_center, List<String> verticesInWindmills, boolean giantComponent) {
@@ -1021,6 +1022,26 @@ public class GraphLOD {
         return false;
     }
 
+    private void addPatterns(DirectedGraph<String, DefaultEdge> graph, String patternType, boolean giantComponent) {
+        Set<String> vertices = graph.vertexSet();
+        List<String> vertexList = new ArrayList<>();
+        vertexList.addAll(vertices);
+        DirectedGraph<String, DefaultEdge> directedGraph = new DefaultDirectedGraph<>(DefaultEdge.class);
+        SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
+        DirectedGraph<String, DefaultEdge> directedGraphSurrounding = new DefaultDirectedGraph<>(DefaultEdge.class);
+        for (String vertex : vertices) {
+            directedGraph.addVertex(vertex);
+            simpleGraph.addVertex(vertex);
+            for (String alreadyAdded : simpleGraph.vertexSet()) {
+                addEdges(directedGraph, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                addEdges(directedGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+                addEdges(simpleGraph, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                addEdges(simpleGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+            }
+        }
+        addPatterns(new ArrayList<String>(), vertexList, graph, directedGraph, simpleGraph, directedGraphSurrounding, patternType, giantComponent);
+    }
+
     private void addPatterns(List<String> verticesInPattern, DirectedGraph<String, DefaultEdge> graph, DirectedSubgraph<String, DefaultEdge> subgraph, String patternType, boolean giantComponent) {
         Set<String> vertices = subgraph.vertexSet();
         List<String> vertexList = new ArrayList<>();
@@ -1151,8 +1172,7 @@ public class GraphLOD {
         if (GraphUtils.getNeighboursOfV(graph, v).size() == 2) {
             if (!iteratedVertices.contains(v)) {
                 iteratedVertices.add(v);
-                checkVertexAsStartOfPath(graph, neighbourV.get(0), verticesInPaths, verticesInOtherPatterns, giantComponent, iteratedVertices);
-                return true;
+                return checkVertexAsStartOfPath(graph, neighbourV.get(0), verticesInPaths, verticesInOtherPatterns, giantComponent, iteratedVertices);
             }
         }
         List<String> path = checkVertexAsPartOfPath(graph, v, new ArrayList<String>(), verticesInOtherPatterns);
@@ -1298,6 +1318,7 @@ public class GraphLOD {
         }
         if ((nextVertex != null) && !lastVertex) {
             List<String> restPath = checkVertexAsPartOfCaterpillar(graph, nextVertex, visited, mainPath);
+            if (restPath.isEmpty()) return new ArrayList<>();
             restPath.removeAll(path);
             path.addAll(restPath);
         }
@@ -1543,7 +1564,6 @@ public class GraphLOD {
     }
 
     private void groupIsomorphicGraphs(List<SimpleGraph> connectedGraphs, List<String> connectedGraphsTypes, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
-        logger.info("Isomorphism groups for GC patterns");
         int i = 0;
         String type;
         for (SimpleGraph connectedSet : connectedGraphs) {
@@ -1595,7 +1615,7 @@ public class GraphLOD {
     }
 
     private void groupIsomorphicGraphsByColor(List<SimpleGraph> connectedGraphs, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
-        logger.info("Color isomorphism groups for GC patterns");
+        logger.info("Color isomorphism groups for patterns");
         for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
             Integer indexIsomorphicList = isomorphicGraphs.indexOf(isomorphicGraphList);
             String isomorphicListType = isomorphicGraphsTypes.get(indexIsomorphicList);
@@ -1907,6 +1927,11 @@ public class GraphLOD {
         Locale.setDefault(Locale.US);
 
         new GraphLOD(arguments);
+    }
+
+    private void getStatistics() {
+        this.nodes = this.dataset.getGraph().vertexSet().size();
+        this.edges = this.dataset.getGraph().edgeSet().size();
     }
 
     public class GraphLODComparator implements Comparator<List<?>>{
