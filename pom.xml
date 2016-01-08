@@ -13,10 +13,12 @@
             <id>nxparser-snapshots</id>
             <url>http://nxparser.googlecode.com/svn/snapshots</url>
         </repository>
+        <!--
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+        -->
     </repositories>
     <properties>
         <slf4j.version>1.7.13</slf4j.version>
@@ -50,28 +52,30 @@
             <version>5.13.0.0</version>
         </dependency>
         -->
+        <!--
         <dependency>
             <groupId>com.github.jgrapht</groupId>
             <artifactId>jgrapht</artifactId>
             <version>d4e838a</version>
         </dependency>
-        <!--
+        -->
+
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-core</artifactId>
-            <version>0.9.2-SNAPSHOT</version>
+            <version>0.9.1</version>
         </dependency>
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-demo</artifactId>
-            <version>0.9.2-SNAPSHOT</version>
+            <version>0.9.1</version>
         </dependency>
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-ext</artifactId>
-            <version>0.9.2-SNAPSHOT</version>
+            <version>0.9.1</version>
         </dependency>
-        -->
+
         <!--
         <dependency>
             <groupId>ch.qos.logback</groupId>
