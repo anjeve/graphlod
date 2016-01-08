@@ -97,7 +97,7 @@ public class GraphLOD {
     private List<List<Integer>> isomorphicGraphsGC = new ArrayList<>();
     public List<String> isomorphicGraphsGCTypes = new ArrayList<>();
 
-    public HashMap<Integer, HashMap<String, Integer>> patterns  = new HashMap<>();
+    public HashMap<Integer, HashMap<String, Integer>> patterns = new HashMap<>();
     public HashMap<Integer, Double> patternDiameter = new HashMap<>();
     public HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns = new HashMap<>();
     public HashMap<Integer, List<String>> colorIsomorphicPatterns = new HashMap<>();
@@ -124,7 +124,7 @@ public class GraphLOD {
     private BufferedWriter outStatsCsv;
     private BufferedWriter outStatsInboundCsv;
     private BufferedWriter outStatsOutboundCsv;
-    private Integer bigComponentSize;
+    public Integer bigComponentSize;
 
     public GraphLOD(ArgumentParser arguments) {
         this.graphRenderer = null;
@@ -153,8 +153,11 @@ public class GraphLOD {
             this.bigComponentSize = MAX_SIZE_FOR_PROLOD;
         }
 
+        graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        createComponents();
+
         if (apiOnly) {
-            graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+
             int vertexCount = dataset.getGraph().vertexSet().size();
             if (vertexCount < this.bigComponentSize) {
                 this.bigComponentSize = vertexCount;
@@ -177,7 +180,6 @@ public class GraphLOD {
                     }
                 }
 
-                GraphFeatures graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
                 if (!exportJson && !exportGrami) {
                     analyze(graphFeatures, minImportantSubgraphSize, skipChromaticNumber, importantDegreeCount);
 
@@ -202,7 +204,7 @@ public class GraphLOD {
         Stopwatch sw = Stopwatch.createStarted();
         dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces);
         if (graphRenderer != null) {
-        	graphRenderer.setDataset(dataset);
+            graphRenderer.setDataset(dataset);
         }
         if (this.exportGrami) {
             GramiOutput grami = new GramiOutput(this.dataset);
@@ -213,6 +215,7 @@ public class GraphLOD {
             jsonOutput.write(this.output);
         }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
+
         logger.info("Loading the dataset took " + sw + " to execute.");
         return graphFeatures;
     }
@@ -233,10 +236,6 @@ public class GraphLOD {
             logger.info("Connectivity: no");
         }
 
-        List<Set<String>> sets = graphFeatures.getConnectedSets();
-        logger.info("Connected sets: " + formatInt(sets.size()));
-        printComponentSizeAndCount(sets);
-
         List<Set<String>> sci_sets = graphFeatures.getStronglyConnectedSets();
         logger.info("Strongly connected components: " + formatInt(sci_sets.size()));
         printComponentSizeAndCount(sci_sets);
@@ -250,15 +249,10 @@ public class GraphLOD {
 
         sw = Stopwatch.createStarted();
 
-        if (graphFeatures.isConnected()) {
-            connectedGraphFeatures.add(graphFeatures);
-        } else {
-            connectedGraphFeatures = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
-        }
 
         getStatistics();
 
-        findPatterns();
+        findPatternsInAllComponents();
         renderGCPatterns();
 
         if (apiOnly) {
@@ -458,6 +452,10 @@ public class GraphLOD {
         }
     }
 
+    public List<GraphFeatures> getConnectedComponents() {
+        return connectedGraphFeatures;
+    }
+
     public String getMinimizedPatterns(SimpleGraph<String, DefaultEdge> g) {
         String pattern = "";
         int highestDegree = 0;
@@ -506,19 +504,34 @@ public class GraphLOD {
         return pattern;
     }
 
-    private void findPatterns() {
+    public void findPatternsInAllComponents() {
+        findPatterns(true, true);
+    }
+
+    public void findPatternsInGiantComponent() {
+        findPatterns(true, false);
+    }
+
+    public void findPatternsInSatelliteComponents() {
+        findPatterns(false, true);
+
+    }
+
+    private void findPatterns(boolean inGiantComponent, boolean inSatelliteComponents) {
         createStatsCsv();
 
-        this.giantComponent = false;
+        boolean giantComponent = false;
         for (GraphFeatures connectedSet : this.connectedGraphFeatures) {
             boolean added = false;
             DirectedGraph<String, DefaultEdge> graph = connectedSet.getGraph();
 
             if (connectedSet.getVertexCount() < this.bigComponentSize) {
                 if (this.connectedGraphFeatures.size() == 1) {
+                    if (!inGiantComponent) break;
                     giantComponent = true;
                 }
             } else {
+                if (!inGiantComponent) continue;
                 giantComponent = true;
             }
 
@@ -620,15 +633,18 @@ public class GraphLOD {
                 addPatterns(graph, UNRECOGNIZED, giantComponent);
             }
         }
+
         closeStatsCsv();
 
-        if (giantComponent) {
+        if (giantComponent && inGiantComponent) {
             logger.info("Isomorphism groups for GC patterns");
             groupIsomorphicGraphs(this.connectedGraphsGC, this.connectedGraphsGCTypes, this.isomorphicGraphsGC, this.isomorphicGraphsGCTypes, this.colorIsomorphicPatternsGC, this.patternsGC, this.coloredPatternsGC, this.patternsWithSurroundingGC);
         }
 
-        logger.info("Isomorphism groups for patterns");
-        groupIsomorphicGraphs(this.connectedGraphs, this.connectedGraphsTypes, this.isomorphicGraphs, this.isomorphicGraphsTypes, this.colorIsomorphicPatterns, this.patterns, this.coloredPatterns, this.patternsConnectedComponents);
+        if (inSatelliteComponents) {
+            logger.info("Isomorphism groups for patterns");
+            groupIsomorphicGraphs(this.connectedGraphs, this.connectedGraphsTypes, this.isomorphicGraphs, this.isomorphicGraphsTypes, this.colorIsomorphicPatterns, this.patterns, this.coloredPatterns, this.patternsConnectedComponents);
+        }
     }
 
     private void getStronglyConnectedComponentsFromGC(DirectedGraph<String, DefaultEdge> graph, boolean giantComponent) {
@@ -1658,7 +1674,7 @@ public class GraphLOD {
         for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
             Integer indexIsomorphicList = isomorphicGraphs.indexOf(isomorphicGraphList);
             String isomorphicListType = isomorphicGraphsTypes.get(indexIsomorphicList);
-            logger.debug("\tChecking color isomorphism for graphs in bag #{}.", indexIsomorphicList);
+            logger.debug("\tChecking color isomorphism for {} graphs in bag #{}.", isomorphicGraphList.size(), indexIsomorphicList);
             /*
             if (graphRenderer != null) {
                 this.graphRenderer.writeDotFile(index.toString(), graphFeatures.get(isomorphicGraphList.get(0)), false);
@@ -1671,6 +1687,9 @@ public class GraphLOD {
             Integer colorIsoGroupIndex = -1;
             for (Integer graphNr : isomorphicGraphList) {
                 logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
+                if (graphNr == 155) {
+                    System.out.println("");
+                }
                 SimpleGraph gf = connectedGraphs.get(graphNr);
                 isomorphicGraphsTemp.add(gf);
 
@@ -1692,10 +1711,11 @@ public class GraphLOD {
                         continue;
                     }
 
+
                     PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
                     while (inspector.hasNext()) {
-                        boolean colorIsomorph = true;
                         IsomorphismRelation graphMapping = inspector.nextIsoRelation();
+                        boolean colorIsomorph = true;
                         for (Object o : gf.vertexSet()) {
                             String v = o.toString();
                             String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
@@ -1760,144 +1780,6 @@ public class GraphLOD {
         }
     }
 
-    /*
-    private void groupIsomorphicGraphFeatures() {
-        int i = 0;
-        for (GraphFeatures connectedSet : this.connectedGraphFeatures) {
-            if (connectedSet.getVertexCount() > MAX_SIZE_FOR_ISO) continue;
-            logger.debug("\tChecking graph {}/{} {}.", ++i, this.connectedGraphFeatures.size(), connectedSet.getVertexCount());
-            int putIntoBag = -1;
-
-            for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
-                GraphFeatures firstGraph = this.connectedGraphFeatures.get(isomorphicGraphList.get(0));
-                try {
-                    if ((firstGraph.getVertexCount() != connectedSet.getVertexCount()) || (firstGraph.getEdgeCount() != connectedSet.getEdgeCount())) continue;
-                    if (firstGraph.getAverageIndegree() != connectedSet.getAverageIndegree()) continue;
-                    GraphIsomorphismInspector inspector = createIsomorphismInspector(connectedSet.getSimpleGraph(), firstGraph.getSimpleGraph());
-                    if (inspector.isIsomorphic()) {
-                        putIntoBag = this.isomorphicGraphs.indexOf(isomorphicGraphList);
-                        break;
-                    }
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    putIntoBag = -1;
-                    logger.warn(e.getMessage());
-                }
-            }
-            List<Integer> isomorphicGraphList = new ArrayList<>();
-            int graphIndex = this.connectedGraphFeatures.indexOf(connectedSet);
-            isomorphicGraphList.add(graphIndex);
-
-            // if there is already a isomorphism group
-            if (putIntoBag >= 0) {
-                isomorphicGraphList.addAll(this.isomorphicGraphs.get(putIntoBag));
-                this.isomorphicGraphs.remove(putIntoBag);
-                this.isomorphicGraphs.add(putIntoBag, isomorphicGraphList);
-                logger.debug("\tAdding graph of size {} to isomorphism group bag of size {}.", connectedSet.getVertexCount(), isomorphicGraphList.size()-1);
-
-            } else {
-                this.isomorphicGraphs.add(isomorphicGraphList);
-                logger.debug("\tCreating new isomorphism bags for graph of size {} and coloring.", connectedSet.getVertexCount());
-            }
-        }
-
-        groupIsomorphicGraphsByColor();
-    }
-
-    private void groupIsomorphicGraphsByColor() {
-        Collections.sort(this.isomorphicGraphs, new GraphLODComparator());
-        for (List<Integer> isomorphicGraphList : this.isomorphicGraphs) {
-            Integer indexIsomorphicList = this.isomorphicGraphs.indexOf(isomorphicGraphList);
-            logger.debug("\tChecking color isomorphism for graphs in bag #{}.", indexIsomorphicList);
-            if (this.graphRenderer != null) {
-                this.graphRenderer.writeDotFile(indexIsomorphicList.toString(), this.connectedGraphFeatures.get(isomorphicGraphList.get(0)), false);
-            }
-            List<GraphFeatures> isomorphicGraphsTemp = new ArrayList<>();
-
-            List<GraphFeatures> colorIsoGF = new ArrayList();
-            Integer colorIsoGroupIndex = -1;
-            for (Integer graphNr : isomorphicGraphList) {
-                GraphFeatures gf = this.connectedGraphFeatures.get(graphNr);
-                logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
-                isomorphicGraphsTemp.add(gf);
-
-                boolean createNewColorIsomorphismBag = true;
-                for (GraphFeatures coloredGF: colorIsoGF) {
-                    Set<String> verticesOfGraph = gf.getSimpleGraph().vertexSet();
-                    Set<String> verticesOfGraphToCheck = coloredGF.getSimpleGraph().vertexSet();
-                    List<String> classesGraph = new ArrayList<>();
-                    List<String> classesGraphToCheck = new ArrayList<>();
-                    for (String v: verticesOfGraph) {
-                        classesGraph.add(this.dataset.getClassForSubject(v));
-                    }
-                    for (String v: verticesOfGraphToCheck) {
-                        classesGraphToCheck.add(this.dataset.getClassForSubject(v));
-                    }
-                    Collections.sort(classesGraph);
-                    Collections.sort(classesGraphToCheck);
-                    if (!classesGraph.equals(classesGraphToCheck)) {
-                        continue;
-                    }
-
-                    PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF.getSimpleGraph(), gf.getSimpleGraph()); // , new VertexDegreeEquivalenceComparator(), null
-                    while (inspector.hasNext()) {
-                        boolean colorIsomorph = true;
-                        IsomorphismRelation graphMapping = inspector.nextIsoRelation();
-                        for (String v : gf.getVertices()) {
-                            String correspondingVertex = graphMapping.getVertexCorrespondence(v, false).toString();
-                            String vClass = dataset.getClassForSubject(v);
-                            if (!dataset.getClassForSubject(correspondingVertex).equals(vClass)) {
-                                colorIsomorph = false;
-                            }
-                        }
-                        if (colorIsomorph) {
-                            createNewColorIsomorphismBag = false;
-                            colorIsoGroupIndex = colorIsoGF.indexOf(coloredGF);
-                            logger.debug("\t\tAdding to color isomorphism bag #{}.", colorIsoGroupIndex);
-                            break;
-                        }
-                    }
-                }
-                if (createNewColorIsomorphismBag) {
-                    List<String> coloredIso = new ArrayList<>();
-                    if (colorIsomorphicPatterns.containsKey(isomorphicGraphs.indexOf(isomorphicGraphList))) {
-                        coloredIso = colorIsomorphicPatterns.get(isomorphicGraphs.indexOf(isomorphicGraphList));
-                    }
-                    coloredIso.add(JsonOutput.getJsonColoredGroup(gf, this.dataset).toString());
-                    colorIsomorphicPatterns.put(indexIsomorphicList, coloredIso);
-                    colorIsoGF.add(gf);
-                    colorIsoGroupIndex = colorIsoGF.size() - 1;
-                    logger.debug("\t\tCreating new color isomorphism bag #{}.", colorIsoGroupIndex);
-                }
-
-                HashMap<Integer, List<String>> colored = new HashMap<>();
-                List<String> coloredList = new ArrayList<>();
-                if (this.coloredPatterns.containsKey(indexIsomorphicList)) {
-                    colored = this.coloredPatterns.get(indexIsomorphicList);
-                    if (colored.containsKey(colorIsoGroupIndex)) {
-                        coloredList = colored.get(colorIsoGroupIndex);
-                    }
-                }
-                coloredList.add(JsonOutput.getJsonColored(gf, this.dataset).toString());
-                colored.put(colorIsoGroupIndex, coloredList);
-                this.coloredPatterns.put(indexIsomorphicList, colored);
-            }
-            logger.info("Patterns");
-                if (isomorphicGraphsTemp.get(0).getEdgeCount() <= MAX_SIZE_FOR_ISO) {
-                logger.info(isomorphicGraphsTemp.size() + " x ");
-                logger.info(JsonOutput.getJson(this.connectedGraphFeatures.get(isomorphicGraphList.get(0))).toString());
-                HashMap patternTemp = new HashMap<>();
-                patternTemp.put(JsonOutput.getJson(this.connectedGraphFeatures.get(isomorphicGraphList.get(0))).toString(), isomorphicGraphList.size());
-                patterns.put(indexIsomorphicList, patternTemp);
-                patternDiameter.put(indexIsomorphicList, this.connectedGraphFeatures.get(isomorphicGraphList.get(0)).getDiameter());
-
-                if (this.graphRenderer != null) {
-                    this.graphRenderer.writeDotFiles(indexIsomorphicList.toString() + "_detailed", isomorphicGraphsTemp, true);
-                }
-            }
-        }
-    }
-    */
-
     private void printComponentSizeAndCount(Collection<Set<String>> sets) {
         Multiset<Integer> sizes = TreeMultiset.create();
         for (Set<String> component : sets) {
@@ -1936,6 +1818,10 @@ public class GraphLOD {
         return NumberFormat.getNumberInstance(Locale.US).format(integer);
     }
 
+    /**
+     * Loads a dataset from files.
+     * For ProLOD++.
+     */
     public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
         return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, true);
         /* GraphStatistics graphStats = new GraphStatistics();
@@ -1971,6 +1857,18 @@ public class GraphLOD {
     private void getStatistics() {
         this.nodes = this.dataset.getGraph().vertexSet().size();
         this.edges = this.dataset.getGraph().edgeSet().size();
+    }
+
+    public void createComponents() {
+        List<Set<String>> sets = graphFeatures.getConnectedSets();
+        logger.info("Connected sets: " + formatInt(sets.size()));
+        printComponentSizeAndCount(sets);
+
+        if (graphFeatures.isConnected()) {
+            connectedGraphFeatures.add(graphFeatures);
+        } else {
+            connectedGraphFeatures = graphFeatures.createSubGraphFeatures(graphFeatures.getConnectedSets());
+        }
     }
 
     public class GraphLODComparator implements Comparator<List<?>>{
