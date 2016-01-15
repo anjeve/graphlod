@@ -7,6 +7,7 @@ import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultDirectedGraph;
+import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.graph.SimpleGraph;
 import org.semanticweb.yars.nx.Node;
 import org.semanticweb.yars.nx.parser.NxParser;
@@ -25,10 +26,10 @@ public class Dataset {
 
     private static final Map<String, String> classes = new HashMap<>(); // mapping from entities to their class
 
-    private DirectedGraph<String, DefaultEdge> g = new DefaultDirectedGraph<>(DefaultEdge.class);
+    private final DirectedGraph<String, DefaultEdge> g = new DirectedPseudograph<>(DefaultEdge.class);
     private final String namespace;
     private final String ontologyNamespace;
-    private SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
+    private final SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
     private final Collection<String> excludedNamespaces;
     private final Set<String> removeVertices = new HashSet<>();
     private final Set<String> ontologyClasses = new HashSet<>(); // list of all classes
