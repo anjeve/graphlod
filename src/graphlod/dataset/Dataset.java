@@ -56,6 +56,7 @@ public class Dataset {
     }
 
     public static Dataset fromFiles(Collection<String> datasets, String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
+        logger.info("excluded namespaces: " + excludedNamespaces);
         Validate.notNull(datasets, "datasets must not be null");
         Dataset s = new Dataset(name, namespace, ontologyNamespace, excludedNamespaces);
 

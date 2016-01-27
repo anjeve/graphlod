@@ -10,6 +10,7 @@ import java.util.Locale;
 
 public class SatelliteComponentAnalysis {
     private static Logger logger = LoggerFactory.getLogger(SatelliteComponentAnalysis.class);
+    private GraphLOD graphLod;
 
     public SatelliteComponentAnalysis(ArgumentParser arguments) {
         new SatelliteComponentAnalysis(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
@@ -18,7 +19,7 @@ public class SatelliteComponentAnalysis {
     public SatelliteComponentAnalysis(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
         logger.info("Satellite component analysis");
 
-        GraphLOD graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces, true);
         List<GraphFeatures> connectedComponents = graphLod.getConnectedComponents();
 
         if (connectedComponents.size() > 1) {
@@ -27,6 +28,10 @@ public class SatelliteComponentAnalysis {
                 graphLod.findPatternsInSatelliteComponents();
             }
         }
+    }
+
+    public GraphLOD getGraphLodInstance() {
+        return this.graphLod;
     }
 
     public static void main(final String[] args) {

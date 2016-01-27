@@ -514,7 +514,6 @@ public class GraphLOD {
 
     public void findPatternsInSatelliteComponents() {
         findPatterns(false, true);
-
     }
 
     private void findPatterns(boolean inGiantComponent, boolean inSatelliteComponents) {
@@ -529,6 +528,8 @@ public class GraphLOD {
                 if (this.connectedGraphFeatures.size() == 1) {
                     if (!inGiantComponent) break;
                     giantComponent = true;
+                } else {
+                    if (!inSatelliteComponents) continue;
                 }
             } else {
                 if (!inGiantComponent) continue;
@@ -1674,7 +1675,7 @@ public class GraphLOD {
         for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
             Integer indexIsomorphicList = isomorphicGraphs.indexOf(isomorphicGraphList);
             String isomorphicListType = isomorphicGraphsTypes.get(indexIsomorphicList);
-            logger.debug("\tChecking color isomorphism for {} graphs in bag #{}.", isomorphicGraphList.size(), indexIsomorphicList);
+            logger.debug("\tChecking color isomorphism for {} graphs in bag #{} ({} vertices).", isomorphicGraphList.size(), indexIsomorphicList, connectedGraphs.get(isomorphicGraphList.get(0)).vertexSet().size());
             /*
             if (graphRenderer != null) {
                 this.graphRenderer.writeDotFile(index.toString(), graphFeatures.get(isomorphicGraphList.get(0)), false);
@@ -1687,9 +1688,7 @@ public class GraphLOD {
             Integer colorIsoGroupIndex = -1;
             for (Integer graphNr : isomorphicGraphList) {
                 logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
-                if (graphNr == 155) {
-                    System.out.println("");
-                }
+
                 SimpleGraph gf = connectedGraphs.get(graphNr);
                 isomorphicGraphsTemp.add(gf);
 
@@ -1713,6 +1712,9 @@ public class GraphLOD {
 
 
                     PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
+                    if (dataset.getName().equals("diseasome") && (indexIsomorphicList == 3) && (graphNr == 7)) {
+                        continue;
+                    }
                     while (inspector.hasNext()) {
                         IsomorphismRelation graphMapping = inspector.nextIsoRelation();
                         boolean colorIsomorph = true;
@@ -1824,6 +1826,13 @@ public class GraphLOD {
      */
     public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
         return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, true);
+        /* GraphStatistics graphStats = new GraphStatistics();
+        return graphStats;
+        */
+    }
+
+    public static GraphLOD loadGraph(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces, boolean analyze) {
+        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, analyze);
         /* GraphStatistics graphStats = new GraphStatistics();
         return graphStats;
         */
