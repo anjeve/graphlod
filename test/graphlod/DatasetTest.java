@@ -2,16 +2,23 @@ package graphlod;
 
 
 import graphlod.dataset.Dataset;
+
+import javax.activation.DataSource;
+import javax.xml.crypto.Data;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+
 import org.jgraph.graph.DefaultEdge;
 import org.jgraph.graph.Edge;
 import org.jgrapht.DirectedGraph;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-
-import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ImmutableList;
 
 import static graphlod.TestUtils.*;
 import static org.hamcrest.Matchers.*;
@@ -44,9 +51,9 @@ public class DatasetTest {
         Dataset dataset = Dataset.fromLines(lines, "", "", "", excluded);
 
         DirectedGraph<String, DefaultEdge> graph = dataset.getGraph();
-        Edge edge = graph.getEdge(url("a"),url("b"));
-        assertThat(edge.getSource(), equalTo((Object)url("a")));
-        assertThat(edge.getTarget(), equalTo((Object)url("b")));
+        Edge edge = graph.getEdge(url("a"), url("b"));
+        assertThat(edge.getSource(), equalTo((Object) url("a")));
+        assertThat(edge.getTarget(), equalTo((Object) url("b")));
     }
 
     public void testNamespace() {
@@ -54,7 +61,7 @@ public class DatasetTest {
         lines.add(createStatement("a/Thing", "p1", "a/NotOther"));
 
         Dataset dataset = Dataset.fromLines(lines, "", "http://a/", "http://a/", Arrays.asList("http://classes/"));
-        assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a/Thing"),url("a/NotOther")));
+        assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a/Thing"), url("a/NotOther")));
         assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
         assertThat(dataset.getGraph().getEdge(url("a/Thing"), url("a/NotOther")), notNullValue());
     }
@@ -66,7 +73,7 @@ public class DatasetTest {
         lines.add(createStatement("a", "p1", "b"));
 
         Dataset dataset = Dataset.fromLines(lines, "", "http://", "", Arrays.asList("http://classes/"));
-        assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a"),url("b")));
+        assertThat(dataset.getGraph().vertexSet(), containsInAnyOrder(url("a"), url("b")));
         assertThat(dataset.getGraph().edgeSet().size(), equalTo(1));
 
         assertThat(dataset.getGraph().getEdge(url("a"), url("b")), notNullValue());
@@ -84,5 +91,75 @@ public class DatasetTest {
         assertThat(dataset.getOntologySubclasses().get(Dataset.OWL_THING), containsInAnyOrder(url("c0")));
         assertThat(dataset.getOntologySubclasses().get(url("c0")), containsInAnyOrder(url("c1"), url("c2")));
         assertThat(dataset.getOntologySubclasses().get(url("c1")), containsInAnyOrder(url("c11")));
+    }
+
+    @Test
+    public void testGraphMl() throws IOException {
+        String data = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\"\n" +
+                "    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
+                "    xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns\n" +
+                "     http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">\n" +
+
+                "  <key id=\"type\" for=\"node\" attr.name=\"type\" attr.type=\"string\"/>\n" +
+                "  <key id=\"property\" for=\"edge\" attr.name=\"property\" attr.type=\"string\"/>" +
+                "  <key id=\"url\" for=\"edge\" attr.name=\"url\" attr.type=\"string\"/>" +
+
+                "  <graph id=\"G\" edgedefault=\"directed\">\n" +
+                "    <node id=\"A\">\n" +
+                "      <data key=\"type\">C1</data>\n" +
+                "      <data key=\"url\">http://A</data>\n" +
+                "    </node>"+
+                "    <node id=\"B\">" +
+                "      <data key=\"type\">C2</data>\n" +
+                "    </node>"+
+                "    <node id=\"C\"/>\n" +
+                "    <node id=\"D\"/>\n" +
+                "    <edge id=\"ab\" source=\"A\" target=\"B\" >\n" +
+                "       <data key=\"property\">p1</data>\n" +
+                "    </edge>\n" +
+                "    <edge id=\"ac\" source=\"A\" target=\"C\" />\n" +
+                "    <edge id=\"bc\" source=\"B\" target=\"C\" />\n" +
+                "    <edge id=\"ca\" source=\"C\" target=\"A\" />\n" +
+                "    <edge id=\"cd\" source=\"C\" target=\"D\" />\n" +
+                "  </graph>\n" +
+                "</graphml>";
+
+        Dataset ds = Dataset.fromGraphML(new ByteArrayInputStream(data.getBytes()), "GraphMLTest", "property", "type");
+
+        assertThat(ds.getSimpleGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
+        assertThat(ds.getGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
+
+        assertThat(ds.getOntologyClasses(), containsInAnyOrder("C1", "C2"));
+        assertThat(ds.getOntologySubclasses().asMap(), hasEntry("http://www.w3.org/2002/07/owl#Thing",
+                (Collection<String>) ImmutableList.of("C1", "C2")));
+
+        assertThat(ds.getLabel("A"), equalTo("http://A"));
+
+        assertThat(ds.getClassForSubject("A"), equalTo("C1"));
+        assertThat(ds.getClassForSubject("B"), equalTo("C2"));
+
+        assertThat(ds.getGraph().edgesOf("A"), hasSize(3)); // ab, ac, ca
+        assertThat(ds.getGraph().edgesOf("B"), hasSize(2)); // ab, ba
+        assertThat(ds.getGraph().edgesOf("C"), hasSize(4)); // ac, bc, ca, cd
+        assertThat(ds.getGraph().edgesOf("D"), hasSize(1)); // cd
+
+        assertThat(ds.getSimpleGraph().edgesOf("A"), hasSize(2)); // ab, ca
+        assertThat(ds.getSimpleGraph().edgesOf("B"), hasSize(2)); // ab, ba
+        assertThat(ds.getSimpleGraph().edgesOf("C"), hasSize(3)); // ac, bc, cd
+        assertThat(ds.getSimpleGraph().edgesOf("D"), hasSize(1)); // cd
+    }
+
+    @Ignore
+    @Test
+    public void testSWT() {
+        String file = "C:\\data\\swt2_2015_cleaned.graphml";
+        Dataset ds = Dataset.fromGraphML(file, "SWT", "label_", "labels");
+
+        assertThat(ds.getLabel("n0"), equalTo("https://api.github.com/users/mandyklingbeil"));
+        assertThat(ds.getClassForSubject("n0"), equalTo(":GithubUser"));
+
+        DefaultEdge edge = ds.getGraph().getEdge("n1", "n0");
+        assertThat((String)edge.getUserObject(), equalTo("user"));
     }
 }
