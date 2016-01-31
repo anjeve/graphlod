@@ -1,12 +1,24 @@
 package graphlod.dataset;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
-import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DirectedPseudograph;
 import org.jgrapht.graph.SimpleGraph;
 import org.semanticweb.yars.nx.Node;
@@ -14,12 +26,15 @@ import org.semanticweb.yars.nx.parser.NxParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.*;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.tinkerpop.blueprints.Direction;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.Graph;
+import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.impls.tg.TinkerGraph;
+import com.tinkerpop.blueprints.util.io.graphml.GraphMLReader;
 
 public class Dataset {
     private static Logger logger = LoggerFactory.getLogger(Dataset.class);
@@ -37,8 +52,7 @@ public class Dataset {
     private final Map<String, String> labels = new HashMap<>();
     private final String name;
 
-    public static String OWL_THING = "http://www.w3.org/2002/07/owl#Thing";
-
+    public static final String OWL_THING = "http://www.w3.org/2002/07/owl#Thing";
 
     private Dataset(String name, String namespace, String ontologyNamespace, Collection<String> excludedNamespaces) {
         Validate.notNull(namespace, "namespace must not be null");
@@ -76,6 +90,58 @@ public class Dataset {
         return s;
     }
 
+    public static Dataset fromGraphML(String file, String name, String propertyKey, String classkey) {
+        try {
+            InputStream input = Files.newInputStream(Paths.get(file));
+            return fromGraphML(input, name, propertyKey, classkey);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Dataset fromGraphML(InputStream dataset, String name, String propertyKey, String classKey) throws IOException {
+        Graph graph = new TinkerGraph();
+        GraphMLReader reader = new GraphMLReader(graph);
+        reader.inputGraph(dataset);
+
+        Dataset ds = new Dataset(name, "", "", Collections.<String>emptyList());
+        ds.readGraph(graph, propertyKey, classKey);
+        return ds;
+
+    }
+
+    private void readGraph(Graph inputGraph, String propertyKey, String classKey) {
+        for (Vertex vertex : inputGraph.getVertices()) {
+            String v = vertex.getId().toString();
+
+            simpleGraph.addVertex(v);
+            g.addVertex(v);
+            String clazz = (String) vertex.getProperty(classKey);
+            if (clazz != null) {
+                classes.put(v, clazz);
+                ontologyClasses.add(clazz);
+            }
+            String label = vertex.getProperty("url");
+            if (label != null) {
+                labels.put(v, label);
+            }
+        }
+        for (Edge edge : inputGraph.getEdges()) {
+            String source = edge.getVertex(Direction.OUT).getId().toString();
+            String target = edge.getVertex(Direction.IN).getId().toString();
+            String property = edge.getProperty(propertyKey);
+
+            simpleGraph.addEdge(source, target);
+
+            DefaultEdge e = new DefaultEdge(property);
+            e.setSource(source);
+            e.setTarget(target);
+            g.addEdge(source, target, e);
+        }
+
+        postProcessClassHierarchy();
+    }
+
     private void readTriples(NxParser nxp) {
 
         while (nxp.hasNext()) {
@@ -104,7 +170,7 @@ public class Dataset {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
                 } else if (objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class") ||
-                           objectUri.equals("http://www.w3.org/2002/07/owl#Class")) {
+                        objectUri.equals("http://www.w3.org/2002/07/owl#Class")) {
                     removeVertices.add(subjectUri);
                     removeVertices.add(objectUri);
                 } else if (objectUri.startsWith(ontologyNamespace) && !classes.containsKey(subjectUri)) {
@@ -193,7 +259,7 @@ public class Dataset {
     }
 
     public static String getClass(String subjectUri) {
-    	return classes.get(subjectUri);
+        return classes.get(subjectUri);
     }
 
     public String getClassForSubject(String subjectUri) {
