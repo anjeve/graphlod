@@ -47,10 +47,11 @@ public class GraphLOD {
     public static final String SIAMESE_STAR = "Siamese Star";
     public static final String DOUBLY_LINKED_PATH = "Doubly Linked Path";
     public static final String PATH = "Path";
-    public static final String CATERPILLAR = "Caterpillar Graph";
-    public static final String LOBSTER = "Lobster Graph";
+    public static final String CATERPILLAR = "Caterpillar";
+    public static final String LOBSTER = "Lobster";
+    public static final String ANTENNA = "Antenna";
     public static final String CIRCLE = "Circle";
-    public static final String WINDMILL = "Windmill Graph";
+    public static final String WINDMILL = "Windmill ";
     public static final String WHEEL = "Wheel Graph";
     public static final String UNRECOGNIZED = "";
     public static final String STRONGLY_CONNECTED = "Strongly Connected Component";
@@ -544,8 +545,10 @@ public class GraphLOD {
             List<String> verticesInPaths = new ArrayList<>();
             List<String> verticesInCompleteGraph = new ArrayList<>();
             List<String> verticesInCaterpillars = new ArrayList<>();
+            List<String> verticesInLobsters = new ArrayList<>();
             List<String> verticesInCircles = new ArrayList<>();
             List<String> verticesInDoublyLinkedLists = new ArrayList<>();
+            List<String> verticesInAntennas = new ArrayList<>();
             List<String> verticesInWindmills = new ArrayList<>();
             List<String> verticesInWheels = new ArrayList<>();
             List<String> verticesInStars = new ArrayList<>();
@@ -587,9 +590,26 @@ public class GraphLOD {
                     }
                 }
 
-                if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v)) {
+                // Caterpillar
+                if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v) && !verticesInLobsters.contains(v)) {
                     boolean isCaterpillar = checkVertexAsStartOfCaterpillar(graph, v, verticesInCaterpillars, giantComponent);
                     if (isCaterpillar) {
+                        added = true;
+                    }
+                }
+
+                // Lobster
+                if (!verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v) && !verticesInLobsters.contains(v)) {
+                    boolean isLobster = checkVertexAsStartOfLobster(graph, v, verticesInLobsters, giantComponent);
+                    if (isLobster) {
+                        added = true;
+                    }
+                }
+
+                // Antenna
+                if (!verticeCentreOfStar.contains(v) && !verticesInDoublyLinkedLists.contains(v) && !verticesInPaths.contains(v) && !verticesInCaterpillars.contains(v) && !verticesInAntennas.contains(v)) {
+                    boolean isAntenna = checkVertexAsCentreOfAntenna(graph, v, verticesInAntennas, giantComponent);
+                    if (isAntenna) {
                         added = true;
                     }
                 }
@@ -615,7 +635,6 @@ public class GraphLOD {
                             added = true;
                         }
                     }
-
 
                     if (!verticesInCompleteGraph.contains(v)) {
                         boolean isComplete = checkVertexinCompleteGraph(graph, v, verticesInCompleteGraph, giantComponent);
@@ -821,8 +840,13 @@ public class GraphLOD {
     }
 
     private boolean checkVertexinCompleteGraph(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInCompleteGraph, boolean giantComponent) {
+
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v);
-        for (String vertex: neighbourVertices) {
+        for (String neighbourVertex: neighbourVertices) {
+            List<String> neighbourVertices2 = GraphUtils.getNeighboursOfV(graph, neighbourVertex);
+            if (neighbourVertices2.size() < neighbourVertices.size()) {
+              //
+            }
             // TODO
         }
         //addPatterns(verticesInWindmills, neighbourVertices, graph, windmillGraph, simpleWindmillGraph, windmillGraph2, WINDMILL);
@@ -1286,7 +1310,38 @@ public class GraphLOD {
         return path;
     }
 
-    private boolean checkVertexAsStartOfCaterpillar(DirectedGraph graph, String v, List<String> verticesInPaths, boolean giantComponent) {
+    private boolean checkVertexAsStartOfLobster(DirectedGraph graph, String v, List<String> verticesInLobsters, boolean giantComponent) {
+        List<String> pathInLobster = new ArrayList<>();
+        List<String> path = checkVertexAsPartOfLobster(graph, v, new ArrayList<String>(), pathInLobster);
+        if (path.size() <= pathInLobster.size()) return false;
+
+        if (!giantComponent && (path.size() < graph.vertexSet().size())) {
+            return false;
+        }
+
+        if (pathInLobster.size() >= 4) {
+            DirectedGraph<String, DefaultEdge> doublyLinkedPath = new DefaultDirectedGraph<>(DefaultEdge.class);
+            SimpleGraph<String, DefaultEdge> simpleDoublyLinkedPath = new SimpleGraph<>(DefaultEdge.class);
+            DirectedGraph<String, DefaultEdge> doublyLinkedPath2 = new DefaultDirectedGraph<>(DefaultEdge.class);
+            for (String vertex : path) {
+                doublyLinkedPath.addVertex(vertex);
+                simpleDoublyLinkedPath.addVertex(vertex);
+                for (String alreadyAdded : simpleDoublyLinkedPath.vertexSet()) {
+                    addEdges(doublyLinkedPath, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                    addEdges(doublyLinkedPath, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+                    addEdges(simpleDoublyLinkedPath, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                    addEdges(simpleDoublyLinkedPath, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+                }
+            }
+            addPatterns(verticesInLobsters, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, LOBSTER, giantComponent);
+        } else if (pathInLobster.size() >= 3) {
+            logger.info("Lobster of length {} found", path.size());
+            return false;
+        }
+        return true;
+    }
+
+    private boolean checkVertexAsStartOfCaterpillar(DirectedGraph graph, String v, List<String> verticesInCaterpillars, boolean giantComponent) {
         List<String> pathInCaterpillar = new ArrayList<>();
         List<String> path = checkVertexAsPartOfCaterpillar(graph, v, new ArrayList<String>(), pathInCaterpillar);
         if (path.size() <= pathInCaterpillar.size()) return false;
@@ -1309,7 +1364,7 @@ public class GraphLOD {
                     addEdges(simpleDoublyLinkedPath, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
                 }
             }
-            addPatterns(verticesInPaths, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, CATERPILLAR, giantComponent);
+            addPatterns(verticesInCaterpillars, path, graph, doublyLinkedPath, simpleDoublyLinkedPath, doublyLinkedPath2, CATERPILLAR, giantComponent);
         } else if (pathInCaterpillar.size() >= 3) {
             logger.info("Caterpillar of length {} found", path.size());
             return false;
@@ -1373,6 +1428,62 @@ public class GraphLOD {
         return path;
     }
 
+    private List<String> checkVertexAsPartOfLobster(DirectedGraph graph, String v, List<String> visited, List<String> mainPath) {
+        if (visited.contains(v)) return new ArrayList<>();
+
+        String nextVertex = null;
+        boolean lastVertex = false;
+        List<String> neighbourV = GraphUtils.getNeighboursOfV(graph, v);
+        if (((visited.size() > 0) && (neighbourV.size() > 1)) || ((neighbourV.size() == 1) && (visited.size() > 1))) {
+            int lastVertexIndex = visited.size() - 1;
+            neighbourV.remove(visited.get(lastVertexIndex));
+        }
+        visited.add(v);
+        mainPath.add(v);
+        List<String> path = new ArrayList<>();
+        if (visited.size() == 1) {
+            // TODO there could be more than one option here
+            for (String oppositeVertex : neighbourV) {
+                if (graph.edgesOf(oppositeVertex).size() > 2) {
+                    continue;
+                }
+                nextVertex = oppositeVertex;
+                break;
+            }
+        } else {
+            if (neighbourV.size() == 1) {
+                nextVertex = neighbourV.get(0);
+                if (nextVertex.equals(visited.get(0))) {
+                    return new ArrayList<>();
+                }
+            } else if (neighbourV.size() == 0) {
+                lastVertex = true;
+            } else if (neighbourV.size() > 1) {
+                nextVertex = checkIfAllNeighboursCouldBePartOfLobster(graph, neighbourV, v, visited);
+                if (nextVertex != null) {
+                    if (nextVertex.equals(visited.get(0))) {
+                        return new ArrayList<>();
+                    }
+                    for (String neighbourVertex: neighbourV) {
+                        if (!v.equals(neighbourVertex)) {
+                            path.add(neighbourVertex);
+                        }
+                    }
+                } else {
+                    lastVertex = true;
+                }
+            }
+        }
+        if ((nextVertex != null) && !lastVertex) {
+            List<String> restPath = checkVertexAsPartOfLobster(graph, nextVertex, visited, mainPath);
+            if (restPath.isEmpty()) return new ArrayList<>();
+            restPath.removeAll(path);
+            path.addAll(restPath);
+        }
+        path.add(v);
+        return path;
+    }
+
     private String checkIfAllNeighboursCouldBePartOfCaterpillar(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
         boolean alreadyOnVerticeWithNeighbour = false;
         String nextV = null;
@@ -1403,6 +1514,81 @@ public class GraphLOD {
             nextV = neighbourV.get(0);
         }
         return nextV;
+    }
+
+    private String checkIfAllNeighboursCouldBePartOfLobster(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
+        boolean alreadyOnVerticeWithNeighbour = false;
+        String nextV = null;
+        Set<Integer> neighbourList = new HashSet<>();
+        for (String v: neighbourV) {
+            // TODO check
+            if (visited.contains(v)) {
+                return null;
+            }
+            List<String> neighboursOfV = GraphUtils.getNeighboursOfV(graph, v);
+            neighboursOfV.remove(v); // TODO rather v?
+            if (neighboursOfV.size() > 0) {
+                for (String n: neighboursOfV) {
+                    if (visited.contains(n)) {
+                        return null;
+                    }
+                }
+                if (alreadyOnVerticeWithNeighbour) {
+                    return null;
+                }
+                alreadyOnVerticeWithNeighbour = true;
+                nextV = v;
+            }
+            neighbourList.add(neighboursOfV.size());
+        }
+        // if end contains only paths of length 1
+        if (neighbourList.contains(0) && (neighbourList.size() == 1)) {
+            nextV = neighbourV.get(0);
+        }
+        return nextV;
+    }
+
+    private boolean checkVertexAsCentreOfAntenna(DirectedGraph graph, String v_center, List<String> verticesInAntennas, boolean giantComponent) {
+        List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v_center);
+        if (neighbourVertices.size() < 4) {
+            return false;
+        }
+        int nrOfVerticesWith3Neighbours = 0;
+        for (String neighbourVertex: neighbourVertices) {
+            List<String> neighbourVertices2 = GraphUtils.getNeighboursOfV(graph, neighbourVertex);
+            neighbourVertices2.retainAll(neighbourVertices);
+            if (neighbourVertices2.size() == 1) {
+                nrOfVerticesWith3Neighbours += 1;
+                if (nrOfVerticesWith3Neighbours > 2) {
+                    return false;
+                }
+            } else if (neighbourVertices2.size() != 0) {
+                return false;
+            }
+        }
+        if (nrOfVerticesWith3Neighbours != 2) {
+            return false;
+        }
+
+        DirectedGraph<String, DefaultEdge> directedGraph = new DefaultDirectedGraph<>(DefaultEdge.class);
+        SimpleGraph<String, DefaultEdge> simpleGraph = new SimpleGraph<>(DefaultEdge.class);
+        DirectedGraph<String, DefaultEdge> surroundingGraph = new DefaultDirectedGraph<>(DefaultEdge.class);
+        directedGraph.addVertex(v_center);
+        simpleGraph.addVertex(v_center);
+        for (String vertex : neighbourVertices) {
+            directedGraph.addVertex(vertex);
+            simpleGraph.addVertex(vertex);
+            for (String alreadyAdded : simpleGraph.vertexSet()) {
+                addEdges(directedGraph, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                addEdges(directedGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+                addEdges(simpleGraph, graph.getAllEdges(vertex, alreadyAdded), vertex, alreadyAdded);
+                addEdges(simpleGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
+            }
+        }
+        addPatterns(verticesInAntennas, neighbourVertices, graph, directedGraph, simpleGraph, surroundingGraph, ANTENNA, giantComponent);
+        verticesInAntennas.add(v_center);
+        logger.info("Antenna of size {} found", directedGraph.vertexSet().size());
+        return true;
     }
 
     private boolean checkVertexAsCentreOfInboundStar(DirectedGraph graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
