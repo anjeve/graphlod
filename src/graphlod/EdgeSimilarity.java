@@ -1,6 +1,7 @@
 package graphlod;
 
 import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
 import graphlod.graph.Edge;
 import graphlod.output.JsonOutput;
 import org.jgraph.graph.DefaultEdge;
@@ -20,13 +21,13 @@ public class EdgeSimilarity {
     public HashMap<Integer, HashMap<Edge, Integer>> differenceToFirstElement = new HashMap<>();
 
     public EdgeSimilarity(ArgumentParser arguments) {
-        new EdgeSimilarity(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        this(arguments.getName(), Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces()));
     }
 
-    public EdgeSimilarity(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+    public EdgeSimilarity(String name, Dataset dataset) {
         logger.info("Similar edge generation");
 
-        GraphLOD graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        GraphLOD graphLod = GraphLOD.loadGraph(name, dataset, false);
         GraphFeatures graphFeatures = graphLod.graphFeatures;
         List<GraphFeatures> connectedGraphs = new ArrayList<>();
         if (graphFeatures.isConnected()) {

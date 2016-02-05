@@ -1,6 +1,7 @@
 package graphlod;
 
 import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
 import graphlod.output.JsonOutput;
 import org.jgrapht.graph.SimpleGraph;
 
@@ -12,11 +13,11 @@ public class MinimizeGraphs {
     public HashMap<Integer, Integer> isoGroups = new HashMap<>();
 
     public MinimizeGraphs(ArgumentParser arguments) {
-        new MinimizeGraphs(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        this(arguments.getName(), Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces()));
     }
 
-    public MinimizeGraphs(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        GraphLOD graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces);
+    public MinimizeGraphs(String name, Dataset dataset) {
+        GraphLOD graphLod = GraphLOD.loadGraph(name, dataset, false);
         GraphFeatures graphFeatures = graphLod.graphFeatures;
         List<GraphFeatures> connectedGraphs = new ArrayList<>();
         if (graphFeatures.isConnected()) {
