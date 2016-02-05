@@ -89,38 +89,37 @@ public class Dataset {
         return s;
     }
 
-    public static Dataset fromGraphML(String file, String name, String propertyKey, String classkey) {
+    public static Dataset fromGraphML(String file, String name, GraphMLHandler handler) {
         try {
             InputStream input = Files.newInputStream(Paths.get(file));
-            return fromGraphML(input, name, propertyKey, classkey);
+            return fromGraphML(input, name, handler);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static Dataset fromGraphML(InputStream dataset, String name, String propertyKey, String classKey) throws IOException {
+    public static Dataset fromGraphML(InputStream dataset, String name, GraphMLHandler handler) throws IOException {
         Graph graph = new TinkerGraph();
         GraphMLReader reader = new GraphMLReader(graph);
         reader.inputGraph(dataset);
 
         Dataset ds = new Dataset(name, "", "", Collections.<String>emptyList());
-        ds.readGraph(graph, propertyKey, classKey);
+        ds.readGraph(graph, handler);
         return ds;
-
     }
 
-    private void readGraph(Graph inputGraph, String propertyKey, String classKey) {
+    private void readGraph(Graph inputGraph, GraphMLHandler handler) {
         for (Vertex vertex : inputGraph.getVertices()) {
             String v = vertex.getId().toString();
 
             simpleGraph.addVertex(v);
             g.addVertex(v);
-            String clazz = (String) vertex.getProperty(classKey);
+            String clazz = handler.getClass(vertex);
             if (clazz != null) {
                 classes.put(v, clazz);
                 ontologyClasses.add(clazz);
             }
-            String label = vertex.getProperty("url");
+            String label = handler.getLabel(vertex);
             if (label != null) {
                 labels.put(v, label);
             }
@@ -128,7 +127,7 @@ public class Dataset {
         for (Edge edge : inputGraph.getEdges()) {
             String source = edge.getVertex(Direction.OUT).getId().toString();
             String target = edge.getVertex(Direction.IN).getId().toString();
-            String property = edge.getProperty(propertyKey);
+            String property = handler.getPropertyName(edge);
 
             simpleGraph.addEdge(source, target);
 
@@ -137,7 +136,6 @@ public class Dataset {
             e.setTarget(target);
             g.addEdge(source, target, e);
         }
-
         postProcessClassHierarchy();
     }
 

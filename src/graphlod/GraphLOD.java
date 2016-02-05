@@ -3,12 +3,15 @@ package graphlod;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Verify;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.algorithms.PermutationClassIsomorphismInspector;
 import graphlod.dataset.Dataset;
+import graphlod.dataset.GraphMLHandler;
+import graphlod.dataset.SWTGraphMLHandler;
 import graphlod.graph.BFSMinimizingOrderedIterator;
 import graphlod.graph.BFSOrderedIterator;
 import graphlod.graph.Degree;
@@ -126,16 +129,24 @@ public class GraphLOD {
     private BufferedWriter outStatsOutboundCsv;
     public Integer bigComponentSize;
 
-    public GraphLOD(ArgumentParser arguments) {
-        this.graphRenderer = null;
-        new GraphLOD(arguments.getName(), arguments.getDataset(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(),
-                arguments.isExportGrami(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces(), arguments.getMinImportantSubgraphSize(),
-                arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly(), true);
+    public static GraphLOD fromArguments(ArgumentParser arguments) {
+        GraphLOD g = new GraphLOD(arguments.getName(), arguments.isSkipGraphviz(), arguments.isExportJson(), arguments.isExportGrami(),
+                                  arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly());
+        g.processRDFGraphFeatures(arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        g.finish(arguments.isSkipChromatic(), arguments.getMinImportantSubgraphSize(), arguments.getImportantDegreeCount(), true);
+        return g;
     }
 
     public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
                     boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
                     int importantDegreeCount, int bigComponentSize, String output, int threadCount, boolean apiOnly, boolean analyzeAlso) {
+        this(name, skipGraphviz, exportJson, exportGrami, bigComponentSize, output, threadCount, apiOnly);
+        processRDFGraphFeatures(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        finish(skipChromaticNumber, minImportantSubgraphSize, importantDegreeCount, analyzeAlso);
+    }
+
+    public GraphLOD(String name, boolean skipGraphviz, boolean exportJson, boolean exportGrami,
+                     int bigComponentSize, String output, int threadCount, boolean apiOnly) {
         this.output = output;
         this.name = name;
         this.exportJson = exportJson;
@@ -152,8 +163,21 @@ public class GraphLOD {
         } else {
             this.bigComponentSize = MAX_SIZE_FOR_PROLOD;
         }
+    }
+    public void processRDFGraphFeatures(Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        Verify.verify(graphFeatures == null);
+        dataset = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+        graphFeatures = processDataset(dataset);
+    }
+    public void processGraphMLGraphFeatures(Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+        Verify.verify(graphFeatures == null);
+        dataset = readDataset(datasetFiles, new SWTGraphMLHandler());
+        graphFeatures = processDataset(dataset);
+    }
 
-        graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
+
+
+    public void finish(boolean skipChromaticNumber, int minImportantSubgraphSize, int importantDegreeCount, boolean analyzeAlso) {
         createComponents();
 
         if (apiOnly) {
@@ -200,9 +224,19 @@ public class GraphLOD {
         }
     }
 
-    private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
+    private Dataset readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
         Stopwatch sw = Stopwatch.createStarted();
         dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces);
+        logger.info("Loading the dataset took " + sw + " to execute.");
+        return dataset;
+    }
+
+    private Dataset readDataset(Collection<String> datasetFiles, GraphMLHandler handler) {
+        return Dataset.fromGraphML(datasetFiles.iterator().next(), this.name, handler);
+    }
+
+    private GraphFeatures processDataset(Dataset dataset) {
+        Stopwatch sw = Stopwatch.createStarted();
         if (graphRenderer != null) {
             graphRenderer.setDataset(dataset);
         }
@@ -216,7 +250,7 @@ public class GraphLOD {
         }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
 
-        logger.info("Loading the dataset took " + sw + " to execute.");
+        logger.info("Processing the dataset took " + sw + " to execute.");
         return graphFeatures;
     }
 
@@ -1851,7 +1885,7 @@ public class GraphLOD {
         //BasicConfigurator.configure();
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(arguments);
+        GraphLOD.fromArguments(arguments);
     }
 
     private void getStatistics() {
