@@ -111,7 +111,7 @@ public class Dataset {
 
     private void readGraph(Graph inputGraph, GraphMLHandler handler) {
         for (Vertex vertex : inputGraph.getVertices()) {
-            String v = vertex.getId().toString();
+            String v = handler.getVertex(vertex);
 
             simpleGraph.addVertex(v);
             g.addVertex(v);
@@ -126,9 +126,9 @@ public class Dataset {
             }
         }
         for (Edge edge : inputGraph.getEdges()) {
-            String source = edge.getVertex(Direction.OUT).getId().toString();
-            String target = edge.getVertex(Direction.IN).getId().toString();
-            String property = handler.getPropertyName(edge);
+            String source = handler.getSubject(edge);
+            String target = handler.getObject(edge);
+            String property = handler.getProperty(edge);
 
             simpleGraph.addEdge(source, target);
 
@@ -295,7 +295,7 @@ public class Dataset {
     }
 
     public String getLabel(String uri) {
-        return (labels.get(uri));
+        return labels.get(uri);
     }
 
     public String getOntologyNamespace() {

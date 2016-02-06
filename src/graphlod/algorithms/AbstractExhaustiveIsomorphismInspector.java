@@ -252,7 +252,11 @@ import java.util.Set;
             IsomorphismRelation<V, E> resultRelation = null;
             if (this.vertexPermuteIter != null) {
                 // System.out.println("Souce  LabelsGraph="+this.lableGraph1);
+                long i = 0;
                 while (this.vertexPermuteIter.hasNext()) {
+                    if (++i % 1000_000 == 0) {
+                        System.out.printf("\t\tchecked %d permutations\n", i);
+                    }
                     currVertexPermutation = this.vertexPermuteIter.getNextSet();
 
                     // compare vertexes
