@@ -1,6 +1,8 @@
 package graphlod;
 
 import graphlod.algorithms.GraphFeatures;
+import graphlod.dataset.Dataset;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,13 +15,13 @@ public class SatelliteComponentAnalysis {
     private GraphLOD graphLod;
 
     public SatelliteComponentAnalysis(ArgumentParser arguments) {
-        new SatelliteComponentAnalysis(arguments.getName(), arguments.getDataset(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        this(arguments.getName(), Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces()));
     }
 
-    public SatelliteComponentAnalysis(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
+    public SatelliteComponentAnalysis(String name, Dataset dataset) {
         logger.info("Satellite component analysis");
 
-        graphLod = GraphLOD.loadGraph(name, datasetFiles, namespace, ontologyNS, excludedNamespaces, true);
+        graphLod = GraphLOD.loadGraph(name, dataset, true);
         List<GraphFeatures> connectedComponents = graphLod.getConnectedComponents();
 
         if (connectedComponents.size() > 1) {

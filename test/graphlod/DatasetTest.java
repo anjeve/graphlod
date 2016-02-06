@@ -2,6 +2,8 @@ package graphlod;
 
 
 import graphlod.dataset.Dataset;
+import graphlod.dataset.GraphMLHandler;
+import graphlod.dataset.SWTGraphMLHandler;
 
 import javax.activation.DataSource;
 import javax.xml.crypto.Data;
@@ -19,6 +21,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
+import com.tinkerpop.blueprints.Vertex;
 
 import static graphlod.TestUtils.*;
 import static org.hamcrest.Matchers.*;
@@ -93,6 +96,24 @@ public class DatasetTest {
         assertThat(dataset.getOntologySubclasses().get(url("c1")), containsInAnyOrder(url("c11")));
     }
 
+    public class TestGraphMLHandler implements GraphMLHandler {
+        @Override
+        public String getLabel(Vertex vertex) {
+            return vertex.getProperty("url");
+        }
+
+        @Override
+        public String getClass(Vertex vertex) {
+            return vertex.getProperty("type");
+        }
+
+        @Override
+        public String getPropertyName(com.tinkerpop.blueprints.Edge edge) {
+            return edge.getProperty("property");
+        }
+    }
+
+
     @Test
     public void testGraphMl() throws IOException {
         String data = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
@@ -125,7 +146,7 @@ public class DatasetTest {
                 "  </graph>\n" +
                 "</graphml>";
 
-        Dataset ds = Dataset.fromGraphML(new ByteArrayInputStream(data.getBytes()), "GraphMLTest", "property", "type");
+        Dataset ds = Dataset.fromGraphML(new ByteArrayInputStream(data.getBytes()), "GraphMLTest", new TestGraphMLHandler());
 
         assertThat(ds.getSimpleGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
         assertThat(ds.getGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
@@ -154,7 +175,7 @@ public class DatasetTest {
     @Test
     public void testSWT() {
         String file = "C:\\data\\swt2_2015_cleaned.graphml";
-        Dataset ds = Dataset.fromGraphML(file, "SWT", "label_", "labels");
+        Dataset ds = Dataset.fromGraphML(file, "SWTGraphML", new SWTGraphMLHandler());
 
         assertThat(ds.getLabel("n0"), equalTo("https://api.github.com/users/mandyklingbeil"));
         assertThat(ds.getClassForSubject("n0"), equalTo(":GithubUser"));

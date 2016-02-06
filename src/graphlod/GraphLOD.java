@@ -3,12 +3,15 @@ package graphlod;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Verify;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.TreeMultiset;
 import com.google.common.io.Files;
 import graphlod.algorithms.GraphFeatures;
 import graphlod.algorithms.PermutationClassIsomorphismInspector;
 import graphlod.dataset.Dataset;
+import graphlod.dataset.GraphMLHandler;
+import graphlod.dataset.SWTGraphMLHandler;
 import graphlod.graph.BFSMinimizingOrderedIterator;
 import graphlod.graph.BFSOrderedIterator;
 import graphlod.graph.Degree;
@@ -66,11 +69,11 @@ public class GraphLOD {
     private GraphCsvOutput graphCsvOutput = null;
     private VertexCsvOutput vertexCsvOutput = null;
     public final GraphRenderer graphRenderer;
-    public String name;
-    public Dataset dataset;
-    private boolean exportJson;
-    private boolean exportGrami;
-    private boolean apiOnly;
+    public final String name;
+    public final Dataset dataset;
+    private final boolean exportJson;
+    private final boolean exportGrami;
+    private final boolean apiOnly;
 
     public GraphFeatures graphFeatures;
 
@@ -127,18 +130,20 @@ public class GraphLOD {
     private BufferedWriter outStatsOutboundCsv;
     public Integer bigComponentSize;
 
-    public GraphLOD(ArgumentParser arguments) {
-        this.graphRenderer = null;
-        new GraphLOD(arguments.getName(), arguments.getDataset(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(),
-                arguments.isExportGrami(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces(), arguments.getMinImportantSubgraphSize(),
-                arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), arguments.getOutput(), arguments.getThreadcount(), arguments.isApiOnly(), true);
+    public static GraphLOD fromArguments(ArgumentParser arguments) {
+        Dataset dataset = Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+        GraphLOD g = new GraphLOD(arguments.getName(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(), arguments.isExportGrami(),
+                                  arguments.getMinImportantSubgraphSize(), arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), dataset, arguments.getOutput(),
+                                  arguments.getThreadcount(), arguments.isApiOnly(), true);
+        return g;
     }
 
-    public GraphLOD(String name, Collection<String> datasetFiles, boolean skipChromaticNumber, boolean skipGraphviz,
-                    boolean exportJson, boolean exportGrami, String namespace, String ontologyNS, Collection<String> excludedNamespaces, int minImportantSubgraphSize,
-                    int importantDegreeCount, int bigComponentSize, String output, int threadCount, boolean apiOnly, boolean analyzeAlso) {
+    public GraphLOD(String name, boolean skipChromaticNumber, boolean skipGraphviz, boolean exportJson, boolean exportGrami,
+                    int minImportantSubgraphSize, int importantDegreeCount, int bigComponentSize, Dataset dataset, String output,
+                    int threadCount, boolean apiOnly, boolean analyzeAlso) {
         this.output = output;
         this.name = name;
+        this.dataset = dataset;
         this.exportJson = exportJson;
         this.exportGrami = exportGrami;
         this.apiOnly = apiOnly;
@@ -153,8 +158,8 @@ public class GraphLOD {
         } else {
             this.bigComponentSize = MAX_SIZE_FOR_PROLOD;
         }
+        graphFeatures = processDataset(dataset);
 
-        graphFeatures = readDataset(datasetFiles, namespace, ontologyNS, excludedNamespaces);
         createComponents();
 
         if (apiOnly) {
@@ -201,9 +206,8 @@ public class GraphLOD {
         }
     }
 
-    private GraphFeatures readDataset(Collection<String> datasetFiles, String namespace, String ontns, Collection<String> excludedNamespaces) {
+    private GraphFeatures processDataset(Dataset dataset) {
         Stopwatch sw = Stopwatch.createStarted();
-        dataset = Dataset.fromFiles(datasetFiles, this.name, namespace, ontns, excludedNamespaces);
         if (graphRenderer != null) {
             graphRenderer.setDataset(dataset);
         }
@@ -217,7 +221,7 @@ public class GraphLOD {
         }
         GraphFeatures graphFeatures = new GraphFeatures("main_graph", dataset.getGraph(), dataset.getSimpleGraph());
 
-        logger.info("Loading the dataset took " + sw + " to execute.");
+        logger.info("Processing the dataset took " + sw + " to execute.");
         return graphFeatures;
     }
 
@@ -2043,22 +2047,12 @@ public class GraphLOD {
      * Loads a dataset from files.
      * For ProLOD++.
      */
-    public static GraphLOD loadDataset(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, true);
-        /* GraphStatistics graphStats = new GraphStatistics();
-        return graphStats;
-        */
+    public static GraphLOD loadDataset(String name, Dataset dataset) {
+        return new GraphLOD(name, true, true, false, false, 1, 1, 0, dataset, "", 4, true, true);
     }
 
-    public static GraphLOD loadGraph(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces, boolean analyze) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, analyze);
-        /* GraphStatistics graphStats = new GraphStatistics();
-        return graphStats;
-        */
-    }
-
-    public static GraphLOD loadGraph(String name, Collection<String> datasetFiles, String namespace, String ontologyNS, Collection<String> excludedNamespaces) {
-        return new GraphLOD(name, datasetFiles, true, true, false, false, namespace, ontologyNS, excludedNamespaces, 1, 1, 0, "", 4, true, false);
+    public static GraphLOD loadGraph(String name, Dataset dataset, boolean analyze) {
+        return new GraphLOD(name, true, true, false, false, 1, 1, 0, dataset, "", 4, true, analyze);
         /* GraphStatistics graphStats = new GraphStatistics();
         return graphStats;
         */
@@ -2079,7 +2073,7 @@ public class GraphLOD {
         //BasicConfigurator.configure();
         Locale.setDefault(Locale.US);
 
-        new GraphLOD(arguments);
+        GraphLOD.fromArguments(arguments);
     }
 
     private void getStatistics() {
