@@ -864,14 +864,23 @@ public class GraphLOD {
             return false;
         }
 
-        if ((neighbourVertices.size() < 4) || (neighbourVertices.size() % 2 != 0)) {
+        boolean oneVertexWithNoNeighbourHere = false;
+        String dontAddThisVertex = null;
+        if (neighbourVertices.size() < 4) {
             return false;
         }
+
         for (String neighborV: neighbourVertices) {
             List<String> secondNeighbourVertices = Graphs.neighborListOf(graph, neighborV);
             secondNeighbourVertices.retainAll(neighbourVertices);
             if (secondNeighbourVertices.size() != 1) {
-                return false;
+                if (!oneVertexWithNoNeighbourHere) {
+                    oneVertexWithNoNeighbourHere = true;
+                    dontAddThisVertex = neighborV;
+                } else {
+                    return false;
+                }
+
             }
         }
         DirectedGraph<String, DefaultEdge> windmillGraph = new DefaultDirectedGraph<>(DefaultEdge.class);
@@ -880,6 +889,9 @@ public class GraphLOD {
         windmillGraph.addVertex(v_center);
         simpleWindmillGraph.addVertex(v_center);
         for (String vertex : neighbourVertices) {
+            if (vertex.equals(dontAddThisVertex)) {
+                continue;
+            }
             windmillGraph.addVertex(vertex);
             simpleWindmillGraph.addVertex(vertex);
             for (String alreadyAdded : simpleWindmillGraph.vertexSet()) {
@@ -905,12 +917,14 @@ public class GraphLOD {
         }
 
         boolean oneVertexWithNoNeighbourHere = false;
+        String dontAddThisVertex = null;
         for (String neighborV: neighbourVertices) {
             List<String> secondNeighbourVertices = Graphs.neighborListOf(graph, neighborV);
             secondNeighbourVertices.retainAll(neighbourVertices);
             if (secondNeighbourVertices.size() != 2) {
                 if (!oneVertexWithNoNeighbourHere && (secondNeighbourVertices.size() == 0)) {
                     oneVertexWithNoNeighbourHere = true;
+                    dontAddThisVertex = neighborV;
                 } else {
                     return false;
                 }
@@ -922,6 +936,9 @@ public class GraphLOD {
         windmillGraph.addVertex(v_center);
         simpleWindmillGraph.addVertex(v_center);
         for (String vertex : neighbourVertices) {
+            if (vertex.equals(dontAddThisVertex)) {
+                continue;
+            }
             windmillGraph.addVertex(vertex);
             simpleWindmillGraph.addVertex(vertex);
             for (String alreadyAdded : simpleWindmillGraph.vertexSet()) {
@@ -1472,6 +1489,12 @@ public class GraphLOD {
                         if (!v.equals(neighbourVertex)) {
                             path.add(neighbourVertex);
                         }
+                        List<String> neighboursOfNeighbour = GraphUtils.getNeighboursOfV(graph, neighbourVertex);
+                        for (String neighbour: neighboursOfNeighbour) {
+                            if (!neighbourVertex.equals(neighbour)) {
+                                path.add(neighbour);
+                            }
+                        }
                     }
                 } else {
                     lastVertex = true;
@@ -1521,31 +1544,41 @@ public class GraphLOD {
     }
 
     private String checkIfAllNeighboursCouldBePartOfLobster(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
-        boolean alreadyOnVerticeWithNeighbour = false;
+        boolean alreadyOneVerticeWithNeighbour = false;
         String nextV = null;
         Set<Integer> neighbourList = new HashSet<>();
         for (String v: neighbourV) {
-            // TODO check
             if (visited.contains(v)) {
                 return null;
             }
             List<String> neighboursOfV = GraphUtils.getNeighboursOfV(graph, v);
-            neighboursOfV.remove(v); // TODO rather v?
-            if (neighboursOfV.size() > 0) {
-                for (String n: neighboursOfV) {
-                    if (visited.contains(n)) {
-                        return null;
-                    }
-                }
-                if (alreadyOnVerticeWithNeighbour) {
+            neighboursOfV.remove(vertex);
+            for (String neighbour: neighboursOfV) {
+                if (visited.contains(neighbour)) {
                     return null;
                 }
-                alreadyOnVerticeWithNeighbour = true;
-                nextV = v;
+                List<String> neighboursOfNeighbour = GraphUtils.getNeighboursOfV(graph, neighbour);
+                neighboursOfNeighbour.remove(v);
+                // either no neighbours but v (caterpillar part)
+                // TODO it's ok when both ends have same length and there is no main stalk anymore
+
+                // 1 neighbour that has no other neighbour
+                // or 1 neighbour with more
+                if (neighboursOfNeighbour.size() >= 1) {
+                    // TODO check if no loops
+                    if (alreadyOneVerticeWithNeighbour) {
+                        return null;
+                    }
+                    alreadyOneVerticeWithNeighbour = true;
+                    nextV = v;
+                }
+                neighbourList.add(neighboursOfNeighbour.size());
             }
-            neighbourList.add(neighboursOfV.size());
+            // TODO rather neighboursOfNeighbour?
+            // always take stalk
+            // neighbourList.add(neighboursOfV.size());
         }
-        // if end contains only paths of length 1
+        // if end contains only paths of length 2
         if (neighbourList.contains(0) && (neighbourList.size() == 1)) {
             nextV = neighbourV.get(0);
         }
