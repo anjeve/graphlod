@@ -273,6 +273,10 @@ public class Dataset {
         return classes.get(subjectUri);
     }
 
+    public Map<String,String> getClasses() {
+        return classes;
+    }
+
     public String getClassForSubject(String subjectUri) {
         if (!classes.containsKey(subjectUri)) return "null";
         return classes.get(subjectUri);
