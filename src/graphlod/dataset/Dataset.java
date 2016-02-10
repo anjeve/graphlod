@@ -104,11 +104,11 @@ public class Dataset {
         reader.inputGraph(dataset);
 
         Dataset ds = new Dataset(name, "", "", Collections.<String>emptyList());
-        ds.readGraph(graph, handler);
+        ds.readGraph(graph, handler, false);
         return ds;
     }
 
-    private void readGraph(Graph inputGraph, GraphMLHandler handler) {
+    private void readGraph(Graph inputGraph, GraphMLHandler handler, boolean addTypeTuples) {
         for (Vertex vertex : inputGraph.getVertices()) {
             String v = handler.getVertex(vertex);
 
@@ -137,16 +137,18 @@ public class Dataset {
             g.addEdge(source, target, e);
         }
 
-        for (Map.Entry<String, String> entry : classes.entrySet()) {
-            String instance = entry.getKey();
-            String type = entry.getValue();
-            simpleGraph.addVertex(type);
-            simpleGraph.addEdge(instance, type);
-            DefaultEdge e = new DefaultEdge("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
-            e.setSource(instance);
-            e.setTarget(type);
-            g.addVertex(type);
-            g.addEdge(instance, type, e);
+        if(addTypeTuples) {
+            for (Map.Entry<String, String> entry : classes.entrySet()) {
+                String instance = entry.getKey();
+                String type = entry.getValue();
+                simpleGraph.addVertex(type);
+                simpleGraph.addEdge(instance, type);
+                DefaultEdge e = new DefaultEdge("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
+                e.setSource(instance);
+                e.setTarget(type);
+                g.addVertex(type);
+                g.addEdge(instance, type, e);
+            }
         }
         postProcessClassHierarchy();
     }
