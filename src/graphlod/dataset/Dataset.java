@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
@@ -136,6 +135,18 @@ public class Dataset {
             e.setSource(source);
             e.setTarget(target);
             g.addEdge(source, target, e);
+        }
+
+        for (Map.Entry<String, String> entry : classes.entrySet()) {
+            String instance = entry.getKey();
+            String type = entry.getValue();
+            simpleGraph.addVertex(type);
+            simpleGraph.addEdge(instance, type);
+            DefaultEdge e = new DefaultEdge("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
+            e.setSource(instance);
+            e.setTarget(type);
+            g.addVertex(type);
+            g.addEdge(instance, type, e);
         }
         postProcessClassHierarchy();
     }

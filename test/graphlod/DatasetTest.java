@@ -164,8 +164,8 @@ public class DatasetTest {
 
         Dataset ds = Dataset.fromGraphML(new ByteArrayInputStream(data.getBytes()), "GraphMLTest", new TestGraphMLHandler());
 
-        assertThat(ds.getSimpleGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
-        assertThat(ds.getGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D"));
+        assertThat(ds.getSimpleGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D", "C1", "C2"));
+        assertThat(ds.getGraph().vertexSet(), containsInAnyOrder("A", "B", "C", "D", "C1", "C2"));
 
         assertThat(ds.getOntologyClasses(), containsInAnyOrder("C1", "C2"));
         assertThat(ds.getOntologySubclasses().asMap(), hasEntry("http://www.w3.org/2002/07/owl#Thing",
@@ -176,13 +176,13 @@ public class DatasetTest {
         assertThat(ds.getClassForSubject("A"), equalTo("C1"));
         assertThat(ds.getClassForSubject("B"), equalTo("C2"));
 
-        assertThat(ds.getGraph().edgesOf("A"), hasSize(3)); // ab, ac, ca
-        assertThat(ds.getGraph().edgesOf("B"), hasSize(2)); // ab, ba
+        assertThat(ds.getGraph().edgesOf("A"), hasSize(4)); // ab, ac, ca, type
+        assertThat(ds.getGraph().edgesOf("B"), hasSize(3)); // ab, ba, type
         assertThat(ds.getGraph().edgesOf("C"), hasSize(4)); // ac, bc, ca, cd
         assertThat(ds.getGraph().edgesOf("D"), hasSize(1)); // cd
 
-        assertThat(ds.getSimpleGraph().edgesOf("A"), hasSize(2)); // ab, ca
-        assertThat(ds.getSimpleGraph().edgesOf("B"), hasSize(2)); // ab, ba
+        assertThat(ds.getSimpleGraph().edgesOf("A"), hasSize(3)); // ab, ca, type
+        assertThat(ds.getSimpleGraph().edgesOf("B"), hasSize(3)); // ab, ba, type
         assertThat(ds.getSimpleGraph().edgesOf("C"), hasSize(3)); // ac, bc, cd
         assertThat(ds.getSimpleGraph().edgesOf("D"), hasSize(1)); // cd
     }
