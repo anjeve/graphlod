@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Graph;
 import com.tinkerpop.blueprints.Vertex;
@@ -105,13 +104,13 @@ public class Dataset {
         reader.inputGraph(dataset);
 
         Dataset ds = new Dataset(name, "", "", Collections.<String>emptyList());
-        ds.readGraph(graph, handler);
+        ds.readGraph(graph, handler, false);
         return ds;
     }
 
-    private void readGraph(Graph inputGraph, GraphMLHandler handler) {
+    private void readGraph(Graph inputGraph, GraphMLHandler handler, boolean addTypeTuples) {
         for (Vertex vertex : inputGraph.getVertices()) {
-            String v = vertex.getId().toString();
+            String v = handler.getVertex(vertex);
 
             simpleGraph.addVertex(v);
             g.addVertex(v);
@@ -126,9 +125,9 @@ public class Dataset {
             }
         }
         for (Edge edge : inputGraph.getEdges()) {
-            String source = edge.getVertex(Direction.OUT).getId().toString();
-            String target = edge.getVertex(Direction.IN).getId().toString();
-            String property = handler.getPropertyName(edge);
+            String source = handler.getSubject(edge);
+            String target = handler.getObject(edge);
+            String property = handler.getProperty(edge);
 
             simpleGraph.addEdge(source, target);
 
@@ -136,6 +135,20 @@ public class Dataset {
             e.setSource(source);
             e.setTarget(target);
             g.addEdge(source, target, e);
+        }
+
+        if(addTypeTuples) {
+            for (Map.Entry<String, String> entry : classes.entrySet()) {
+                String instance = entry.getKey();
+                String type = entry.getValue();
+                simpleGraph.addVertex(type);
+                simpleGraph.addEdge(instance, type);
+                DefaultEdge e = new DefaultEdge("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
+                e.setSource(instance);
+                e.setTarget(type);
+                g.addVertex(type);
+                g.addEdge(instance, type, e);
+            }
         }
         postProcessClassHierarchy();
     }
@@ -260,6 +273,10 @@ public class Dataset {
         return classes.get(subjectUri);
     }
 
+    public Map<String,String> getClasses() {
+        return classes;
+    }
+
     public String getClassForSubject(String subjectUri) {
         if (!classes.containsKey(subjectUri)) return "null";
         return classes.get(subjectUri);
@@ -295,7 +312,7 @@ public class Dataset {
     }
 
     public String getLabel(String uri) {
-        return (labels.get(uri));
+        return labels.get(uri);
     }
 
     public String getOntologyNamespace() {

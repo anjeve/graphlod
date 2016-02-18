@@ -21,6 +21,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableList;
+import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Vertex;
 
 import static graphlod.TestUtils.*;
@@ -98,6 +99,11 @@ public class DatasetTest {
 
     public class TestGraphMLHandler implements GraphMLHandler {
         @Override
+        public String getVertex(Vertex vertex) {
+            return vertex.getId().toString();
+        }
+
+        @Override
         public String getLabel(Vertex vertex) {
             return vertex.getProperty("url");
         }
@@ -108,7 +114,17 @@ public class DatasetTest {
         }
 
         @Override
-        public String getPropertyName(com.tinkerpop.blueprints.Edge edge) {
+        public String getSubject(com.tinkerpop.blueprints.Edge edge) {
+            return edge.getVertex(Direction.OUT).getId().toString();
+        }
+
+        @Override
+        public String getObject(com.tinkerpop.blueprints.Edge edge) {
+            return  edge.getVertex(Direction.IN).getId().toString();
+        }
+
+        @Override
+        public String getProperty(com.tinkerpop.blueprints.Edge edge) {
             return edge.getProperty("property");
         }
     }
@@ -174,13 +190,13 @@ public class DatasetTest {
     @Ignore
     @Test
     public void testSWT() {
-        String file = "C:\\data\\swt2_2015_cleaned.graphml";
+        String file = "E:\\repos\\ProLOD2\\swt2_2015_cleaned.graphml";
         Dataset ds = Dataset.fromGraphML(file, "SWTGraphML", new SWTGraphMLHandler());
 
-        assertThat(ds.getLabel("n0"), equalTo("https://api.github.com/users/mandyklingbeil"));
-        assertThat(ds.getClassForSubject("n0"), equalTo(":GithubUser"));
+        assertThat(ds.getLabel("https://api.github.com/users/mandyklingbeil"), equalTo("https://api.github.com/users/mandyklingbeil"));
+        assertThat(ds.getClassForSubject("https://api.github.com/users/mandyklingbeil"), equalTo(":GithubUser"));
 
-        DefaultEdge edge = ds.getGraph().getEdge("n1", "n0");
+        DefaultEdge edge = ds.getGraph().getEdge("https://api.github.com/repos/hpi-swt2/wimi-portal/issues/58", "https://api.github.com/users/mandyklingbeil");
         assertThat((String)edge.getUserObject(), equalTo("user"));
     }
 }
