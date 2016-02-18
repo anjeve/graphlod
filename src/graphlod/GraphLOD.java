@@ -1,6 +1,7 @@
 package graphlod;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Verify;
@@ -92,11 +93,11 @@ public class GraphLOD {
     public List<String> htmlFiles = new ArrayList<>();
     public String output;
 
-    public List<SimpleGraph> connectedGraphs = new ArrayList<>();
+    public List<SimpleGraph<String, DefaultEdge>> connectedGraphs = new ArrayList<>();
     public List<String> connectedGraphsTypes = new ArrayList<>();
 
     public List<List<Integer>> isomorphicGraphs = new ArrayList<>();
-    public List<SimpleGraph> connectedGraphsGC = new ArrayList<>();
+    public List<SimpleGraph<String, DefaultEdge>> connectedGraphsGC = new ArrayList<>();
     public List<String> connectedGraphsGCTypes = new ArrayList<>();
     private List<List<Integer>> isomorphicGraphsGC = new ArrayList<>();
     public List<String> isomorphicGraphsGCTypes = new ArrayList<>();
@@ -130,8 +131,7 @@ public class GraphLOD {
     private BufferedWriter outStatsOutboundCsv;
     public Integer bigComponentSize;
 
-    public static GraphLOD fromArguments(ArgumentParser arguments) {
-        Dataset dataset = Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+    public static GraphLOD fromArguments(Dataset dataset, ArgumentParser arguments) {
         GraphLOD g = new GraphLOD(arguments.getName(), arguments.isSkipChromatic(), arguments.isSkipGraphviz(), arguments.isExportJson(), arguments.isExportGrami(),
                                   arguments.getMinImportantSubgraphSize(), arguments.getImportantDegreeCount(), arguments.getBigComponentSize(), dataset, arguments.getOutput(),
                                   arguments.getThreadcount(), arguments.isApiOnly(), true);
@@ -681,14 +681,14 @@ public class GraphLOD {
         }
     }
 
-    private void getSiameseStarsFromGC(DirectedGraph graph, boolean giantComponent) {
+    private void getSiameseStarsFromGC(DirectedGraph<String, DefaultEdge> graph, boolean giantComponent) {
         logger.info("Siamese Stars");
-        List<String> typesToAdd = new ArrayList();
-        List verticesinSiameseStars = new ArrayList();
+        List<String> typesToAdd = new ArrayList<>();
+        List<String> verticesinSiameseStars = new ArrayList<>();
         for (ListIterator<String> iterator = this.connectedGraphsGCTypes.listIterator(); iterator.hasNext(); ) {
             String patternType = iterator.next();
             int index = this.connectedGraphsGCTypes.indexOf(patternType);
-            SimpleGraph simpleGraph = this.connectedGraphsGC.get(index);
+            SimpleGraph<String, DefaultEdge> simpleGraph = this.connectedGraphsGC.get(index);
             if (patternType.equals(STAR)) {
                 boolean alsoInOtherStar = checkIfAnyVerticeInStarIsAlsoInAnotherStar(simpleGraph.vertexSet(), verticesinSiameseStars);
                 if (!alsoInOtherStar) continue;
@@ -743,7 +743,7 @@ public class GraphLOD {
     private boolean checkIfAnyVerticeInStarIsAlsoInAnotherStar(Set<String> vertices, List verticesinSiameseStars) {
         Set<Integer> stars = new HashSet<>();
         for (String v: vertices) {
-            if ((this.verticesInPatterns.get(v).size() > 1) && (!verticesinSiameseStars.contains(v.toString()))) {
+            if ((this.verticesInPatterns.get(v).size() > 1) && (!verticesinSiameseStars.contains(v))) {
                 for (Integer id : this.verticesInPatterns.get(v)) {
                     if (this.connectedGraphsGCTypes.get(id).equals(STAR)) {
                        stars.add(id);
@@ -757,7 +757,7 @@ public class GraphLOD {
         return false;
     }
 
-    private boolean checkDoublyLinkedPathsFromGC(DirectedGraph graph, String v, List<String> verticesInDoublyLinkedLists, boolean giantComponent) {
+    private boolean checkDoublyLinkedPathsFromGC(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInDoublyLinkedLists, boolean giantComponent) {
         // Check if this is not the first vertex of a doubly linked list
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v);
         if (neighbourVertices.size() == 2) {
@@ -812,7 +812,7 @@ public class GraphLOD {
         return true;
     }
 
-    private List<String> checkVertexInLinkedList(DirectedGraph graph, String v, List<String> visited) {
+    private List<String> checkVertexInLinkedList(DirectedGraph<String, DefaultEdge> graph, String v, List<String> visited) {
         visited.add(v);
         Set<DefaultEdge> outgoing = graph.outgoingEdgesOf(v);
         String nextVertex = null;
@@ -857,7 +857,7 @@ public class GraphLOD {
         return false;
     }
 
-    private boolean checkVertexAsCentreOfWindmill(DirectedGraph graph, String v_center, List<String> verticesInWindmills, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfWindmill(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesInWindmills, boolean giantComponent) {
         List<String> neighbourVertices = Graphs.neighborListOf(graph, v_center);
 
         if (!giantComponent && ((neighbourVertices.size() + 1) < graph.vertexSet().size())) {
@@ -894,7 +894,7 @@ public class GraphLOD {
         return true;
     }
 
-    private boolean checkVertexAsCentreOfWheel(DirectedGraph graph, String v_center, List<String> verticesinWheels, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfWheel(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesinWheels, boolean giantComponent) {
         List<String> neighbourVertices = Graphs.neighborListOf(graph, v_center);
         if (neighbourVertices.size() < 4) {
             return false;
@@ -936,7 +936,7 @@ public class GraphLOD {
         return true;
     }
 
-    private boolean checkVertexAsCentreOfMixedStar(DirectedGraph graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfMixedStar(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v_center);
         if (neighbourVertices.size() < 4) {
             return false;
@@ -1027,14 +1027,14 @@ public class GraphLOD {
 
     private void addStats(String v_center, List<String> surroundingVertices, BufferedWriter writer) {
         String centerNodeClass = dataset.getClassForSubject(v_center);
-        HashMap<String, Integer> classesSurrounding = new HashMap<String, Integer>();
+        HashMap<String, Integer> classesSurrounding = new HashMap<>();
         for (String v : surroundingVertices) {
             String nodeClass = dataset.getClassForSubject(v);
             Integer subjectsPerClass = 1;
             if (classesSurrounding.containsKey(nodeClass)) subjectsPerClass += classesSurrounding.get(nodeClass);
             classesSurrounding.put(nodeClass, subjectsPerClass);
         }
-        Map<String, Integer> sortedMap = new TreeMap<String, Integer>(classesSurrounding);
+        Map<String, Integer> sortedMap = new TreeMap<>(classesSurrounding);
         try {
             writer.write(centerNodeClass);
             for (Map.Entry<String, Integer> entry : sortedMap.entrySet()) {
@@ -1049,7 +1049,7 @@ public class GraphLOD {
         //stats.put(centerNodeClass, classesSurrounding);
     }
 
-    private boolean checkVertexAsStartOfCircle(DirectedGraph graph, String v, List<String> verticesInCircles, boolean giantComponent) {
+    private boolean checkVertexAsStartOfCircle(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInCircles, boolean giantComponent) {
         List<String> path = checkVertexAsPartOfCircle(graph, v, new ArrayList<String>());
 
         if (!giantComponent && (path.size() < graph.vertexSet().size())) {
@@ -1175,7 +1175,7 @@ public class GraphLOD {
         }
     }
 
-    private List<String> checkVertexAsPartOfCircle(DirectedGraph graph, String v, List<String> visited) {
+    private List<String> checkVertexAsPartOfCircle(DirectedGraph<String, DefaultEdge> graph, String v, List<String> visited) {
         // TODO allow more vertices on other than first node!
         String nextVertex = null;
         boolean lastVertex = false;
@@ -1232,7 +1232,7 @@ public class GraphLOD {
         return path;
     }
 
-    private boolean checkVertexAsStartOfPath(DirectedGraph graph, String v, List<String> verticesInPaths, List<String> verticesInOtherPatterns, boolean giantComponent, List<String> iteratedVertices) {
+    private boolean checkVertexAsStartOfPath(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInPaths, List<String> verticesInOtherPatterns, boolean giantComponent, List<String> iteratedVertices) {
         // Check if this is not the first vertex of a path
         List<String> neighbourV = GraphUtils.getNeighboursOfV(graph, v);
         if (GraphUtils.getNeighboursOfV(graph, v).size() == 2) {
@@ -1314,7 +1314,7 @@ public class GraphLOD {
         return path;
     }
 
-    private boolean checkVertexAsStartOfLobster(DirectedGraph graph, String v, List<String> verticesInLobsters, boolean giantComponent) {
+    private boolean checkVertexAsStartOfLobster(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInLobsters, boolean giantComponent) {
         List<String> pathInLobster = new ArrayList<>();
         List<String> path = checkVertexAsPartOfLobster(graph, v, new ArrayList<String>(), pathInLobster);
         if (path.size() <= pathInLobster.size()) return false;
@@ -1345,7 +1345,7 @@ public class GraphLOD {
         return true;
     }
 
-    private boolean checkVertexAsStartOfCaterpillar(DirectedGraph graph, String v, List<String> verticesInCaterpillars, boolean giantComponent) {
+    private boolean checkVertexAsStartOfCaterpillar(DirectedGraph<String, DefaultEdge> graph, String v, List<String> verticesInCaterpillars, boolean giantComponent) {
         List<String> pathInCaterpillar = new ArrayList<>();
         List<String> path = checkVertexAsPartOfCaterpillar(graph, v, new ArrayList<String>(), pathInCaterpillar);
         if (path.size() <= pathInCaterpillar.size()) return false;
@@ -1376,7 +1376,7 @@ public class GraphLOD {
         return true;
     }
 
-    private List<String> checkVertexAsPartOfCaterpillar(DirectedGraph graph, String v, List<String> visited, List<String> mainPath) {
+    private List<String> checkVertexAsPartOfCaterpillar(DirectedGraph<String, DefaultEdge> graph, String v, List<String> visited, List<String> mainPath) {
         if (visited.contains(v)) return new ArrayList<>();
 
         String nextVertex = null;
@@ -1432,7 +1432,7 @@ public class GraphLOD {
         return path;
     }
 
-    private List<String> checkVertexAsPartOfLobster(DirectedGraph graph, String v, List<String> visited, List<String> mainPath) {
+    private List<String> checkVertexAsPartOfLobster(DirectedGraph<String, DefaultEdge> graph, String v, List<String> visited, List<String> mainPath) {
         if (visited.contains(v)) return new ArrayList<>();
 
         String nextVertex = null;
@@ -1488,7 +1488,7 @@ public class GraphLOD {
         return path;
     }
 
-    private String checkIfAllNeighboursCouldBePartOfCaterpillar(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
+    private String checkIfAllNeighboursCouldBePartOfCaterpillar(DirectedGraph<String, DefaultEdge> graph, List<String> neighbourV, String vertex, List<String> visited) {
         boolean alreadyOnVerticeWithNeighbour = false;
         String nextV = null;
         Set<Integer> neighbourList = new HashSet<>();
@@ -1520,7 +1520,7 @@ public class GraphLOD {
         return nextV;
     }
 
-    private String checkIfAllNeighboursCouldBePartOfLobster(DirectedGraph graph, List<String> neighbourV, String vertex, List<String> visited) {
+    private String checkIfAllNeighboursCouldBePartOfLobster(DirectedGraph<String, DefaultEdge> graph, List<String> neighbourV, String vertex, List<String> visited) {
         boolean alreadyOnVerticeWithNeighbour = false;
         String nextV = null;
         Set<Integer> neighbourList = new HashSet<>();
@@ -1552,7 +1552,7 @@ public class GraphLOD {
         return nextV;
     }
 
-    private boolean checkVertexAsCentreOfAntenna(DirectedGraph graph, String v_center, List<String> verticesInAntennas, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfAntenna(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesInAntennas, boolean giantComponent) {
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v_center);
         if (neighbourVertices.size() < 4) {
             return false;
@@ -1595,7 +1595,7 @@ public class GraphLOD {
         return true;
     }
 
-    private boolean checkVertexAsCentreOfInboundStar(DirectedGraph graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfInboundStar(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v_center);
         if (neighbourVertices.size() < 4) {
             return false;
@@ -1685,7 +1685,7 @@ public class GraphLOD {
 
     }
 
-    private void getWalks(SimpleGraph<String, DefaultEdge>  g) {
+    private void getWalks(SimpleGraph<String, DefaultEdge> g) {
         int highestDegree = 0;
         List<String> vertices = new ArrayList<>();
         HashMap<String, String> classes = new HashMap<>();
@@ -1722,7 +1722,7 @@ public class GraphLOD {
 
     }
 
-    private boolean checkVertexAsCentreOfOutboundStar(DirectedGraph graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
+    private boolean checkVertexAsCentreOfOutboundStar(DirectedGraph<String, DefaultEdge> graph, String v_center, List<String> verticesInStars, boolean giantComponent) {
         List<String> neighbourVertices = GraphUtils.getNeighboursOfV(graph, v_center);
         if (neighbourVertices.size() < 4) {
             return false;
@@ -1809,7 +1809,7 @@ public class GraphLOD {
         }
     }
 
-    private void groupIsomorphicGraphs(List<SimpleGraph> connectedGraphs, List<String> connectedGraphsTypes, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
+    private void groupIsomorphicGraphs(List<SimpleGraph<String, DefaultEdge>> connectedGraphs, List<String> connectedGraphsTypes, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
         int i = 0;
         String type;
         for (SimpleGraph connectedSet : connectedGraphs) {
@@ -1860,7 +1860,7 @@ public class GraphLOD {
         groupIsomorphicGraphsByColor(connectedGraphs, isomorphicGraphs, isomorphicGraphsTypes, colorIsomorphicPatterns, patterns, coloredPatterns, patternsWithSurrounding);
     }
 
-    private void groupIsomorphicGraphsByColor(List<SimpleGraph> connectedGraphs, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
+    private void groupIsomorphicGraphsByColor(List<SimpleGraph<String, DefaultEdge>> connectedGraphs, List<List<Integer>> isomorphicGraphs, List<String> isomorphicGraphsTypes, HashMap<Integer, List<String>> colorIsomorphicPatterns, HashMap<Integer, HashMap<String, Integer>> patterns, HashMap<Integer, HashMap<Integer, List<String>>> coloredPatterns, List<String> patternsWithSurrounding) {
         logger.info("Color isomorphism groups for patterns");
         for (List<Integer> isomorphicGraphList : isomorphicGraphs) {
             Integer indexIsomorphicList = isomorphicGraphs.indexOf(isomorphicGraphList);
@@ -1871,19 +1871,19 @@ public class GraphLOD {
                 this.graphRenderer.writeDotFile(index.toString(), graphFeatures.get(isomorphicGraphList.get(0)), false);
             }
             */
-            List<SimpleGraph> isomorphicGraphsTemp = new ArrayList<>();
+            List<SimpleGraph<String, DefaultEdge>> isomorphicGraphsTemp = new ArrayList<>();
 
-            List<SimpleGraph> colorIsoGF = new ArrayList();
+            List<SimpleGraph<String, DefaultEdge>> colorIsoGF = new ArrayList<>();
             // TODO right here?
             Integer colorIsoGroupIndex = -1;
             for (Integer graphNr : isomorphicGraphList) {
                 logger.debug("\tChecking color isomorphism for graph {}.", graphNr);
 
-                SimpleGraph gf = connectedGraphs.get(graphNr);
+                SimpleGraph<String, DefaultEdge> gf = connectedGraphs.get(graphNr);
                 isomorphicGraphsTemp.add(gf);
 
                 boolean newColorIsomorphismGroup = true;
-                for (SimpleGraph coloredGF: colorIsoGF) {
+                for (SimpleGraph<String, DefaultEdge> coloredGF: colorIsoGF) {
                     Set<String> verticesOfGraph = gf.vertexSet();
                     Set<String> verticesOfGraphToCheck = coloredGF.vertexSet();
                     List<String> classesGraph = new ArrayList<>();
@@ -1901,7 +1901,7 @@ public class GraphLOD {
                     }
 
 
-                    PermutationClassIsomorphismInspector inspector = new PermutationClassIsomorphismInspector(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
+                    PermutationClassIsomorphismInspector<String, DefaultEdge> inspector = new PermutationClassIsomorphismInspector<>(coloredGF, gf); // , new VertexDegreeEquivalenceComparator(), null
                     if (dataset.getName().equals("diseasome") && (indexIsomorphicList == 3) && (graphNr == 7)) {
                         continue;
                     }
@@ -1957,7 +1957,7 @@ public class GraphLOD {
                 // TODO type
                 String json = JsonOutput.getJson(connectedGraphs.get(isomorphicGraphList.get(0)), isomorphicListType).toString();
                 logger.info(json);
-                HashMap patternTemp = new HashMap<>();
+                HashMap<String, Integer> patternTemp = new HashMap<>();
                 patternTemp.put(json, isomorphicGraphList.size());
                 patterns.put(indexIsomorphicList, patternTemp);
                 // TODO

@@ -80,12 +80,12 @@ public class GraphRenderer {
 	}
 
     public void writeDotFile(String type, GraphFeatures features, boolean colored) {
-    	ArrayList<GraphFeatures> featureList = new ArrayList<GraphFeatures>();
+    	ArrayList<GraphFeatures> featureList = new ArrayList<>();
     	featureList.add(features);
     	writeDotFiles(type, featureList, colored);
     }
 
-    public void writeDotFilesGC(String type, List<SimpleGraph> graphs, boolean colored) {
+    public void writeDotFilesGC(String type, List<SimpleGraph<String, DefaultEdge>> graphs, boolean colored) {
         this.colored = colored;
         try {
             int c = 0;
