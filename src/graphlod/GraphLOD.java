@@ -2040,7 +2040,15 @@ public class GraphLOD {
         //BasicConfigurator.configure();
         Locale.setDefault(Locale.US);
 
-        GraphLOD.fromArguments(arguments);
+        Dataset dataset = Dataset.fromFiles(arguments.getDataset(), arguments.getName(), arguments.getNamespace(), arguments.getOntns(), arguments.getExcludedNamespaces());
+
+        if (arguments.isRunGrami()) {
+            GramiAnalysis g = new GramiAnalysis();
+            List<GramiAnalysis.GraphPattern> result = g.run(dataset);
+            System.out.println(Joiner.on("\n").join(result));
+        } else {
+            GraphLOD.fromArguments(dataset, arguments);
+        }
     }
 
     private void getStatistics() {
