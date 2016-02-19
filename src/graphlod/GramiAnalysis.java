@@ -99,7 +99,6 @@ public class GramiAnalysis {
                 pEdges.put(node2, node1);
             }
         }
-
         return new GraphPattern(pNodes, pEdges);
     }
 

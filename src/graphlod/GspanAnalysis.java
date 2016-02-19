@@ -1,4 +1,4 @@
-package graphlod.utils;
+package graphlod;
 
 public class GspanAnalysis {
 }
