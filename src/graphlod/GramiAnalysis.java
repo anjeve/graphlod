@@ -13,9 +13,9 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.grami.directed_patterns.dataStructures.Graph;
-import com.grami.directed_patterns.dataStructures.HPListGraph;
-import com.grami.directed_patterns.search.Searcher;
+import com.grami.undirected_patterns.dataStructures.Graph;
+import com.grami.undirected_patterns.dataStructures.HPListGraph;
+import com.grami.undirected_patterns.search.Searcher;
 
 public class GramiAnalysis {
 
