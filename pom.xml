@@ -56,7 +56,7 @@
         <dependency>
             <groupId>com.github.xchrdw.grami</groupId>
             <artifactId>GRAMI_UNDIRECTED_PATTERNS</artifactId>
-            <version>8444e8a5b7583dbe0b88625348d385f4ff2a7266</version>
+            <version>7cd75cedafc0af75bca551d5651bea9fa761349e</version>
         </dependency>
         <!--
         <dependency>

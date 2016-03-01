@@ -85,7 +85,7 @@ public class GramiAnalysis {
 
     private GraphPattern getGraphPattern(HPListGraph<Integer, Integer> graph, Map<Integer, String> nodeMap, Dataset dataset) {
         List<String> pNodes = Lists.newArrayList();
-        Map<String, String> pEdges = Maps.newHashMap();
+        List<Map.Entry<String, String>> pEdges = Lists.newArrayList();
 
         BitSet nodes = graph.getNodes();
         BitSet edges = graph.getEdges();
@@ -93,7 +93,7 @@ public class GramiAnalysis {
         for (int nodeIdx = nodes.nextSetBit(0); nodeIdx >= 0; nodeIdx = nodes.nextSetBit(nodeIdx + 1)) {
             String node = nodeMap.get(nodeIdx);
             String label = dataset.getClassForSubject(node);
-            node += "(" + label + ")";
+            node += " (" + label + ")";
             pNodes.add(node);
         }
 
@@ -102,9 +102,9 @@ public class GramiAnalysis {
             String node2 = nodeMap.get(graph.getNodeB(edgeIdx));
 
             if (graph.getDirection(edgeIdx) >= 0) {
-                pEdges.put(node1, node2);
+                pEdges.add(Maps.immutableEntry(node1, node2));
             } else {
-                pEdges.put(node2, node1);
+                pEdges.add(Maps.immutableEntry(node2, node1));
             }
         }
         return new GraphPattern(pNodes, pEdges, graph.toString());
@@ -112,10 +112,10 @@ public class GramiAnalysis {
 
     public static class GraphPattern {
         public List<String> nodes;
-        public Map<String, String> edges;
+        public List<Map.Entry<String, String>> edges;
         public String graph;
 
-        public GraphPattern(List<String> nodes, Map<String, String> edges, String graph) {
+        public GraphPattern(List<String> nodes, List<Map.Entry<String, String>> edges, String graph) {
             this.nodes = nodes;
             this.edges = edges;
             this.graph = graph;
