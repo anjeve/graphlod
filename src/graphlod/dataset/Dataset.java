@@ -1,21 +1,13 @@
 package graphlod.dataset;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.Graph;
+import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.impls.tg.TinkerGraph;
+import com.tinkerpop.blueprints.util.io.graphml.GraphMLReader;
 import org.apache.commons.lang3.Validate;
 import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
@@ -26,15 +18,12 @@ import org.semanticweb.yars.nx.parser.NxParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
-import com.tinkerpop.blueprints.Direction;
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Graph;
-import com.tinkerpop.blueprints.Vertex;
-import com.tinkerpop.blueprints.impls.tg.TinkerGraph;
-import com.tinkerpop.blueprints.util.io.graphml.GraphMLReader;
+import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class Dataset {
     private static Logger logger = LoggerFactory.getLogger(Dataset.class);
@@ -263,6 +252,18 @@ public class Dataset {
     public String getClassForSubject(String subjectUri) {
         if (!classes.containsKey(subjectUri)) return "null";
         return classes.get(subjectUri);
+    }
+
+    public List<String> getClassForSubjects(List<String> subjectUris) {
+        List<String> classList = new ArrayList<>();
+        for (String subjectUri: subjectUris) {
+            if (!classes.containsKey(subjectUri)) {
+                classList.add("null");
+            } else {
+                classList.add(classes.get(subjectUri));
+            }
+        }
+        return classList;
     }
 
     private void cleanup() {
