@@ -55,8 +55,8 @@
         </dependency>
         <dependency>
             <groupId>com.github.xchrdw.grami</groupId>
-            <artifactId>GRAMI_DIRECTED_PATTERNS</artifactId>
-            <version>0.1-SNAPSHOT</version>
+            <artifactId>GRAMI_UNDIRECTED_PATTERNS</artifactId>
+            <version>8444e8a5b7583dbe0b88625348d385f4ff2a7266</version>
         </dependency>
         <!--
         <dependency>
