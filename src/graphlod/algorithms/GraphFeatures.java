@@ -22,8 +22,10 @@ import java.util.*;
 public class GraphFeatures {
 	private DirectedGraph<String, DefaultEdge> graph;
 	private ConnectivityInspector<String, DefaultEdge> connectivity;
+	private List<Integer> degrees = null;
 	private List<Integer> indegrees = null;
 	private List<Integer> outdegrees = null;
+	private List<Degree> degrees2 = null;
 	private List<Degree> indegrees2 = null;
 	private List<Degree> outdegrees2 = null;
 	private Set<String> vertices;
@@ -368,6 +370,26 @@ public class GraphFeatures {
         return true;
 	}
 
+	public List<Degree> getDegrees2() {
+		if (this.degrees2 == null) {
+			getDegrees();
+		}
+		return this.indegrees2;
+	}
+
+	public List<Integer> getDegrees() {
+		if (this.degrees == null) {
+			this.degrees = new ArrayList<>();
+			this.degrees2 = new ArrayList<>();
+			for (String vertex : this.vertices) {
+				int d = this.graph.inDegreeOf(vertex) + this.graph.outDegreeOf(vertex);
+				this.degrees.add(d);
+				this.degrees2.add(new Degree(vertex, d));
+			}
+		}
+		return this.degrees;
+	}
+
 	public List<Integer> getIndegrees() {
 		if (this.indegrees == null) {
 			this.indegrees = new ArrayList<>();
@@ -454,6 +476,16 @@ public class GraphFeatures {
 			getOutdegrees();
 		}
 		return CollectionUtils.maxValues(outdegrees2, count);
+	}
+
+	public List<Degree> maxDegrees(int count) {
+		if (this.degrees2 == null) {
+			getDegrees();
+		}
+		if(this.degrees2.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return CollectionUtils.maxValues(this.degrees2, count);
 	}
 
 	public List<Degree> maxInDegrees(int count) {
