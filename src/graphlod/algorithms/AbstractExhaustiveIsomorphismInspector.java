@@ -257,6 +257,9 @@ import java.util.Set;
                     if (++i % 1000_000 == 0) {
                         System.out.printf("\t\tchecked %d permutations\n", i);
                     }
+                    if (++i % 50000000 == 0) {
+                        break;
+                    }
                     currVertexPermutation = this.vertexPermuteIter.getNextSet();
 
                     // compare vertexes
