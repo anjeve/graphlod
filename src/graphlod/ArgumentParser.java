@@ -20,6 +20,7 @@ public class ArgumentParser {
     private final boolean exportGrami;
     private final List<String> excludedNamespaces;
     private final Boolean runGrami;
+    private final Boolean runGspan;
     private String ontns;
     private final String namespace;
     private final int minImportantSubgraphSize;
@@ -49,6 +50,7 @@ public class ArgumentParser {
         parser.addArgument("--output").type(String.class).setDefault("");
         parser.addArgument("--exportJson").action(Arguments.storeTrue());
         parser.addArgument("--runGrami").action(Arguments.storeTrue());
+        parser.addArgument("--runGspan").action(Arguments.storeTrue());
         parser.addArgument("--exportGrami").action(Arguments.storeTrue());
         parser.addArgument("--maxSize").type(Integer.class).action(Arguments.store()).setDefault(MAX_SIZE_FOR_PROLOD);
         Namespace result = null;
@@ -86,6 +88,7 @@ public class ArgumentParser {
         output = result.getString("output");
         bigComponentSize = result.getInt("maxSize");
         runGrami = result.getBoolean("runGrami");
+        runGspan = result.getBoolean("runGspan");
 
         logger.info("reading: " + dataset);
         logger.info("name: " + name);
@@ -167,5 +170,9 @@ public class ArgumentParser {
 
     public boolean isRunGrami() {
         return runGrami;
+    }
+
+    public boolean isRunGspan() {
+        return runGspan;
     }
 }

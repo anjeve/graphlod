@@ -1217,7 +1217,7 @@ public class GraphLOD {
                 addEdges(simpleGraph, graph.getAllEdges(alreadyAdded, vertex), alreadyAdded, vertex);
             }
         }
-        addPatterns(new ArrayList(), vertexList, graph, directedGraph, simpleGraph, directedGraphSurrounding, patternType, giantComponent);
+        addPatterns(new ArrayList<>(), vertexList, graph, directedGraph, simpleGraph, directedGraphSurrounding, patternType, giantComponent);
     }
 
     private void addPatterns(DirectedGraph<String, DefaultEdge> graph, DirectedSubgraph<String, DefaultEdge> subgraph, String patternType, boolean giantComponent) {
@@ -2279,6 +2279,9 @@ public class GraphLOD {
             GramiAnalysis g = new GramiAnalysis();
             List<GramiAnalysis.GraphPattern> result = g.run(dataset);
             System.out.println(Joiner.on("\n").join(result));
+        } else if (arguments.isRunGspan()) {
+          GspanAnalysis g = new GspanAnalysis();
+            g.run(dataset);
         } else {
             GraphLOD.fromArguments(dataset, arguments);
         }
