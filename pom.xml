@@ -51,7 +51,7 @@
         <dependency>
             <groupId>com.github.xchrdw</groupId>
             <artifactId>parsemis</artifactId>
-            <version>0.1-SNAPSHOT</version>
+            <version>002ef5d08fa0a2a8b152d4547a4193ddd2879102</version>
         </dependency>
         <dependency>
             <groupId>com.github.xchrdw.grami</groupId>
