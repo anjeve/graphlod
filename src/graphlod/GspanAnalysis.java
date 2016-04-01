@@ -32,7 +32,7 @@ public class GspanAnalysis {
     void run(Dataset dataset) {
 //        Settings.printUsage(err);
         GraphParser<String, String> parser = new SimpleDirectedGraphParser(new StringLabelParser(), new StringLabelParser());
-        Settings<String, String> settings = Settings.parse(new String[]{"--graphFile=null", "--minimumFrequency=1"}, parser); // --threads=int
+        Settings<String, String> settings = Settings.parse(new String[]{"--graphFile=null", "--minimumFrequency=20"}, parser); // --threads=int
         if (settings == null) {
             Settings.printUsage(err);
         }
@@ -43,7 +43,7 @@ public class GspanAnalysis {
         // Add nodes to graph.
         Set<String> vertices = dataset.getGraph().vertexSet();
         for (String vertex : vertices) {
-            nodes.put(vertex, graph.addNodeIndex(vertex));
+            nodes.put(vertex, graph.addNodeIndex(dataset.getClassForSubject(vertex)));
         }
 
         // Add edges to graph.
@@ -54,7 +54,7 @@ public class GspanAnalysis {
 
         Collection<Graph<String,String>> graphs = ImmutableList.of(graph.toGraph());
         Collection<Fragment<String, String>> result = Miner.mine(graphs, settings);
-
+        System.out.println("done - " + result.size());
         for (Fragment<String, String> fragment : result) {
             System.out.println(fragment);
         }
