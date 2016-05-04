@@ -74,6 +74,7 @@ public class Dataset {
             }
             s.readTriples(nxp);
             logger.info("Finished reading " + dataset);
+            logger.info("Found " + s.g.vertexSet().size() + " triples.");
         }
         s.cleanup();
         return s;
@@ -154,16 +155,27 @@ public class Dataset {
             String propertyUri = nodes[1].toString();
             String objectUri = nodes[2].toString();
 
-            if (propertyUri.equals("http://www.w3.org/2000/01/rdf-schema#label")) {
-                labels.put(subjectUri, objectUri);
-            }
-
             if (!isValid(subjectUri) || !isValid(propertyUri) || !isValid(objectUri)) {
                 continue;
             }
 
             if (subjectUri.equals(objectUri)) {
                 continue;
+            }
+
+            /*
+            if (!(subjectUri.endsWith("Lyudmila_Chernykh") || subjectUri.endsWith("Nikolai_Chernykh")
+                || objectUri.endsWith("Lyudmila_Chernykh") || objectUri.endsWith("Nikolai_Chernykh")
+                || objectUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#Class") ||
+                    subjectUri.startsWith(ontologyNamespace))) {
+                continue;
+            } else {
+                logger.info(subjectUri + " " + objectUri);
+            }
+            */
+
+            if (propertyUri.equals("http://www.w3.org/2000/01/rdf-schema#label")) {
+                labels.put(subjectUri, objectUri);
             }
 
             if (propertyUri.equals("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) {

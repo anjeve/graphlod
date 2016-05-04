@@ -16,6 +16,7 @@ public class ArgumentParser {
     private final boolean skipChromatic;
     private final boolean skipGraphviz;
     private final boolean apiOnly;
+    private final boolean numbersOnly;
     private final boolean exportJson;
     private final boolean exportGrami;
     private final List<String> excludedNamespaces;
@@ -42,6 +43,7 @@ public class ArgumentParser {
         parser.addArgument("--excludedNamespaces").nargs("*").setDefault(Collections.emptyList());
         parser.addArgument("--skipChromatic").action(Arguments.storeTrue());
         parser.addArgument("--apiOnly").action(Arguments.storeTrue());
+        parser.addArgument("--numbersOnly").action(Arguments.storeTrue());
         parser.addArgument("--skipGraphviz").action(Arguments.storeTrue());
         parser.addArgument("--minImportantSubgraphSize").type(Integer.class).action(Arguments.store()).setDefault(1);
         parser.addArgument("--importantDegreeCount").type(Integer.class).action(Arguments.store()).setDefault(5);
@@ -79,6 +81,7 @@ public class ArgumentParser {
         skipChromatic = result.getBoolean("skipChromatic");
         skipGraphviz = result.getBoolean("skipGraphviz");
         apiOnly = result.getBoolean("apiOnly");
+        numbersOnly = result.getBoolean("numbersOnly");
         exportJson = result.getBoolean("exportJson");
         exportGrami = result.getBoolean("exportGrami");
         minImportantSubgraphSize = result.getInt("minImportantSubgraphSize");
@@ -114,6 +117,10 @@ public class ArgumentParser {
 
     public boolean isApiOnly() {
         return apiOnly;
+    }
+
+    public boolean isNumbersOnly() {
+        return numbersOnly;
     }
 
     public boolean isExportJson() {

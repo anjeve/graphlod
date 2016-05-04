@@ -555,7 +555,7 @@ public class GraphFeatures {
 			Set<DefaultEdge> edges = this.graph.edgesOf(vertex);
 			if (degreeCounts.containsKey(edges.size())) {
 				int oldDegreeCount = degreeCounts.get(edges.size());
-				degreeCounts.put(edges.size(), oldDegreeCount+1);
+				degreeCounts.put(edges.size(), oldDegreeCount + 1);
 			} else {
 				degreeCounts.put(edges.size(), 1);
 			}
